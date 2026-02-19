@@ -1,11 +1,71 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useBudgetData } from "@/hooks/useBudgetData";
+import { SummaryCards } from "@/components/SummaryCards";
+import { ExpenseChart } from "@/components/ExpenseChart";
+import { ExpensePieChart } from "@/components/ExpensePieChart";
+import { TransactionTable } from "@/components/TransactionTable";
+import { BudgetBreakdown } from "@/components/BudgetBreakdown";
+import { Wallet } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = () => {
+  const { data, isLoading, error } = useBudgetData();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <Skeleton className="h-10 w-64" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-28 rounded-lg" />
+            ))}
+          </div>
+          <Skeleton className="h-80 rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-destructive">ไม่สามารถโหลดข้อมูลได้</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-background p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-3 animate-fade-in">
+          <div className="bg-primary text-primary-foreground p-2.5 rounded-xl">
+            <Wallet className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold font-display">งบประมาณประจำเดือน{data.month}</h1>
+            <p className="text-sm text-muted-foreground">
+              อัปเดตล่าสุด: {new Date(data.timestamp).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}
+            </p>
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        <SummaryCards data={data} />
+
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ExpenseChart data={data} />
+          <ExpensePieChart data={data} />
+        </div>
+
+        {/* Budget Tracking + Transactions */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <BudgetBreakdown data={data} />
+          <div className="lg:col-span-2">
+            <TransactionTable data={data} />
+          </div>
+        </div>
       </div>
     </div>
   );
