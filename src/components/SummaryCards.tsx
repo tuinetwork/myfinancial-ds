@@ -42,6 +42,7 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
       icon: TrendingUp,
       color: "text-income" as const,
       bgColor: "bg-income/10" as const,
+      cardBg: "bg-income/5" as const,
     },
     {
       title: "ค่าใช้จ่าย",
@@ -51,6 +52,7 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
       icon: TrendingDown,
       color: "text-expense" as const,
       bgColor: "bg-expense/10" as const,
+      cardBg: "bg-expense/5" as const,
     },
     {
       title: "หนี้สิน",
@@ -60,6 +62,7 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
       icon: CreditCard,
       color: "text-debt" as const,
       bgColor: "bg-debt/10" as const,
+      cardBg: "bg-debt/5" as const,
     },
     {
       title: "เงินออม",
@@ -69,6 +72,7 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
       icon: PiggyBank,
       color: "text-saving" as const,
       bgColor: "bg-saving/10" as const,
+      cardBg: "bg-saving/5" as const,
     },
   ];
 
@@ -77,7 +81,7 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
       {cards.map((card, i) => (
         <Card
           key={card.title}
-          className="animate-fade-in border-none shadow-sm"
+          className={`animate-fade-in border-none shadow-sm ${card.cardBg}`}
           style={{ animationDelay: `${i * 80}ms` }}
         >
           <CardContent className="p-5">
@@ -96,7 +100,7 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
                 </div>
               </div>
             </div>
-            <p className={`text-xl font-bold font-display ${card.color}`}>
+            <p className={`text-2xl sm:text-3xl font-bold font-display ${card.color}`}>
               {formatCurrency(card.primary)}
             </p>
             {(() => {
