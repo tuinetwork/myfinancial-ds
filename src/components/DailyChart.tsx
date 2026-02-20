@@ -20,7 +20,7 @@ export function DailyChart({ data }: Props) {
   const dailyMap: Record<string, { income: number; expense: number }> = {};
 
   data.transactions.forEach((t) => {
-    const day = t.date; // e.g. "01", "02" or full date
+    const day = t.date;
     if (!dailyMap[day]) dailyMap[day] = { income: 0, expense: 0 };
     if (t.type === "รายรับ") {
       dailyMap[day].income += t.amount;
@@ -29,7 +29,6 @@ export function DailyChart({ data }: Props) {
     }
   });
 
-  // Sort by day and build cumulative data
   const sortedDays = Object.keys(dailyMap).sort((a, b) => a.localeCompare(b));
 
   let cumIncome = 0;
@@ -38,14 +37,13 @@ export function DailyChart({ data }: Props) {
   const chartData = sortedDays.map((day) => {
     cumIncome += dailyMap[day].income;
     cumExpense += dailyMap[day].expense;
-    // Extract just the day number for display
     const dayNum = day.includes("-") ? day.split("-").pop() : day;
     return {
       day: `${parseInt(dayNum || day, 10)}`,
-      รายรับ: dailyMap[day].income,
-      รายจ่าย: dailyMap[day].expense,
-      รายรับสะสม: cumIncome,
-      รายจ่ายสะสม: cumExpense,
+      "รายรับ": dailyMap[day].income,
+      "รายจ่าย": dailyMap[day].expense,
+      "รายรับสะสม": cumIncome,
+      "รายจ่ายสะสม": cumExpense,
     };
   });
 
@@ -54,10 +52,10 @@ export function DailyChart({ data }: Props) {
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold">รายรับ-รายจ่ายรายวัน</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="h-72">
+      <CardContent className="px-2 sm:px-6">
+        <div className="h-52 sm:h-64 md:h-72 lg:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+            <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
               <defs>
                 <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(160 60% 45%)" stopOpacity={0.3} />
@@ -69,8 +67,8 @@ export function DailyChart({ data }: Props) {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 90%)" />
-              <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
+              <XAxis dataKey="day" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} width={35} />
               <Tooltip
                 formatter={(value: number) =>
                   new Intl.NumberFormat("th-TH").format(value) + " ฿"
@@ -79,9 +77,10 @@ export function DailyChart({ data }: Props) {
                   borderRadius: "8px",
                   border: "none",
                   boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                  fontSize: "12px",
                 }}
               />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: "11px" }} />
               <Area
                 type="monotone"
                 dataKey="รายรับสะสม"

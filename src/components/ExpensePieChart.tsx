@@ -35,38 +35,41 @@ export function ExpensePieChart({ data }: Props) {
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold">สัดส่วนรายจ่าย</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="h-72 flex items-center">
-          <ResponsiveContainer width="50%" height="100%">
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                innerRadius={50}
-                outerRadius={90}
-                dataKey="value"
-                stroke="none"
-              >
-                {chartData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(value: number) => formatCurrency(value)}
-                contentStyle={{
-                  borderRadius: "8px",
-                  border: "none",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex-1 space-y-2">
+      <CardContent className="px-2 sm:px-6">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="w-full sm:w-1/2 h-48 sm:h-56 md:h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius="35%"
+                  outerRadius="70%"
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {chartData.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number) => formatCurrency(value)}
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "none",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    fontSize: "12px",
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex-1 w-full space-y-1.5">
             {chartData.map((item, i) => (
-              <div key={item.name} className="flex items-center gap-2 text-sm">
+              <div key={item.name} className="flex items-center gap-2 text-xs sm:text-sm">
                 <div
-                  className="w-3 h-3 rounded-full shrink-0"
+                  className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0"
                   style={{ backgroundColor: COLORS[i % COLORS.length] }}
                 />
                 <span className="text-muted-foreground truncate">{item.name}</span>
