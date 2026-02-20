@@ -94,7 +94,7 @@ export function TransactionTable({ data }: Props) {
           <Table>
             <TableHeader>
               <TableRow className="border-border">
-                <TableHead className="text-xs w-20">วันที่</TableHead>
+                <TableHead className="text-xs w-28">วันที่</TableHead>
                 <TableHead className="text-xs">ประเภท</TableHead>
                 <TableHead className="text-xs">หมวดหมู่</TableHead>
                 <TableHead className="text-xs hidden sm:table-cell">รายละเอียด</TableHead>
