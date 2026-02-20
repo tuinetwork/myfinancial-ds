@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { ref, get } from "firebase/database";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ref, get, onValue, off } from "firebase/database";
 import { db } from "@/lib/firebase";
 
 export interface BudgetItem {
@@ -61,8 +62,29 @@ function normalizeBudgetData(raw: Record<string, unknown>): BudgetData {
   };
 }
 
-/** Fetch available year/month options from history node */
+/** Fetch available year/month options from history node + realtime updates */
 export function useAvailableMonths() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const dbRef = ref(db, "history");
+    const unsubscribe = onValue(dbRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+      const years = snapshot.val() as Record<string, Record<string, unknown>>;
+      const options: MonthOption[] = [];
+      for (const year of Object.keys(years).sort().reverse()) {
+        const months = years[year];
+        if (typeof months === "object" && months !== null) {
+          for (const month of Object.keys(months)) {
+            options.push({ year, month, path: `history/${year}/${month}`, label: `${month} ${year}` });
+          }
+        }
+      }
+      queryClient.setQueryData(["available-months"], options);
+    });
+    return () => off(dbRef, "value", unsubscribe);
+  }, [queryClient]);
+
   return useQuery<MonthOption[]>({
     queryKey: ["available-months"],
     queryFn: async () => {
@@ -70,28 +92,37 @@ export function useAvailableMonths() {
       if (!snapshot.exists()) return [];
       const years = snapshot.val() as Record<string, Record<string, unknown>>;
       const options: MonthOption[] = [];
-
       for (const year of Object.keys(years).sort().reverse()) {
         const months = years[year];
         if (typeof months === "object" && months !== null) {
           for (const month of Object.keys(months)) {
-            options.push({
-              year,
-              month,
-              path: `history/${year}/${month}`,
-              label: `${month} ${year}`,
-            });
+            options.push({ year, month, path: `history/${year}/${month}`, label: `${month} ${year}` });
           }
         }
       }
       return options;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: Infinity,
   });
 }
 
-/** Fetch budget data for a specific path (e.g. history/2026/มกราคม) */
+/** Fetch budget data with realtime listener */
 export function useBudgetData(path?: string) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!path) return;
+    const dbRef = ref(db, path);
+    const unsubscribe = onValue(dbRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+      queryClient.setQueryData(
+        ["budget-data", path],
+        normalizeBudgetData(snapshot.val() as Record<string, unknown>)
+      );
+    });
+    return () => off(dbRef, "value", unsubscribe);
+  }, [path, queryClient]);
+
   return useQuery<BudgetData>({
     queryKey: ["budget-data", path],
     queryFn: async () => {
@@ -99,7 +130,8 @@ export function useBudgetData(path?: string) {
       if (!snapshot.exists()) throw new Error("No data found");
       return normalizeBudgetData(snapshot.val() as Record<string, unknown>);
     },
-    staleTime: 5 * 60 * 1000,
+    enabled: !!path,
+    staleTime: Infinity,
   });
 }
 
