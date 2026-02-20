@@ -27,6 +27,7 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
     .reduce((s, t) => s + t.amount, 0);
 
   const actualDebt = data.transactions.filter((t) => t.type === "หนี้สิน").reduce((s, t) => s + t.amount, 0);
+  const actualSaving = data.transactions.filter((t) => t.type === "เงินออม/การลงทุน").reduce((s, t) => s + t.amount, 0);
   const actualNonIncome = data.transactions
     .filter((t) => t.type !== "รายรับ")
     .reduce((s, t) => s + t.amount, 0);
@@ -62,7 +63,7 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
     },
     {
       title: "เงินออม",
-      primary: 0,
+      primary: Math.abs(actualSaving),
       secondary: totalSavings,
       secondaryLabel: "เป้าหมายออม",
       icon: PiggyBank,
