@@ -34,8 +34,18 @@ function getTypeBadgeClass(type: string) {
 }
 
 function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("th-TH", { day: "numeric", month: "short" });
+  // Parse DD/MM/YYYY format
+  const parts = dateStr.split("/");
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    const d = new Date(year, month, day);
+    const thaiYear = (d.getFullYear() + 543) % 100;
+    const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    return `${day} ${monthNames[d.getMonth()]} ${thaiYear}`;
+  }
+  return dateStr;
 }
 
 export function TransactionTable({ data }: Props) {
