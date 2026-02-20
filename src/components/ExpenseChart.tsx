@@ -39,7 +39,7 @@ export function ExpenseChart({ data }: Props) {
       <CardContent className="px-2 sm:px-6">
         <div className="h-52 sm:h-64 md:h-72 lg:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+            <BarChart data={chartData} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 90%)" />
               <XAxis
                 dataKey="name"
