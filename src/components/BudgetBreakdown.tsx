@@ -33,21 +33,18 @@ export function BudgetBreakdown({ data }: Props) {
         ...data.expenses.debts,
         ...data.expenses.subscriptions,
         ...data.expenses.savings,
-      ].filter((b) => b.budget > 0),
+      ],
     [data.income, data.expenses]
   );
 
-  // Build label-to-type mapping: income items map to "รายรับ"
+  // Build label-to-type mapping from budget structure
   const labelType: Record<string, string> = {};
-  data.income.forEach((item) => {
-    labelType[item.label] = "รายรับ";
-  });
-  // For expense items, use transaction type mapping
-  Object.keys(actualByCategory).forEach((cat) => {
-    if (!labelType[cat] && categoryType[cat]) {
-      labelType[cat] = categoryType[cat];
-    }
-  });
+  data.income.forEach((item) => { labelType[item.label] = "รายรับ"; });
+  data.expenses.general.forEach((item) => { labelType[item.label] = "ค่าใช้จ่าย"; });
+  data.expenses.bills.forEach((item) => { labelType[item.label] = "บิล/สาธารณูปโภค"; });
+  data.expenses.debts.forEach((item) => { labelType[item.label] = "หนี้สิน"; });
+  data.expenses.subscriptions.forEach((item) => { labelType[item.label] = "ค่าสมาชิกรายเดือน"; });
+  data.expenses.savings.forEach((item) => { labelType[item.label] = "เงินออม/การลงทุน"; });
 
   const filtered = filter === "all"
     ? allBudgets
