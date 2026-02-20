@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { EyeOff, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
@@ -10,6 +11,7 @@ interface Props {
 
 export function BudgetBreakdown({ data }: Props) {
   const [filter, setFilter] = useState<string>("all");
+  const [hideUnused, setHideUnused] = useState(false);
 
   const actualByCategory: Record<string, number> = {};
   data.transactions.forEach((t) => {
@@ -46,30 +48,44 @@ export function BudgetBreakdown({ data }: Props) {
   data.expenses.subscriptions.forEach((item) => { labelType[item.label] = "ค่าสมาชิกรายเดือน"; });
   data.expenses.savings.forEach((item) => { labelType[item.label] = "เงินออม/การลงทุน"; });
 
-  const filtered = filter === "all"
+  const baseFiltered = filter === "all"
     ? allBudgets
     : allBudgets.filter((b) => labelType[b.label] === filter);
+
+  const filtered = hideUnused
+    ? baseFiltered.filter((b) => (actualByCategory[b.label] || 0) > 0)
+    : baseFiltered;
 
   const totalActual = filtered.reduce((sum, item) => sum + (actualByCategory[item.label] || 0), 0);
   const totalBudget = filtered.reduce((sum, item) => sum + item.budget, 0);
 
   return (
     <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "640ms" }}>
-      <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
+      <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2 flex-wrap">
         <CardTitle className="text-base font-semibold">ติดตามงบประมาณ</CardTitle>
-        <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="w-36 h-8 text-xs">
-            <SelectValue placeholder="ทั้งหมด" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">ทั้งหมด</SelectItem>
-            {groups.map((g) => (
-              <SelectItem key={g} value={g}>
-                {g}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setHideUnused((v) => !v)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md border border-border bg-background"
+            title={hideUnused ? "แสดงทั้งหมด" : "ซ่อนรายการที่ยังไม่มีการใช้"}
+          >
+            {hideUnused ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+            {hideUnused ? "แสดงทั้งหมด" : "ซ่อนว่าง"}
+          </button>
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="w-36 h-8 text-xs">
+              <SelectValue placeholder="ทั้งหมด" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">ทั้งหมด</SelectItem>
+              {groups.map((g) => (
+                <SelectItem key={g} value={g}>
+                  {g}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between text-xs text-muted-foreground mb-3 px-1">
