@@ -5,6 +5,7 @@ import { ExpenseChart } from "@/components/ExpenseChart";
 import { ExpensePieChart } from "@/components/ExpensePieChart";
 import { TransactionTable } from "@/components/TransactionTable";
 import { DailyChart } from "@/components/DailyChart";
+import { ExpenseCategoryChart } from "@/components/ExpenseCategoryChart";
 import { BudgetBreakdown } from "@/components/BudgetBreakdown";
 import { Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -115,6 +116,8 @@ const Index = () => {
           <ExpenseChart data={data} />
           <ExpensePieChart data={data} />
         </div>
+
+        <ExpenseCategoryChart data={data} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <BudgetBreakdown data={data} />
