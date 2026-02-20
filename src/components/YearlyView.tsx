@@ -6,6 +6,7 @@ import { BudgetBreakdown } from "@/components/BudgetBreakdown";
 import { YearlyTransactionTable } from "@/components/YearlyTransactionTable";
 import { MonthlyTrendChart } from "@/components/MonthlyTrendChart";
 import { MonthlyHighlights } from "@/components/MonthlyHighlights";
+import { YearlySummaryCard } from "@/components/YearlySummaryCard";
 import { YearlyData } from "@/hooks/useYearlyData";
 
 interface Props {
@@ -18,6 +19,8 @@ export function YearlyView({ yearlyData }: Props) {
   return (
     <div className="space-y-6">
       <SummaryCards data={aggregated} hideNetBalance />
+
+      <YearlySummaryCard yearlyData={yearlyData} />
 
       <MonthlyHighlights yearlyData={yearlyData} />
 

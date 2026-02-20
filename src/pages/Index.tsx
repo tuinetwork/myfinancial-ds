@@ -100,8 +100,8 @@ const Index = () => {
   }
 
   const title = viewMode === "monthly"
-    ? `งบประมาณประจำเดือน${data?.month}`
-    : `งบประมาณประจำปี ${selectedYear}`;
+    ? `บันทึกการเงินประจำเดือน ${data?.month}`
+    : `บันทึกการเงินประจำปี ${selectedYear}`;
 
   const subtitle = viewMode === "monthly" && data
     ? `อัปเดตล่าสุด: ${new Date(data.timestamp).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}`
