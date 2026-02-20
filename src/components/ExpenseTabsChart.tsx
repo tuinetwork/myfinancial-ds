@@ -1,6 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
@@ -23,49 +29,68 @@ const COLORS = [
   "hsl(170 60% 40%)",
 ];
 
-type ViewTab = "type" | "category";
+const ALL_TYPES = "__all__";
 
 export function ExpenseTabsChart({ data }: Props) {
-  const [tab, setTab] = useState<ViewTab>("type");
+  const [selectedType, setSelectedType] = useState<string>(ALL_TYPES);
 
-  // Group by type
-  const byType: Record<string, number> = {};
-  data.transactions
-    .filter((t) => t.type !== "รายรับ")
-    .forEach((t) => {
-      byType[t.type] = (byType[t.type] || 0) + t.amount;
-    });
-  const typeData = Object.entries(byType)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
+  const expenseTransactions = useMemo(
+    () => data.transactions.filter((t) => t.type !== "รายรับ"),
+    [data.transactions]
+  );
 
-  // Group by category
-  const byCategory: Record<string, number> = {};
-  data.transactions
-    .filter((t) => t.type !== "รายรับ")
-    .forEach((t) => {
-      const key = t.category || "อื่นๆ";
-      byCategory[key] = (byCategory[key] || 0) + t.amount;
-    });
-  const categoryData = Object.entries(byCategory)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
+  const types = useMemo(
+    () => Array.from(new Set(expenseTransactions.map((t) => t.type))).sort((a, b) => a.localeCompare(b, "th")),
+    [expenseTransactions]
+  );
 
-  const chartData = tab === "type" ? typeData : categoryData;
+  const chartData = useMemo(() => {
+    if (selectedType === ALL_TYPES) {
+      // Group by type
+      const byType: Record<string, number> = {};
+      expenseTransactions.forEach((t) => {
+        byType[t.type] = (byType[t.type] || 0) + t.amount;
+      });
+      return Object.entries(byType)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+    } else {
+      // Group by category within selected type
+      const byCategory: Record<string, number> = {};
+      expenseTransactions
+        .filter((t) => t.type === selectedType)
+        .forEach((t) => {
+          const key = t.category || "อื่นๆ";
+          byCategory[key] = (byCategory[key] || 0) + t.amount;
+        });
+      return Object.entries(byCategory)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+    }
+  }, [expenseTransactions, selectedType]);
+
   const total = chartData.reduce((s, d) => s + d.value, 0);
-  const showLabel = tab === "category";
+  const showLabel = selectedType !== ALL_TYPES;
+  const title = selectedType === ALL_TYPES
+    ? "รายละเอียดสัดส่วน ทั้งหมด"
+    : `รายละเอียดสัดส่วน ${selectedType}`;
 
   return (
     <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "480ms" }}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <CardTitle className="text-base font-semibold">สัดส่วนรายจ่าย</CardTitle>
-          <Tabs value={tab} onValueChange={(v) => setTab(v as ViewTab)}>
-            <TabsList className="h-8">
-              <TabsTrigger value="type" className="text-xs px-3 py-1">ตามประเภท</TabsTrigger>
-              <TabsTrigger value="category" className="text-xs px-3 py-1">ตามหมวดหมู่</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <CardTitle className="text-sm sm:text-base font-semibold truncate">{title}</CardTitle>
+          <Select value={selectedType} onValueChange={setSelectedType}>
+            <SelectTrigger className="w-36 sm:w-40 h-8 text-xs bg-card border-border shadow-sm">
+              <SelectValue placeholder="เลือกประเภท" />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border shadow-lg z-50">
+              <SelectItem value={ALL_TYPES}>ทั้งหมด</SelectItem>
+              {types.map((t) => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </CardHeader>
       <CardContent className="px-2 sm:px-6">
