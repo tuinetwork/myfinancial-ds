@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function BudgetBreakdown({ data }: Props) {
-  const [filter, setFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<string>("ค่าใช้จ่าย");
   const [hideUnused, setHideUnused] = useState(true);
 
   const actualByCategory: Record<string, number> = {};
