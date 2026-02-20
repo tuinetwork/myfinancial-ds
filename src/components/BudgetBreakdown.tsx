@@ -22,7 +22,7 @@ export function BudgetBreakdown({ data }: Props) {
     if (!categoryType[t.category]) categoryType[t.category] = t.type;
   });
 
-  const groups = ["ค่าใช้จ่าย", "หนี้สิน", "เงินออม/การลงทุน", "บิล/สาธารณูปโภค", "ค่าสมาชิกรายเดือน"];
+  const groups = ["รายรับ", "ค่าใช้จ่าย", "หนี้สิน", "เงินออม/การลงทุน", "บิล/สาธารณูปโภค", "ค่าสมาชิกรายเดือน"];
 
   const allBudgets = useMemo(
     () =>
@@ -37,6 +37,9 @@ export function BudgetBreakdown({ data }: Props) {
   const filtered = filter === "all"
     ? allBudgets
     : allBudgets.filter((b) => categoryType[b.label] === filter);
+
+  const totalActual = filtered.reduce((sum, item) => sum + (actualByCategory[item.label] || 0), 0);
+  const totalBudget = filtered.reduce((sum, item) => sum + item.budget, 0);
 
   return (
     <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "640ms" }}>
@@ -57,6 +60,10 @@ export function BudgetBreakdown({ data }: Props) {
         </Select>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="flex items-center justify-between text-xs text-muted-foreground mb-3 px-1">
+          <span>ใช้จริงรวม: <span className="font-semibold text-foreground">{formatCurrency(totalActual)}</span></span>
+          <span>งบรวม: <span className="font-semibold text-foreground">{formatCurrency(totalBudget)}</span></span>
+        </div>
         {filtered.map((item) => {
           const actual = actualByCategory[item.label] || 0;
           const pct = Math.min((actual / item.budget) * 100, 100);
