@@ -144,7 +144,7 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm opacity-80">งบประมาณรายจ่าย</p>
+              <p className="text-sm opacity-80">งบประมาณที่ตั้งไว้</p>
               <p className="text-2xl font-bold font-display">
                 {formatCurrency(totalExpenses + totalDebts + totalSavings)}
               </p>
