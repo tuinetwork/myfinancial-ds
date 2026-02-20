@@ -1,11 +1,11 @@
 import { SummaryCards } from "@/components/SummaryCards";
-import { DailyChart } from "@/components/DailyChart";
 import { ExpenseChart } from "@/components/ExpenseChart";
 import { ExpensePieChart } from "@/components/ExpensePieChart";
 import { ExpenseCategoryChart } from "@/components/ExpenseCategoryChart";
 import { BudgetBreakdown } from "@/components/BudgetBreakdown";
 import { TransactionTable } from "@/components/TransactionTable";
 import { MonthlyTrendChart } from "@/components/MonthlyTrendChart";
+import { MonthlyHighlights } from "@/components/MonthlyHighlights";
 import { YearlyData } from "@/hooks/useYearlyData";
 
 interface Props {
@@ -19,9 +19,9 @@ export function YearlyView({ yearlyData }: Props) {
     <div className="space-y-6">
       <SummaryCards data={aggregated} />
 
-      <MonthlyTrendChart yearlyData={yearlyData} />
+      <MonthlyHighlights yearlyData={yearlyData} />
 
-      <DailyChart data={aggregated} />
+      <MonthlyTrendChart yearlyData={yearlyData} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ExpenseChart data={aggregated} />
