@@ -1,5 +1,6 @@
 import { TrendingUp, TrendingDown, CreditCard, PiggyBank } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
 
 interface Props {
@@ -93,36 +94,49 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
               </p>
             )}
             {(() => {
-              const pct = card.secondary > 0 ? (card.primary / card.secondary) * 100 : 0;
+              const pct = card.secondary > 0 ? Math.min((card.primary / card.secondary) * 100, 100) : 0;
+              const rawPct = card.secondary > 0 ? (card.primary / card.secondary) * 100 : 0;
               const pctColor = card.title === "รายรับ"
-                ? pct >= 100 ? "text-income" : "text-muted-foreground"
-                : pct > 100 ? "text-destructive" : "text-muted-foreground";
+                ? rawPct >= 100 ? "text-income" : "text-muted-foreground"
+                : rawPct > 100 ? "text-destructive" : "text-muted-foreground";
+              const barColor = card.title === "รายรับ"
+                ? "[&>div]:bg-income"
+                : rawPct > 100
+                  ? "[&>div]:bg-destructive"
+                  : `[&>div]:bg-current ${card.color}`;
               return (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {card.secondaryLabel}: {formatCurrency(card.secondary)}
+                <>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {card.secondaryLabel}: {formatCurrency(card.secondary)}
+                    {card.secondary > 0 && (
+                      <span className={`ml-1.5 font-semibold ${pctColor}`}>
+                        ({rawPct.toFixed(0)}%)
+                      </span>
+                    )}
+                  </p>
                   {card.secondary > 0 && (
-                    <span className={`ml-1.5 font-semibold ${pctColor}`}>
-                      ({pct.toFixed(0)}%)
-                    </span>
+                    <Progress value={pct} className={`h-1.5 mt-2 bg-muted ${barColor}`} />
                   )}
-                </p>
+                </>
               );
             })()}
           </CardContent>
         </Card>
       ))}
 
-      {/* Balance card spanning full width on mobile */}
       <Card className="col-span-2 lg:col-span-4 border-none shadow-sm bg-primary text-primary-foreground animate-fade-in" style={{ animationDelay: "320ms" }}>
         <CardContent className="p-5 flex items-center justify-between">
           <div>
             <p className="text-sm opacity-80">ยอดคงเหลือ (งบประมาณ)</p>
             <p className="text-2xl font-bold font-display">{formatCurrency(balance)}</p>
           </div>
-          <div className="text-right">
-            <p className="text-sm opacity-80">ใช้จริงคงเหลือ</p>
+          <div className="text-right text-sm opacity-80">
+            <p>รายรับจริง - รายจ่ายจริง</p>
             <p className="text-2xl font-bold font-display">
               {formatCurrency(actualIncome - actualNonIncome)}
+            </p>
+            <p className="text-xs opacity-70 mt-0.5">
+              คงเหลือสุทธิ = {formatCurrency(actualIncome)} - {formatCurrency(actualNonIncome)}
             </p>
           </div>
         </CardContent>
