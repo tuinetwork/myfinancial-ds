@@ -16,22 +16,27 @@ export function BudgetBreakdown({ data }: Props) {
     actualByCategory[t.category] = (actualByCategory[t.category] || 0) + t.amount;
   });
 
+  // Build category-to-type mapping from transactions
+  const categoryType: Record<string, string> = {};
+  data.transactions.forEach((t) => {
+    if (!categoryType[t.category]) categoryType[t.category] = t.type;
+  });
+
+  const groups = ["ค่าใช้จ่าย", "หนี้สิน", "เงินออม/การลงทุน", "บิล/สาธารณูปโภค", "ค่าสมาชิกรายเดือน"];
+
   const allBudgets = useMemo(
     () =>
       [
-        ...data.expenses.general.map((b) => ({ ...b, group: "ทั่วไป" })),
-        ...data.expenses.bills.map((b) => ({ ...b, group: "บิล" })),
-        ...data.expenses.subscriptions.map((b) => ({ ...b, group: "สมัครสมาชิก" })),
+        ...data.expenses.general,
+        ...data.expenses.bills,
+        ...data.expenses.subscriptions,
       ].filter((b) => b.budget > 0),
     [data.expenses]
   );
 
-  const groups = useMemo(() => {
-    const set = new Set(allBudgets.map((b) => b.group));
-    return Array.from(set);
-  }, [allBudgets]);
-
-  const filtered = filter === "all" ? allBudgets : allBudgets.filter((b) => b.group === filter);
+  const filtered = filter === "all"
+    ? allBudgets
+    : allBudgets.filter((b) => categoryType[b.label] === filter);
 
   return (
     <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "640ms" }}>
