@@ -55,14 +55,46 @@ function normalizeBudgetData(raw: Record<string, unknown>): BudgetData {
   };
 }
 
-export function useBudgetData() {
-  return useQuery<BudgetData>({
-    queryKey: ["budget-data"],
+/** Fetch list of available month keys from Firebase root */
+export function useAvailableMonths() {
+  return useQuery<string[]>({
+    queryKey: ["available-months"],
     queryFn: async () => {
       const snapshot = await get(ref(db));
-      if (!snapshot.exists()) throw new Error("No data found");
-      return normalizeBudgetData(snapshot.val());
+      if (!snapshot.exists()) return [];
+      const val = snapshot.val();
+      if (typeof val === "object" && val !== null) {
+        return Object.keys(val).sort().reverse();
+      }
+      return [];
     },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Fetch budget data for a specific month key */
+export function useBudgetData(monthKey?: string) {
+  return useQuery<BudgetData>({
+    queryKey: ["budget-data", monthKey],
+    queryFn: async () => {
+      const path = monthKey ? monthKey : undefined;
+      const snapshot = await get(ref(db, path));
+      if (!snapshot.exists()) throw new Error("No data found");
+      const raw = snapshot.val();
+
+      // If monthKey is not specified and root contains month keys, pick the latest
+      if (!monthKey && typeof raw === "object" && raw !== null) {
+        const keys = Object.keys(raw).sort().reverse();
+        // Check if root is a month container (keys look like month keys) or direct data
+        if (keys.length > 0 && !raw.status && !raw.income) {
+          // Root contains month keys, use the latest one
+          return normalizeBudgetData(raw[keys[0]] as Record<string, unknown>);
+        }
+      }
+
+      return normalizeBudgetData(raw as Record<string, unknown>);
+    },
+    enabled: true,
     staleTime: 5 * 60 * 1000,
   });
 }

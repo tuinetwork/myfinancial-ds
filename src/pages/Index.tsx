@@ -1,16 +1,26 @@
-import { useBudgetData } from "@/hooks/useBudgetData";
+import { useState } from "react";
+import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
 import { SummaryCards } from "@/components/SummaryCards";
 import { ExpenseChart } from "@/components/ExpenseChart";
 import { ExpensePieChart } from "@/components/ExpensePieChart";
 import { TransactionTable } from "@/components/TransactionTable";
 import { BudgetBreakdown } from "@/components/BudgetBreakdown";
-import { Wallet } from "lucide-react";
+import { Wallet, ChevronDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const Index = () => {
-  const { data, isLoading, error } = useBudgetData();
+  const [selectedMonth, setSelectedMonth] = useState<string | undefined>(undefined);
+  const { data: months, isLoading: monthsLoading } = useAvailableMonths();
+  const { data, isLoading, error } = useBudgetData(selectedMonth);
 
-  if (isLoading) {
+  if (isLoading || monthsLoading) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
@@ -38,16 +48,37 @@ const Index = () => {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-3 animate-fade-in">
-          <div className="bg-primary text-primary-foreground p-2.5 rounded-xl">
-            <Wallet className="h-6 w-6" />
+        <div className="flex items-center justify-between animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="bg-primary text-primary-foreground p-2.5 rounded-xl">
+              <Wallet className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold font-display">งบประมาณประจำเดือน{data.month}</h1>
+              <p className="text-sm text-muted-foreground">
+                อัปเดตล่าสุด: {new Date(data.timestamp).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold font-display">งบประมาณประจำเดือน{data.month}</h1>
-            <p className="text-sm text-muted-foreground">
-              อัปเดตล่าสุด: {new Date(data.timestamp).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}
-            </p>
-          </div>
+
+          {/* Month Selector */}
+          {months && months.length > 0 && (
+            <Select
+              value={selectedMonth ?? (months[0] || "")}
+              onValueChange={(val) => setSelectedMonth(val)}
+            >
+              <SelectTrigger className="w-48 bg-card border-border shadow-sm">
+                <SelectValue placeholder="เลือกเดือน" />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border shadow-lg z-50">
+                {months.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {/* Summary Cards */}
