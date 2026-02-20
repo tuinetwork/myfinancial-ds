@@ -26,7 +26,27 @@ const Index = () => {
     }
   }, [months, selectedPath]);
 
+  // Find previous month path
+  const previousPath = (() => {
+    if (!months || !selectedPath) return undefined;
+    const idx = months.findIndex((m) => m.path === selectedPath);
+    return idx >= 0 && idx + 1 < months.length ? months[idx + 1].path : undefined;
+  })();
+
   const { data, isLoading, error } = useBudgetData(selectedPath);
+  const { data: prevData } = useBudgetData(previousPath);
+
+  // Calculate carry-over balance from previous month
+  const carryOver = (() => {
+    if (!prevData) return 0;
+    const prevIncome = prevData.transactions
+      .filter((t) => t.type === "รายรับ")
+      .reduce((s, t) => s + t.amount, 0);
+    const prevNonIncome = prevData.transactions
+      .filter((t) => t.type !== "รายรับ")
+      .reduce((s, t) => s + t.amount, 0);
+    return prevIncome - prevNonIncome;
+  })();
 
   if (isLoading || monthsLoading || !selectedPath) {
     return (
@@ -86,7 +106,7 @@ const Index = () => {
           )}
         </div>
 
-        <SummaryCards data={data} />
+        <SummaryCards data={data} carryOver={carryOver} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <ExpenseChart data={data} />
