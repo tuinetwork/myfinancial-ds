@@ -23,35 +23,44 @@ export function SummaryCards({ data }: Props) {
     .filter((t) => t.type === "ค่าใช้จ่าย" || t.type === "บิล/สาธารณูปโภค" || t.type === "ค่าสมาชิกรายเดือน")
     .reduce((s, t) => s + t.amount, 0);
 
+  const actualDebt = data.transactions.filter((t) => t.type === "หนี้สิน").reduce((s, t) => s + t.amount, 0);
+  const actualNonIncome = data.transactions
+    .filter((t) => t.type !== "รายรับ")
+    .reduce((s, t) => s + t.amount, 0);
+
   const cards = [
     {
       title: "รายรับ",
-      budget: totalIncome,
-      actual: actualIncome,
+      primary: actualIncome,
+      secondary: totalIncome,
+      secondaryLabel: "งบประมาณ",
       icon: TrendingUp,
       color: "text-income" as const,
       bgColor: "bg-income/10" as const,
     },
     {
       title: "ค่าใช้จ่าย",
-      budget: totalExpenses,
-      actual: actualExpense,
+      primary: actualNonIncome,
+      secondary: totalExpenses,
+      secondaryLabel: "งบประมาณ",
       icon: TrendingDown,
       color: "text-expense" as const,
       bgColor: "bg-expense/10" as const,
     },
     {
       title: "หนี้สิน",
-      budget: totalDebts,
-      actual: data.transactions.filter((t) => t.type === "หนี้สิน").reduce((s, t) => s + t.amount, 0),
+      primary: actualDebt,
+      secondary: totalDebts,
+      secondaryLabel: "งบประมาณ",
       icon: CreditCard,
       color: "text-debt" as const,
       bgColor: "bg-debt/10" as const,
     },
     {
       title: "เงินออม",
-      budget: totalSavings,
-      actual: 0,
+      primary: 0,
+      secondary: totalSavings,
+      secondaryLabel: "งบประมาณ",
       icon: PiggyBank,
       color: "text-saving" as const,
       bgColor: "bg-saving/10" as const,
@@ -74,10 +83,10 @@ export function SummaryCards({ data }: Props) {
               </div>
             </div>
             <p className={`text-xl font-bold font-display ${card.color}`}>
-              {formatCurrency(card.budget)}
+              {formatCurrency(card.primary)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              ใช้จริง: {formatCurrency(card.actual)}
+              {card.secondaryLabel}: {formatCurrency(card.secondary)}
             </p>
           </CardContent>
         </Card>
@@ -93,7 +102,7 @@ export function SummaryCards({ data }: Props) {
           <div className="text-right">
             <p className="text-sm opacity-80">ใช้จริงคงเหลือ</p>
             <p className="text-2xl font-bold font-display">
-              {formatCurrency(actualIncome - actualExpense - data.transactions.filter((t) => t.type === "หนี้สิน").reduce((s, t) => s + t.amount, 0))}
+              {formatCurrency(actualIncome - actualNonIncome)}
             </p>
           </div>
         </CardContent>
