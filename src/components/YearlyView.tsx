@@ -1,7 +1,6 @@
 import { SummaryCards } from "@/components/SummaryCards";
 import { ExpenseChart } from "@/components/ExpenseChart";
-import { ExpensePieChart } from "@/components/ExpensePieChart";
-import { ExpenseCategoryChart } from "@/components/ExpenseCategoryChart";
+import { ExpenseTabsChart } from "@/components/ExpenseTabsChart";
 import { BudgetBreakdown } from "@/components/BudgetBreakdown";
 import { YearlyTransactionTable } from "@/components/YearlyTransactionTable";
 import { MonthlyTrendChart } from "@/components/MonthlyTrendChart";
@@ -28,10 +27,8 @@ export function YearlyView({ yearlyData }: Props) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ExpenseChart data={aggregated} />
-        <ExpensePieChart data={aggregated} />
+        <ExpenseTabsChart data={aggregated} />
       </div>
-
-      <ExpenseCategoryChart data={aggregated} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <BudgetBreakdown data={aggregated} />
