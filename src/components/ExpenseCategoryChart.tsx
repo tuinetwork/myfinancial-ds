@@ -41,22 +41,22 @@ export function ExpenseCategoryChart({ data }: Props) {
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-semibold">รายละเอียดสัดส่วนค่าใช้จ่าย</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-2 sm:px-6">
         <div className="flex flex-col md:flex-row items-center gap-4">
-          <div className="h-72 w-full md:w-1/2">
+          <div className="h-52 sm:h-60 md:h-72 w-full md:w-1/2">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={chartData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={55}
-                  outerRadius={100}
+                  innerRadius="30%"
+                  outerRadius="65%"
                   dataKey="value"
                   stroke="none"
                   label={({ name, percent, x, y, textAnchor }) =>
                     percent > 0.05 ? (
-                      <text x={x} y={y} textAnchor={textAnchor} fontSize={10} fill="currentColor">
+                      <text x={x} y={y} textAnchor={textAnchor} fontSize={9} fill="currentColor">
                         {name} {(percent * 100).toFixed(0)}%
                       </text>
                     ) : null
@@ -73,12 +73,13 @@ export function ExpenseCategoryChart({ data }: Props) {
                     borderRadius: "8px",
                     border: "none",
                     boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    fontSize: "12px",
                   }}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex-1 w-full space-y-1.5 max-h-72 overflow-y-auto">
+          <div className="flex-1 w-full space-y-1.5 max-h-60 md:max-h-72 overflow-y-auto">
             {chartData.map((item, i) => {
               const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
               return (
