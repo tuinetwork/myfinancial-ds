@@ -129,14 +129,22 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
       ))}
 
       <Card className="col-span-2 lg:col-span-4 border-none shadow-sm bg-primary text-primary-foreground animate-fade-in" style={{ animationDelay: "320ms" }}>
-        <CardContent className="p-5">
-          <p className="text-sm opacity-80">คงเหลือสุทธิ</p>
-          <p className="text-2xl font-bold font-display">
-            {formatCurrency((actualIncome + carryOver) - actualNonIncome)}
-          </p>
-          <p className="text-xs opacity-70 mt-1">
-            ({formatCurrency(actualIncome)} + {formatCurrency(carryOver)}) - {formatCurrency(actualNonIncome)}
-          </p>
+        <CardContent className="p-5 flex items-center justify-between">
+          <div>
+            <p className="text-sm opacity-80">คงเหลือสุทธิ</p>
+            <p className="text-2xl font-bold font-display">
+              {formatCurrency((actualIncome + carryOver) - actualNonIncome)}
+            </p>
+            <p className="text-xs opacity-70 mt-1">
+              ({formatCurrency(actualIncome)} + {formatCurrency(carryOver)}) - {formatCurrency(actualNonIncome)}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm opacity-80">งบประมาณรายจ่าย</p>
+            <p className="text-2xl font-bold font-display">
+              {formatCurrency(totalExpenses + totalDebts + totalSavings)}
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
