@@ -4,9 +4,10 @@ import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
 
 interface Props {
   data: BudgetData;
+  carryOver?: number;
 }
 
-export function SummaryCards({ data }: Props) {
+export function SummaryCards({ data, carryOver = 0 }: Props) {
   const totalIncome = data.income.reduce((s, i) => s + i.budget, 0);
   const totalGeneral = data.expenses.general.reduce((s, i) => s + i.budget, 0);
   const totalBills = data.expenses.bills.reduce((s, i) => s + i.budget, 0);
@@ -31,9 +32,10 @@ export function SummaryCards({ data }: Props) {
   const cards = [
     {
       title: "รายรับ",
-      primary: actualIncome,
+      primary: actualIncome + carryOver,
       secondary: totalIncome,
-      secondaryLabel: "งบประมาณ",
+      secondaryLabel: "ประมาณการรายรับ",
+      carryOver,
       icon: TrendingUp,
       color: "text-income" as const,
       bgColor: "bg-income/10" as const,
@@ -85,6 +87,11 @@ export function SummaryCards({ data }: Props) {
             <p className={`text-xl font-bold font-display ${card.color}`}>
               {formatCurrency(card.primary)}
             </p>
+            {'carryOver' in card && card.carryOver !== 0 && (
+              <p className="text-xs text-income mt-1">
+                ยกยอดมา: +{formatCurrency(Math.abs(card.carryOver))}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground mt-1">
               {card.secondaryLabel}: {formatCurrency(card.secondary)}
             </p>
