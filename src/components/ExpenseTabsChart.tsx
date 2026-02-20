@@ -40,7 +40,7 @@ export function ExpenseTabsChart({ data }: Props) {
   );
 
   const types = useMemo(
-    () => Array.from(new Set(expenseTransactions.map((t) => t.type))).sort((a, b) => a.localeCompare(b, "th")),
+    () => Array.from(new Set(expenseTransactions.map((t) => t.type))).filter((t) => t !== "").sort((a, b) => a.localeCompare(b, "th")),
     [expenseTransactions]
   );
 
