@@ -214,33 +214,6 @@ export function TransactionTable({ data }: Props) {
                 </tr>
               </tfoot>
             )}
-            {filter === "all" && (
-              <tfoot>
-                {types.map((type) => {
-                  const typeTotal = data.transactions
-                    .filter((t) => t.type === type)
-                    .reduce((s, t) => s + t.amount, 0);
-                  if (typeTotal === 0) return null;
-                  return (
-                    <tr key={type} className="border-t border-border bg-muted/30">
-                      <TableCell colSpan={4} className="text-xs font-semibold py-2 hidden sm:table-cell">
-                        รวม{type}
-                      </TableCell>
-                      <TableCell colSpan={3} className="text-xs font-semibold py-2 sm:hidden">
-                        รวม{type}
-                      </TableCell>
-                      <TableCell
-                        className={`text-xs text-right font-bold font-display py-2 ${
-                          type === "รายรับ" ? "text-income" : "text-expense"
-                        }`}
-                      >
-                        {formatCurrency(typeTotal)}
-                      </TableCell>
-                    </tr>
-                  );
-                })}
-              </tfoot>
-            )}
           </Table>
         </div>
       </CardContent>
