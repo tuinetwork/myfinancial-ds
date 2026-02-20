@@ -59,15 +59,19 @@ function parseDateValue(dateStr: string): number {
 type SortKey = "date" | "type" | "category" | "amount";
 type SortDir = "asc" | "desc" | null;
 
+const TYPE_ORDER = ["รายรับ", "ค่าใช้จ่าย", "เงินออม", "บิล/สาธารณูปโภค", "ค่าสมาชิกรายเดือน", "หนี้สิน"];
+
 export function TransactionTable({ data }: Props) {
   const [filter, setFilter] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  const types = useMemo(
-    () => Array.from(new Set(data.transactions.map((t) => t.type))),
-    [data.transactions]
-  );
+  const types = useMemo(() => {
+    const available = Array.from(new Set(data.transactions.map((t) => t.type)));
+    return TYPE_ORDER.filter((t) => available.includes(t)).concat(
+      available.filter((t) => !TYPE_ORDER.includes(t))
+    );
+  }, [data.transactions]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -208,6 +212,33 @@ export function TransactionTable({ data }: Props) {
                     {formatCurrency(totalAmount)}
                   </TableCell>
                 </tr>
+              </tfoot>
+            )}
+            {filter === "all" && (
+              <tfoot>
+                {types.map((type) => {
+                  const typeTotal = data.transactions
+                    .filter((t) => t.type === type)
+                    .reduce((s, t) => s + t.amount, 0);
+                  if (typeTotal === 0) return null;
+                  return (
+                    <tr key={type} className="border-t border-border bg-muted/30">
+                      <TableCell colSpan={4} className="text-xs font-semibold py-2 hidden sm:table-cell">
+                        รวม{type}
+                      </TableCell>
+                      <TableCell colSpan={3} className="text-xs font-semibold py-2 sm:hidden">
+                        รวม{type}
+                      </TableCell>
+                      <TableCell
+                        className={`text-xs text-right font-bold font-display py-2 ${
+                          type === "รายรับ" ? "text-income" : "text-expense"
+                        }`}
+                      >
+                        {formatCurrency(typeTotal)}
+                      </TableCell>
+                    </tr>
+                  );
+                })}
               </tfoot>
             )}
           </Table>
