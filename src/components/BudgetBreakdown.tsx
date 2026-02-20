@@ -27,16 +27,31 @@ export function BudgetBreakdown({ data }: Props) {
   const allBudgets = useMemo(
     () =>
       [
+        ...data.income,
         ...data.expenses.general,
         ...data.expenses.bills,
+        ...data.expenses.debts,
         ...data.expenses.subscriptions,
+        ...data.expenses.savings,
       ].filter((b) => b.budget > 0),
-    [data.expenses]
+    [data.income, data.expenses]
   );
+
+  // Build label-to-type mapping: income items map to "รายรับ"
+  const labelType: Record<string, string> = {};
+  data.income.forEach((item) => {
+    labelType[item.label] = "รายรับ";
+  });
+  // For expense items, use transaction type mapping
+  Object.keys(actualByCategory).forEach((cat) => {
+    if (!labelType[cat] && categoryType[cat]) {
+      labelType[cat] = categoryType[cat];
+    }
+  });
 
   const filtered = filter === "all"
     ? allBudgets
-    : allBudgets.filter((b) => categoryType[b.label] === filter);
+    : allBudgets.filter((b) => labelType[b.label] === filter);
 
   const totalActual = filtered.reduce((sum, item) => sum + (actualByCategory[item.label] || 0), 0);
   const totalBudget = filtered.reduce((sum, item) => sum + item.budget, 0);
