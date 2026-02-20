@@ -58,10 +58,14 @@ export function YearlyTransactionTable({ yearlyData }: Props) {
     return found ? found.data.transactions : [];
   }, [yearlyData, selectedMonth]);
 
-  const types = useMemo(
-    () => Array.from(new Set(transactions.map((t) => t.type))),
-    [transactions]
-  );
+  const TYPE_ORDER = ["รายรับ", "ค่าใช้จ่าย", "เงินออม", "บิล/สาธารณูปโภค", "ค่าสมาชิกรายเดือน", "หนี้สิน"];
+
+  const types = useMemo(() => {
+    const available = Array.from(new Set(transactions.map((t) => t.type)));
+    return TYPE_ORDER.filter((t) => available.includes(t)).concat(
+      available.filter((t) => !TYPE_ORDER.includes(t))
+    );
+  }, [transactions]);
 
   const filtered = useMemo(() => {
     const items = filter === "all" ? transactions : transactions.filter((t) => t.type === filter);
