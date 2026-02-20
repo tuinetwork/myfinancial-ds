@@ -44,7 +44,7 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
       title: "ค่าใช้จ่าย",
       primary: actualNonIncome,
       secondary: totalExpenses,
-      secondaryLabel: "งบประมาณ",
+      secondaryLabel: "ประมาณการรายจ่าย",
       icon: TrendingDown,
       color: "text-expense" as const,
       bgColor: "bg-expense/10" as const,
@@ -53,7 +53,7 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
       title: "หนี้สิน",
       primary: actualDebt,
       secondary: totalDebts,
-      secondaryLabel: "งบประมาณ",
+      secondaryLabel: "ยอดหนี้ตามแผน",
       icon: CreditCard,
       color: "text-debt" as const,
       bgColor: "bg-debt/10" as const,
@@ -62,7 +62,7 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
       title: "เงินออม",
       primary: 0,
       secondary: totalSavings,
-      secondaryLabel: "งบประมาณ",
+      secondaryLabel: "เป้าหมายออม",
       icon: PiggyBank,
       color: "text-saving" as const,
       bgColor: "bg-saving/10" as const,
@@ -92,9 +92,22 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
                 ยกยอดมา: +{formatCurrency(Math.abs(card.carryOver))}
               </p>
             )}
-            <p className="text-xs text-muted-foreground mt-1">
-              {card.secondaryLabel}: {formatCurrency(card.secondary)}
-            </p>
+            {(() => {
+              const pct = card.secondary > 0 ? (card.primary / card.secondary) * 100 : 0;
+              const pctColor = card.title === "รายรับ"
+                ? pct >= 100 ? "text-income" : "text-muted-foreground"
+                : pct > 100 ? "text-destructive" : "text-muted-foreground";
+              return (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {card.secondaryLabel}: {formatCurrency(card.secondary)}
+                  {card.secondary > 0 && (
+                    <span className={`ml-1.5 font-semibold ${pctColor}`}>
+                      ({pct.toFixed(0)}%)
+                    </span>
+                  )}
+                </p>
+              );
+            })()}
           </CardContent>
         </Card>
       ))}
