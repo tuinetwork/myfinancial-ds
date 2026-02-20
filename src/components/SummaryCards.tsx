@@ -80,19 +80,23 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
         >
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground font-medium">{card.title}</span>
-              <div className={`${card.bgColor} ${card.color} p-2 rounded-lg`}>
-                <card.icon className="h-4 w-4" />
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground font-medium">{card.title}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {'carryOver' in card && card.carryOver !== 0 && (
+                  <span className="text-xs text-income font-medium">
+                    ยกยอดมา: +{formatCurrency(Math.abs(card.carryOver))}
+                  </span>
+                )}
+                <div className={`${card.bgColor} ${card.color} p-2 rounded-lg`}>
+                  <card.icon className="h-4 w-4" />
+                </div>
               </div>
             </div>
             <p className={`text-xl font-bold font-display ${card.color}`}>
               {formatCurrency(card.primary)}
             </p>
-            {'carryOver' in card && card.carryOver !== 0 && (
-              <p className="text-xs text-income mt-1">
-                ยกยอดมา: +{formatCurrency(Math.abs(card.carryOver))}
-              </p>
-            )}
             {(() => {
               const pct = card.secondary > 0 ? Math.min((card.primary / card.secondary) * 100, 100) : 0;
               const rawPct = card.secondary > 0 ? (card.primary / card.secondary) * 100 : 0;
@@ -125,20 +129,14 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
       ))}
 
       <Card className="col-span-2 lg:col-span-4 border-none shadow-sm bg-primary text-primary-foreground animate-fade-in" style={{ animationDelay: "320ms" }}>
-        <CardContent className="p-5 flex items-center justify-between">
-          <div>
-            <p className="text-sm opacity-80">ยอดคงเหลือ (งบประมาณ)</p>
-            <p className="text-2xl font-bold font-display">{formatCurrency(balance)}</p>
-          </div>
-          <div className="text-right text-sm opacity-80">
-            <p>รายรับจริง - รายจ่ายจริง</p>
-            <p className="text-2xl font-bold font-display">
-              {formatCurrency(actualIncome - actualNonIncome)}
-            </p>
-            <p className="text-xs opacity-70 mt-0.5">
-              คงเหลือสุทธิ = {formatCurrency(actualIncome)} - {formatCurrency(actualNonIncome)}
-            </p>
-          </div>
+        <CardContent className="p-5">
+          <p className="text-sm opacity-80">คงเหลือสุทธิ</p>
+          <p className="text-2xl font-bold font-display">
+            {formatCurrency((actualIncome + carryOver) - actualNonIncome)}
+          </p>
+          <p className="text-xs opacity-70 mt-1">
+            ({formatCurrency(actualIncome)} + {formatCurrency(carryOver)}) - {formatCurrency(actualNonIncome)}
+          </p>
         </CardContent>
       </Card>
     </div>
