@@ -17,7 +17,7 @@ export function YearlyView({ yearlyData }: Props) {
 
   return (
     <div className="space-y-6">
-      <SummaryCards data={aggregated} />
+      <SummaryCards data={aggregated} hideNetBalance />
 
       <MonthlyHighlights yearlyData={yearlyData} />
 
