@@ -39,7 +39,7 @@ export function ExpenseCategoryChart({ data }: Props) {
   return (
     <Card className="border-none shadow-sm animate-fade-in col-span-1 lg:col-span-2" style={{ animationDelay: "520ms" }}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold">รายละเอียดสัดส่วนค่าใช้จ่าย</CardTitle>
+        <CardTitle className="text-sm font-semibold">รายละเอียดสัดส่วนค่าใช้จ่าย</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col md:flex-row items-center gap-4">
@@ -54,8 +54,12 @@ export function ExpenseCategoryChart({ data }: Props) {
                   outerRadius={100}
                   dataKey="value"
                   stroke="none"
-                  label={({ name, percent }) =>
-                    percent > 0.05 ? `${name} ${(percent * 100).toFixed(0)}%` : ""
+                  label={({ name, percent, x, y, textAnchor }) =>
+                    percent > 0.05 ? (
+                      <text x={x} y={y} textAnchor={textAnchor} fontSize={10} fill="currentColor">
+                        {name} {(percent * 100).toFixed(0)}%
+                      </text>
+                    ) : null
                   }
                   labelLine={false}
                 >
@@ -78,16 +82,16 @@ export function ExpenseCategoryChart({ data }: Props) {
             {chartData.map((item, i) => {
               const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
               return (
-                <div key={item.name} className="flex items-center gap-2 text-sm">
+                <div key={item.name} className="flex items-center gap-2 text-xs">
                   <div
-                    className="w-3 h-3 rounded-full shrink-0"
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: COLORS[i % COLORS.length] }}
                   />
                   <span className="text-muted-foreground truncate">{item.name}</span>
                   <span className="ml-auto font-medium font-display whitespace-nowrap">
                     {formatCurrency(item.value)}
                   </span>
-                  <span className="text-xs text-muted-foreground w-12 text-right">{pct}%</span>
+                  <span className="text-[10px] text-muted-foreground w-10 text-right">{pct}%</span>
                 </div>
               );
             })}
