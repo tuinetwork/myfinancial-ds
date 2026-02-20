@@ -21,29 +21,42 @@ import {
 
 const Index = () => {
   const { data: months, isLoading: monthsLoading } = useAvailableMonths();
-  const [selectedPath, setSelectedPath] = useState<string | undefined>(undefined);
   const [viewMode, setViewMode] = useState<"monthly" | "yearly">("monthly");
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string | undefined>(undefined);
 
   // Available years
   const years = useMemo(() => {
     if (!months) return [];
-    const unique = Array.from(new Set(months.map((m) => m.year))).sort().reverse();
-    return unique;
+    return Array.from(new Set(months.map((m) => m.year))).sort().reverse();
   }, [months]);
 
-  // Auto-select latest month and year
-  useEffect(() => {
-    if (months && months.length > 0 && !selectedPath) {
-      setSelectedPath(months[0].path);
-    }
-  }, [months, selectedPath]);
+  // Months for the selected year
+  const monthsForYear = useMemo(() => {
+    if (!months || !selectedYear) return [];
+    return months.filter((m) => m.year === selectedYear);
+  }, [months, selectedYear]);
 
+  // Auto-select latest year
   useEffect(() => {
     if (years.length > 0 && !selectedYear) {
       setSelectedYear(years[0]);
     }
   }, [years, selectedYear]);
+
+  // Auto-select latest month when year changes
+  useEffect(() => {
+    if (monthsForYear.length > 0) {
+      setSelectedMonthKey(monthsForYear[0].month);
+    }
+  }, [monthsForYear]);
+
+  // Derive selectedPath from year + month
+  const selectedPath = useMemo(() => {
+    if (!selectedYear || !selectedMonthKey || !months) return undefined;
+    const found = months.find((m) => m.year === selectedYear && m.month === selectedMonthKey);
+    return found?.path;
+  }, [months, selectedYear, selectedMonthKey]);
 
   // Find previous month path
   const previousPath = (() => {
@@ -134,18 +147,28 @@ const Index = () => {
 
             {/* Month/Year Selector */}
             {viewMode === "monthly" && months && months.length > 0 && (
-              <Select value={selectedPath} onValueChange={setSelectedPath}>
-                <SelectTrigger className="w-44 bg-card border-border shadow-sm">
-                  <SelectValue placeholder="เลือกเดือน" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border shadow-lg z-50">
-                  {months.map((m) => (
-                    <SelectItem key={m.path} value={m.path}>
-                      {m.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <>
+                <Select value={selectedYear} onValueChange={(y) => { setSelectedYear(y); }}>
+                  <SelectTrigger className="w-24 bg-card border-border shadow-sm">
+                    <SelectValue placeholder="ปี" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border shadow-lg z-50">
+                    {years.map((y) => (
+                      <SelectItem key={y} value={y}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedMonthKey} onValueChange={setSelectedMonthKey}>
+                  <SelectTrigger className="w-36 bg-card border-border shadow-sm">
+                    <SelectValue placeholder="เดือน" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border shadow-lg z-50">
+                    {monthsForYear.map((m) => (
+                      <SelectItem key={m.month} value={m.month}>{m.month}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
             )}
 
             {viewMode === "yearly" && years.length > 0 && (
