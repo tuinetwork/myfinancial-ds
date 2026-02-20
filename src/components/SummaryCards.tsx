@@ -138,9 +138,6 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
               <p className="text-2xl font-bold font-display">
                 {formatCurrency((actualIncome + carryOver) - actualNonIncome)}
               </p>
-              <p className="text-xs opacity-70 mt-1">
-                ({formatCurrency(actualIncome)} + {formatCurrency(carryOver)}) - {formatCurrency(actualNonIncome)}
-              </p>
             </div>
             <div className="text-right">
               <p className="text-sm opacity-80">งบประมาณรายจ่าย</p>
