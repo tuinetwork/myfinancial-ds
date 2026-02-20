@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
+import { useYearlyData } from "@/hooks/useYearlyData";
 import { SummaryCards } from "@/components/SummaryCards";
 import { ExpenseChart } from "@/components/ExpenseChart";
 import { ExpensePieChart } from "@/components/ExpensePieChart";
@@ -7,8 +8,10 @@ import { TransactionTable } from "@/components/TransactionTable";
 import { DailyChart } from "@/components/DailyChart";
 import { ExpenseCategoryChart } from "@/components/ExpenseCategoryChart";
 import { BudgetBreakdown } from "@/components/BudgetBreakdown";
+import { YearlyView } from "@/components/YearlyView";
 import { Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -20,13 +23,28 @@ import {
 const Index = () => {
   const { data: months, isLoading: monthsLoading } = useAvailableMonths();
   const [selectedPath, setSelectedPath] = useState<string | undefined>(undefined);
+  const [viewMode, setViewMode] = useState<"monthly" | "yearly">("monthly");
+  const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
 
-  // Auto-select latest month when months load
+  // Available years
+  const years = useMemo(() => {
+    if (!months) return [];
+    const unique = Array.from(new Set(months.map((m) => m.year))).sort().reverse();
+    return unique;
+  }, [months]);
+
+  // Auto-select latest month and year
   useEffect(() => {
     if (months && months.length > 0 && !selectedPath) {
       setSelectedPath(months[0].path);
     }
   }, [months, selectedPath]);
+
+  useEffect(() => {
+    if (years.length > 0 && !selectedYear) {
+      setSelectedYear(years[0]);
+    }
+  }, [years, selectedYear]);
 
   // Find previous month path
   const previousPath = (() => {
@@ -37,6 +55,9 @@ const Index = () => {
 
   const { data, isLoading, error } = useBudgetData(selectedPath);
   const { data: prevData } = useBudgetData(previousPath);
+  const { data: yearlyData, isLoading: yearlyLoading } = useYearlyData(
+    viewMode === "yearly" ? selectedYear : undefined
+  );
 
   // Calculate carry-over balance from previous month
   const carryOver = (() => {
@@ -50,7 +71,11 @@ const Index = () => {
     return prevIncome - prevNonIncome;
   })();
 
-  if (isLoading || monthsLoading || !selectedPath) {
+  const isPageLoading = viewMode === "monthly"
+    ? isLoading || monthsLoading || !selectedPath
+    : yearlyLoading || monthsLoading || !selectedYear;
+
+  if (isPageLoading) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
@@ -66,7 +91,7 @@ const Index = () => {
     );
   }
 
-  if (error || !data) {
+  if (viewMode === "monthly" && (error || !data)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-destructive">ไม่สามารถโหลดข้อมูลได้</p>
@@ -74,57 +99,95 @@ const Index = () => {
     );
   }
 
+  const title = viewMode === "monthly"
+    ? `งบประมาณประจำเดือน${data?.month}`
+    : `งบประมาณประจำปี ${selectedYear}`;
+
+  const subtitle = viewMode === "monthly" && data
+    ? `อัปเดตล่าสุด: ${new Date(data.timestamp).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}`
+    : undefined;
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between animate-fade-in">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="bg-primary text-primary-foreground p-2.5 rounded-xl">
               <Wallet className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold font-display">งบประมาณประจำเดือน{data.month}</h1>
-              <p className="text-sm text-muted-foreground">
-                อัปเดตล่าสุด: {new Date(data.timestamp).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}
-              </p>
+              <h1 className="text-2xl font-bold font-display">{title}</h1>
+              {subtitle && (
+                <p className="text-sm text-muted-foreground">{subtitle}</p>
+              )}
             </div>
           </div>
 
-          {/* Month Selector */}
-          {months && months.length > 0 && (
-            <Select value={selectedPath} onValueChange={setSelectedPath}>
-              <SelectTrigger className="w-52 bg-card border-border shadow-sm">
-                <SelectValue placeholder="เลือกเดือน" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border shadow-lg z-50">
-                {months.map((m) => (
-                  <SelectItem key={m.path} value={m.path}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
+          <div className="flex items-center gap-3">
+            {/* View Mode Tabs */}
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "monthly" | "yearly")}>
+              <TabsList className="bg-muted">
+                <TabsTrigger value="monthly" className="text-xs">รายเดือน</TabsTrigger>
+                <TabsTrigger value="yearly" className="text-xs">รายปี</TabsTrigger>
+              </TabsList>
+            </Tabs>
 
-        <SummaryCards data={data} carryOver={carryOver} />
+            {/* Month/Year Selector */}
+            {viewMode === "monthly" && months && months.length > 0 && (
+              <Select value={selectedPath} onValueChange={setSelectedPath}>
+                <SelectTrigger className="w-44 bg-card border-border shadow-sm">
+                  <SelectValue placeholder="เลือกเดือน" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border shadow-lg z-50">
+                  {months.map((m) => (
+                    <SelectItem key={m.path} value={m.path}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
-        <DailyChart data={data} />
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ExpenseChart data={data} />
-          <ExpensePieChart data={data} />
-        </div>
-
-        <ExpenseCategoryChart data={data} />
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <BudgetBreakdown data={data} />
-          <div className="lg:col-span-2">
-            <TransactionTable data={data} />
+            {viewMode === "yearly" && years.length > 0 && (
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-32 bg-card border-border shadow-sm">
+                  <SelectValue placeholder="เลือกปี" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border shadow-lg z-50">
+                  {years.map((y) => (
+                    <SelectItem key={y} value={y}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
+
+        {/* Content */}
+        {viewMode === "monthly" && data && (
+          <>
+            <SummaryCards data={data} carryOver={carryOver} />
+            <DailyChart data={data} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <ExpenseChart data={data} />
+              <ExpensePieChart data={data} />
+            </div>
+            <ExpenseCategoryChart data={data} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <BudgetBreakdown data={data} />
+              <div className="lg:col-span-2">
+                <TransactionTable data={data} />
+              </div>
+            </div>
+          </>
+        )}
+
+        {viewMode === "yearly" && yearlyData && (
+          <YearlyView yearlyData={yearlyData} />
+        )}
       </div>
     </div>
   );
