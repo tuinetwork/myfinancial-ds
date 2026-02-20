@@ -113,13 +113,13 @@ export function ExpenseTabsChart({ data }: Props) {
             {chartData.map((item, i) => {
               const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
               return (
-                <div key={item.name} className="flex items-center gap-2 text-xs sm:text-sm">
+                <div key={item.name} className="flex items-center gap-1.5 text-[11px] sm:text-xs">
                   <div
-                    className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0"
+                    className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: COLORS[i % COLORS.length] }}
                   />
-                  <span className="text-muted-foreground truncate">{item.name}</span>
-                  <span className="ml-auto font-medium font-display whitespace-nowrap">
+                  <span className="text-muted-foreground truncate min-w-0">{item.name}</span>
+                  <span className="ml-auto font-medium font-display whitespace-nowrap text-[10px] sm:text-xs">
                     {formatCurrency(item.value)}
                   </span>
                   <span className="text-[10px] text-muted-foreground w-10 text-right">{pct}%</span>
