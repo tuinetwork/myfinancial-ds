@@ -114,6 +114,11 @@ export function TransactionTable({ data }: Props) {
     return sorted;
   }, [data.transactions, filter, sortKey, sortDir]);
 
+  const totalAmount = useMemo(
+    () => filtered.reduce((sum, t) => sum + t.amount, 0),
+    [filtered]
+  );
+
   const headerClass = "text-xs cursor-pointer select-none hover:text-foreground transition-colors";
 
   return (
@@ -190,6 +195,21 @@ export function TransactionTable({ data }: Props) {
                 </TableRow>
               ))}
             </TableBody>
+            {filter !== "all" && (
+              <tfoot>
+                <tr className="border-t border-border bg-muted/50">
+                  <TableCell colSpan={4} className="text-xs font-semibold py-2.5 hidden sm:table-cell">
+                    รวม {filter}
+                  </TableCell>
+                  <TableCell colSpan={3} className="text-xs font-semibold py-2.5 sm:hidden">
+                    รวม {filter}
+                  </TableCell>
+                  <TableCell className="text-xs text-right font-bold font-display py-2.5">
+                    {formatCurrency(totalAmount)}
+                  </TableCell>
+                </tr>
+              </tfoot>
+            )}
           </Table>
         </div>
       </CardContent>
