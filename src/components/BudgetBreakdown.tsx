@@ -11,7 +11,7 @@ interface Props {
 
 export function BudgetBreakdown({ data }: Props) {
   const [filter, setFilter] = useState<string>("all");
-  const [hideUnused, setHideUnused] = useState(false);
+  const [hideUnused, setHideUnused] = useState(true);
 
   const actualByCategory: Record<string, number> = {};
   data.transactions.forEach((t) => {
