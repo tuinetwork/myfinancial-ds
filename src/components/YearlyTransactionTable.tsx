@@ -103,23 +103,23 @@ export function YearlyTransactionTable({ yearlyData }: Props) {
           <Table>
             <TableHeader>
               <TableRow className="border-border">
-                <TableHead className="text-xs w-28">วันที่</TableHead>
-                <TableHead className="text-xs">ประเภท</TableHead>
-                <TableHead className="text-xs">หมวดหมู่</TableHead>
-                <TableHead className="text-xs hidden sm:table-cell">รายละเอียด</TableHead>
-                <TableHead className="text-xs text-right">จำนวน</TableHead>
+                <TableHead className="text-sm w-28">วันที่</TableHead>
+                <TableHead className="text-sm">ประเภท</TableHead>
+                <TableHead className="text-sm">หมวดหมู่</TableHead>
+                <TableHead className="text-sm hidden sm:table-cell">รายละเอียด</TableHead>
+                <TableHead className="text-sm text-right">จำนวน</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((t, i) => (
                 <TableRow key={i} className="border-border">
-                  <TableCell className="text-xs text-muted-foreground py-2.5">{formatDate(t.date)}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground py-2.5">{formatDate(t.date)}</TableCell>
                   <TableCell className="py-2.5">
-                    <Badge variant="secondary" className={`text-xs ${getTypeBadgeClass(t.type)}`}>{t.type}</Badge>
+                    <Badge variant="secondary" className={`text-sm ${getTypeBadgeClass(t.type)}`}>{t.type}</Badge>
                   </TableCell>
-                  <TableCell className="text-xs py-2.5">{t.category}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground py-2.5 hidden sm:table-cell">{t.description || "-"}</TableCell>
-                  <TableCell className={`text-xs text-right font-medium font-display py-2.5 ${t.type === "รายรับ" ? "text-income" : "text-expense"}`}>
+                  <TableCell className="text-sm py-2.5">{t.category}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground py-2.5 hidden sm:table-cell">{t.description || "-"}</TableCell>
+                  <TableCell className={`text-sm text-right font-medium font-display py-2.5 ${t.type === "รายรับ" ? "text-income" : "text-expense"}`}>
                     {t.type === "รายรับ" ? "+" : "-"}{formatCurrency(t.amount)}
                   </TableCell>
                 </TableRow>
@@ -128,10 +128,10 @@ export function YearlyTransactionTable({ yearlyData }: Props) {
             {filter !== "all" && filtered.length > 0 && (
               <TableFooter>
                 <TableRow className="border-border bg-muted/50">
-                  <TableCell colSpan={4} className="text-xs font-semibold py-2.5">
+                  <TableCell colSpan={4} className="text-sm font-semibold py-2.5">
                     รวม {filter}
                   </TableCell>
-                  <TableCell className={`text-xs text-right font-bold font-display py-2.5 ${filter === "รายรับ" ? "text-income" : "text-expense"}`}>
+                  <TableCell className={`text-sm text-right font-bold font-display py-2.5 ${filter === "รายรับ" ? "text-income" : "text-expense"}`}>
                     {filter === "รายรับ" ? "+" : "-"}{formatCurrency(filtered.reduce((s, t) => s + t.amount, 0))}
                   </TableCell>
                 </TableRow>

@@ -123,7 +123,7 @@ export function TransactionTable({ data }: Props) {
     [filtered]
   );
 
-  const headerClass = "text-xs cursor-pointer select-none hover:text-foreground transition-colors";
+  const headerClass = "text-sm cursor-pointer select-none hover:text-foreground transition-colors";
 
   return (
     <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "560ms" }}>
@@ -167,7 +167,7 @@ export function TransactionTable({ data }: Props) {
                 <TableHead className={headerClass} onClick={() => handleSort("category")}>
                   <span className="flex items-center">หมวดหมู่ <SortIcon column="category" /></span>
                 </TableHead>
-                <TableHead className="text-xs hidden sm:table-cell">รายละเอียด</TableHead>
+                <TableHead className="text-sm hidden sm:table-cell">รายละเอียด</TableHead>
                 <TableHead className={`${headerClass} text-right`} onClick={() => handleSort("amount")}>
                   <span className="flex items-center justify-end">จำนวน <SortIcon column="amount" /></span>
                 </TableHead>
@@ -176,20 +176,20 @@ export function TransactionTable({ data }: Props) {
             <TableBody>
               {filtered.map((t, i) => (
                 <TableRow key={i} className="border-border">
-                  <TableCell className="text-xs text-muted-foreground py-2.5">
+                  <TableCell className="text-sm text-muted-foreground py-2.5">
                     {formatDate(t.date)}
                   </TableCell>
                   <TableCell className="py-2.5">
-                    <Badge variant="secondary" className={`text-xs ${getTypeBadgeClass(t.type)}`}>
+                    <Badge variant="secondary" className={`text-sm ${getTypeBadgeClass(t.type)}`}>
                       {t.type}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-xs py-2.5">{t.category}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground py-2.5 hidden sm:table-cell">
+                  <TableCell className="text-sm py-2.5">{t.category}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground py-2.5 hidden sm:table-cell">
                     {t.description || "-"}
                   </TableCell>
                   <TableCell
-                    className={`text-xs text-right font-medium font-display py-2.5 ${
+                    className={`text-sm text-right font-medium font-display py-2.5 ${
                       t.type === "รายรับ" ? "text-income" : "text-expense"
                     }`}
                   >
@@ -202,13 +202,13 @@ export function TransactionTable({ data }: Props) {
             {filter !== "all" && (
               <tfoot>
                 <tr className="border-t border-border bg-muted/50">
-                  <TableCell colSpan={4} className="text-xs font-semibold py-2.5 hidden sm:table-cell">
+                  <TableCell colSpan={4} className="text-sm font-semibold py-2.5 hidden sm:table-cell">
                     รวม {filter}
                   </TableCell>
-                  <TableCell colSpan={3} className="text-xs font-semibold py-2.5 sm:hidden">
+                  <TableCell colSpan={3} className="text-sm font-semibold py-2.5 sm:hidden">
                     รวม {filter}
                   </TableCell>
-                  <TableCell className="text-xs text-right font-bold font-display py-2.5">
+                  <TableCell className="text-sm text-right font-bold font-display py-2.5">
                     {formatCurrency(totalAmount)}
                   </TableCell>
                 </tr>
