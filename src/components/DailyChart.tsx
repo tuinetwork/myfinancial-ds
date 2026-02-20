@@ -55,7 +55,7 @@ export function DailyChart({ data }: Props) {
       <CardContent className="px-2 sm:px-6">
         <div className="h-52 sm:h-64 md:h-72 lg:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+            <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
               <defs>
                 <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(160 60% 45%)" stopOpacity={0.3} />
