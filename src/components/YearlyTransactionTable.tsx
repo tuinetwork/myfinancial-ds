@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -125,6 +125,18 @@ export function YearlyTransactionTable({ yearlyData }: Props) {
                 </TableRow>
               ))}
             </TableBody>
+            {filter !== "all" && filtered.length > 0 && (
+              <TableFooter>
+                <TableRow className="border-border bg-muted/50">
+                  <TableCell colSpan={4} className="text-xs font-semibold py-2.5">
+                    รวม {filter}
+                  </TableCell>
+                  <TableCell className={`text-xs text-right font-bold font-display py-2.5 ${filter === "รายรับ" ? "text-income" : "text-expense"}`}>
+                    {filter === "รายรับ" ? "+" : "-"}{formatCurrency(filtered.reduce((s, t) => s + t.amount, 0))}
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
+            )}
           </Table>
         </div>
       </CardContent>
