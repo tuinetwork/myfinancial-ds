@@ -3,10 +3,9 @@ import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
 import { useYearlyData } from "@/hooks/useYearlyData";
 import { SummaryCards } from "@/components/SummaryCards";
 import { ExpenseChart } from "@/components/ExpenseChart";
-import { ExpensePieChart } from "@/components/ExpensePieChart";
+import { ExpenseTabsChart } from "@/components/ExpenseTabsChart";
 import { TransactionTable } from "@/components/TransactionTable";
 import { DailyChart } from "@/components/DailyChart";
-import { ExpenseCategoryChart } from "@/components/ExpenseCategoryChart";
 import { BudgetBreakdown } from "@/components/BudgetBreakdown";
 import { YearlyView } from "@/components/YearlyView";
 import { Wallet } from "lucide-react";
@@ -173,9 +172,8 @@ const Index = () => {
             <DailyChart data={data} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <ExpenseChart data={data} />
-              <ExpensePieChart data={data} />
+              <ExpenseTabsChart data={data} />
             </div>
-            <ExpenseCategoryChart data={data} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <BudgetBreakdown data={data} />
               <div className="lg:col-span-2">
