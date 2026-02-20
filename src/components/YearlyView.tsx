@@ -3,7 +3,7 @@ import { ExpenseChart } from "@/components/ExpenseChart";
 import { ExpensePieChart } from "@/components/ExpensePieChart";
 import { ExpenseCategoryChart } from "@/components/ExpenseCategoryChart";
 import { BudgetBreakdown } from "@/components/BudgetBreakdown";
-import { TransactionTable } from "@/components/TransactionTable";
+import { YearlyTransactionTable } from "@/components/YearlyTransactionTable";
 import { MonthlyTrendChart } from "@/components/MonthlyTrendChart";
 import { MonthlyHighlights } from "@/components/MonthlyHighlights";
 import { YearlyData } from "@/hooks/useYearlyData";
@@ -33,7 +33,7 @@ export function YearlyView({ yearlyData }: Props) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <BudgetBreakdown data={aggregated} />
         <div className="lg:col-span-2">
-          <TransactionTable data={aggregated} />
+          <YearlyTransactionTable yearlyData={yearlyData} />
         </div>
       </div>
     </div>
