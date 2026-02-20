@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
 
 interface Props {
@@ -34,7 +35,6 @@ function getTypeBadgeClass(type: string) {
 }
 
 function formatDate(dateStr: string) {
-  // Parse DD/MM/YYYY format
   const parts = dateStr.split("/");
   if (parts.length === 3) {
     const day = parseInt(parts[0], 10);
@@ -48,18 +48,73 @@ function formatDate(dateStr: string) {
   return dateStr;
 }
 
+function parseDateValue(dateStr: string): number {
+  const parts = dateStr.split("/");
+  if (parts.length === 3) {
+    return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10)).getTime();
+  }
+  return new Date(dateStr).getTime();
+}
+
+type SortKey = "date" | "type" | "category" | "amount";
+type SortDir = "asc" | "desc" | null;
+
 export function TransactionTable({ data }: Props) {
   const [filter, setFilter] = useState<string>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const types = useMemo(
     () => Array.from(new Set(data.transactions.map((t) => t.type))),
     [data.transactions]
   );
 
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : prev === "desc" ? null : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const SortIcon = ({ column }: { column: SortKey }) => {
+    if (sortKey !== column || sortDir === null)
+      return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return sortDir === "asc"
+      ? <ArrowUp className="h-3 w-3 ml-1" />
+      : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
   const filtered = useMemo(() => {
     const items = filter === "all" ? data.transactions : data.transactions.filter((t) => t.type === filter);
-    return [...items].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [data.transactions, filter]);
+    const sorted = [...items];
+
+    if (sortDir === null) return sorted;
+
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "date":
+          cmp = parseDateValue(a.date) - parseDateValue(b.date);
+          break;
+        case "type":
+          cmp = a.type.localeCompare(b.type, "th");
+          break;
+        case "category":
+          cmp = a.category.localeCompare(b.category, "th");
+          break;
+        case "amount":
+          cmp = a.amount - b.amount;
+          break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    return sorted;
+  }, [data.transactions, filter, sortKey, sortDir]);
+
+  const headerClass = "text-xs cursor-pointer select-none hover:text-foreground transition-colors";
 
   return (
     <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "560ms" }}>
@@ -94,11 +149,19 @@ export function TransactionTable({ data }: Props) {
           <Table>
             <TableHeader>
               <TableRow className="border-border">
-                <TableHead className="text-xs w-28">วันที่</TableHead>
-                <TableHead className="text-xs">ประเภท</TableHead>
-                <TableHead className="text-xs">หมวดหมู่</TableHead>
+                <TableHead className={`${headerClass} w-28`} onClick={() => handleSort("date")}>
+                  <span className="flex items-center">วันที่ <SortIcon column="date" /></span>
+                </TableHead>
+                <TableHead className={headerClass} onClick={() => handleSort("type")}>
+                  <span className="flex items-center">ประเภท <SortIcon column="type" /></span>
+                </TableHead>
+                <TableHead className={headerClass} onClick={() => handleSort("category")}>
+                  <span className="flex items-center">หมวดหมู่ <SortIcon column="category" /></span>
+                </TableHead>
                 <TableHead className="text-xs hidden sm:table-cell">รายละเอียด</TableHead>
-                <TableHead className="text-xs text-right">จำนวน</TableHead>
+                <TableHead className={`${headerClass} text-right`} onClick={() => handleSort("amount")}>
+                  <span className="flex items-center justify-end">จำนวน <SortIcon column="amount" /></span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
