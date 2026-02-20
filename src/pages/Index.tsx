@@ -148,16 +148,6 @@ const Index = () => {
             {/* Month/Year Selector */}
             {viewMode === "monthly" && months && months.length > 0 && (
               <>
-                <Select value={selectedYear} onValueChange={(y) => { setSelectedYear(y); }}>
-                  <SelectTrigger className="w-24 bg-card border-border shadow-sm">
-                    <SelectValue placeholder="ปี" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border shadow-lg z-50">
-                    {years.map((y) => (
-                      <SelectItem key={y} value={y}>{y}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
                 <Select value={selectedMonthKey} onValueChange={setSelectedMonthKey}>
                   <SelectTrigger className="w-36 bg-card border-border shadow-sm">
                     <SelectValue placeholder="เดือน" />
@@ -165,6 +155,16 @@ const Index = () => {
                   <SelectContent className="bg-card border-border shadow-lg z-50">
                     {monthsForYear.map((m) => (
                       <SelectItem key={m.month} value={m.month}>{m.month}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedYear} onValueChange={(y) => { setSelectedYear(y); }}>
+                  <SelectTrigger className="w-28 bg-card border-border shadow-sm">
+                    <SelectValue placeholder="ปี" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border shadow-lg z-50">
+                    {years.map((y) => (
+                      <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -178,9 +178,7 @@ const Index = () => {
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border shadow-lg z-50">
                   {years.map((y) => (
-                    <SelectItem key={y} value={y}>
-                      {y}
-                    </SelectItem>
+                    <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
