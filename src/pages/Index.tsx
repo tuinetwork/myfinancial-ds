@@ -25,6 +25,22 @@ const Index = () => {
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | undefined>(undefined);
 
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzMCHgFjgZWUeofgJtHrXYw_CCqXwwaqlETICZERyqGt9Kg-L7wfx2q8g4hNOaQl6Mu/exec";
+
+  const sendMonthToSheet = (month: string) => {
+    fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ month }),
+    }).catch((err) => console.error("Failed to send month to sheet:", err));
+  };
+
+  const handleMonthChange = (month: string) => {
+    setSelectedMonthKey(month);
+    sendMonthToSheet(month);
+  };
+
   // Available years
   const years = useMemo(() => {
     if (!months) return [];
@@ -148,7 +164,7 @@ const Index = () => {
             {/* Month/Year Selector */}
             {viewMode === "monthly" && months && months.length > 0 && (
               <>
-                <Select value={selectedMonthKey} onValueChange={setSelectedMonthKey}>
+                <Select value={selectedMonthKey} onValueChange={handleMonthChange}>
                   <SelectTrigger className="w-36 bg-card border-border shadow-sm">
                     <SelectValue placeholder="เดือน" />
                   </SelectTrigger>
