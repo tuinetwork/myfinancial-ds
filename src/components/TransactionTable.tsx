@@ -92,15 +92,16 @@ export function TransactionTable({ data }: Props) {
 
   const filtered = useMemo(() => {
     const items = filter === "all" ? data.transactions : data.transactions.filter((t) => t.type === filter);
-    const sorted = [...items];
+    const indexed = items.map((t, i) => ({ ...t, _idx: i }));
 
-    if (sortDir === null) return sorted;
+    if (sortDir === null) return indexed;
 
-    sorted.sort((a, b) => {
+    indexed.sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
         case "date":
           cmp = parseDateValue(a.date) - parseDateValue(b.date);
+          if (cmp === 0) cmp = a._idx - b._idx;
           break;
         case "type":
           cmp = a.type.localeCompare(b.type, "th");
@@ -115,7 +116,7 @@ export function TransactionTable({ data }: Props) {
       return sortDir === "asc" ? cmp : -cmp;
     });
 
-    return sorted;
+    return indexed;
   }, [data.transactions, filter, sortKey, sortDir]);
 
   const totalAmount = useMemo(
