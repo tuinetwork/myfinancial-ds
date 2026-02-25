@@ -81,7 +81,7 @@ const Index = () => {
     return found?.path;
   }, [months, selectedYear, selectedMonthKey]);
 
-  // Find previous month path (within same year, Jan has no carry-over)
+  // Find previous month path (cross-year: Dec of prev year → Jan of current year)
   const previousPath = useMemo(() => {
     if (!months || !selectedPath || !selectedYear || !selectedMonthKey) return undefined;
     const THAI_MONTHS = [
@@ -90,8 +90,12 @@ const Index = () => {
       "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
     ];
     const currentIdx = THAI_MONTHS.indexOf(selectedMonthKey);
-    // January (index 0) = no carry-over
-    if (currentIdx <= 0) return undefined;
+    if (currentIdx === 0) {
+      // January: carry-over from December of previous year
+      const prevYear = String(Number(selectedYear) - 1);
+      const found = months.find((m) => m.year === prevYear && m.month === "ธันวาคม");
+      return found?.path;
+    }
     const prevMonthName = THAI_MONTHS[currentIdx - 1];
     const found = months.find((m) => m.year === selectedYear && m.month === prevMonthName);
     return found?.path;
