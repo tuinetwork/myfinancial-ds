@@ -19,6 +19,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const THAI_MONTHS = [
+  "มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
+  "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"
+];
+
 const Index = () => {
   const { data: months, isLoading: monthsLoading } = useAvailableMonths();
   const [viewMode, setViewMode] = useState<"monthly" | "yearly">("monthly");
@@ -50,7 +55,9 @@ const Index = () => {
   // Months for the selected year
   const monthsForYear = useMemo(() => {
     if (!months || !selectedYear) return [];
-    return months.filter((m) => m.year === selectedYear);
+    return months
+      .filter((m) => m.year === selectedYear)
+      .sort((a, b) => THAI_MONTHS.indexOf(a.month) - THAI_MONTHS.indexOf(b.month));
   }, [months, selectedYear]);
 
   // Auto-select latest year
