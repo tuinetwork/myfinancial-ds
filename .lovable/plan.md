@@ -1,31 +1,32 @@
 
 
-## Plan: เรียงลำดับเดือนใน Dropdown ตามปฏิทิน
+## Plan: เพิ่มหน้า PIN Lock พร้อมเช็ค pinSetup จาก Firebase
 
-### ปัญหา
-เดือนใน Dropdown แสดงตามลำดับที่ได้จาก Firebase (ตาม key) ซึ่งอาจไม่ตรงกับลำดับปฏิทิน (มกราคม → ธันวาคม)
-
-### การแก้ไข (`src/pages/Index.tsx`)
-
-เพิ่ม array ลำดับเดือนภาษาไทย และใช้ sort ใน `monthsForYear` memo:
-
-```typescript
-const THAI_MONTHS = [
-  "มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
-  "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"
-];
+### โครงสร้าง Firebase ที่ใช้
+```text
+config/
+  pinSetup: true/false
+  pinKey: "102508"
 ```
 
-แก้ `monthsForYear` ให้ sort ตามลำดับปฏิทิน:
-```typescript
-const monthsForYear = useMemo(() => {
-  if (!months || !selectedYear) return [];
-  return months
-    .filter((m) => m.year === selectedYear)
-    .sort((a, b) => THAI_MONTHS.indexOf(a.month) - THAI_MONTHS.indexOf(b.month));
-}, [months, selectedYear]);
-```
+### รายละเอียดการเปลี่ยนแปลง
 
-- ไม่กระทบ logic อื่น (auto-select, path derivation, ส่งข้อมูลไป Sheet)
-- เปลี่ยนแค่ลำดับการแสดงผลใน Dropdown เท่านั้น
+#### 1. สร้าง `src/components/PinLock.tsx`
+- แสดง UI เต็มจอพร้อมไอคอนกุญแจ ให้กรอก PIN 6 หลักด้วย `InputOTP`
+- ดึง `config/pinSetup` และ `config/pinKey` จาก Firebase Realtime Database
+- **ถ้า `pinSetup` เป็น `false`** → เรียก `onUnlock` ทันทีโดยไม่ต้องแสดงหน้ากรอก PIN
+- **ถ้า `pinSetup` เป็น `true`** → แสดงหน้ากรอก PIN แล้วเปรียบเทียบกับ `pinKey`
+- ถ้ากรอกถูก → เรียก `onUnlock` และบันทึกใน `sessionStorage`
+- ถ้ากรอกผิด → แสดง "PIN ไม่ถูกต้อง" พร้อมล้างช่องกรอก
+- ระหว่างโหลดข้อมูลจาก Firebase แสดง loading spinner
+
+#### 2. แก้ไข `src/App.tsx`
+- เพิ่ม state `isUnlocked` ตรวจสอบจาก `sessionStorage` key `"finance-dashboard-unlocked"`
+- ถ้ายังไม่ unlock → แสดง `PinLock`
+- เมื่อ unlock สำเร็จ → set `sessionStorage` และแสดงหน้าปกติ
+
+### ด้านเทคนิค
+- ใช้ `ref(db, "config/pinSetup")` และ `ref(db, "config/pinKey")` กับ `get()` จาก Firebase
+- ใช้ `InputOTP` component ที่มีอยู่แล้ว
+- Session storage key: `"finance-dashboard-unlocked"` เพื่อไม่ต้องกรอกซ้ำใน session เดียวกัน
 
