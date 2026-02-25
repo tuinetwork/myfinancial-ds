@@ -1,22 +1,32 @@
 
 
-## เพิ่มตัวกรองประเภทรายการในตาราง
+## Plan: เพิ่มหน้า PIN Lock พร้อมเช็ค pinSetup จาก Firebase
 
-เพิ่มปุ่มกรองข้อมูลด้านบนตารางรายการ เพื่อให้สามารถเลือกดูเฉพาะประเภทที่ต้องการ เช่น รายรับ, ค่าใช้จ่าย, หนี้สิน, บิล/สาธารณูปโภค, ค่าสมาชิกรายเดือน
+### โครงสร้าง Firebase ที่ใช้
+```text
+config/
+  pinSetup: true/false
+  pinKey: "102508"
+```
 
-### สิ่งที่จะเปลี่ยน
+### รายละเอียดการเปลี่ยนแปลง
 
-**ไฟล์: `src/components/TransactionTable.tsx`**
+#### 1. สร้าง `src/components/PinLock.tsx`
+- แสดง UI เต็มจอพร้อมไอคอนกุญแจ ให้กรอก PIN 6 หลักด้วย `InputOTP`
+- ดึง `config/pinSetup` และ `config/pinKey` จาก Firebase Realtime Database
+- **ถ้า `pinSetup` เป็น `false`** → เรียก `onUnlock` ทันทีโดยไม่ต้องแสดงหน้ากรอก PIN
+- **ถ้า `pinSetup` เป็น `true`** → แสดงหน้ากรอก PIN แล้วเปรียบเทียบกับ `pinKey`
+- ถ้ากรอกถูก → เรียก `onUnlock` และบันทึกใน `sessionStorage`
+- ถ้ากรอกผิด → แสดง "PIN ไม่ถูกต้อง" พร้อมล้างช่องกรอก
+- ระหว่างโหลดข้อมูลจาก Firebase แสดง loading spinner
 
-- เพิ่ม state สำหรับเก็บประเภทที่เลือกกรอง (ค่าเริ่มต้น = "ทั้งหมด")
-- เพิ่มแถบปุ่มกรอง (ToggleGroup) ด้านบนตาราง โดยดึงประเภทจากข้อมูลจริงแบบ dynamic
-- กรองรายการตามประเภทที่เลือกก่อนแสดงในตาราง
-- อัปเดตจำนวนรายการที่แสดงในหัวข้อตาราง
+#### 2. แก้ไข `src/App.tsx`
+- เพิ่ม state `isUnlocked` ตรวจสอบจาก `sessionStorage` key `"finance-dashboard-unlocked"`
+- ถ้ายังไม่ unlock → แสดง `PinLock`
+- เมื่อ unlock สำเร็จ → set `sessionStorage` และแสดงหน้าปกติ
 
-### รายละเอียดทางเทคนิค
-
-- ใช้ `useState` เก็บค่า filter เป็น string (`"all"` หรือชื่อประเภท)
-- ดึงรายชื่อประเภทจาก `data.transactions` ด้วย `Set` เพื่อให้ dynamic ตามข้อมูลจริง
-- ใช้ปุ่ม Badge/Button ขนาดเล็กเรียงเป็นแถว พร้อม active state ที่ชัดเจน
-- กรองข้อมูลก่อน sort เพื่อประสิทธิภาพ
+### ด้านเทคนิค
+- ใช้ `ref(db, "config/pinSetup")` และ `ref(db, "config/pinKey")` กับ `get()` จาก Firebase
+- ใช้ `InputOTP` component ที่มีอยู่แล้ว
+- Session storage key: `"finance-dashboard-unlocked"` เพื่อไม่ต้องกรอกซ้ำใน session เดียวกัน
 
