@@ -90,8 +90,12 @@ const Index = () => {
       "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
     ];
     const currentIdx = THAI_MONTHS.indexOf(selectedMonthKey);
-    // January (index 0) = no carry-over
-    if (currentIdx <= 0) return undefined;
+    // January → carry-over from December of previous year
+    if (currentIdx === 0) {
+      const prevYear = String(Number(selectedYear) - 1);
+      const found = months.find((m) => m.year === prevYear && m.month === "ธันวาคม");
+      return found?.path;
+    }
     const prevMonthName = THAI_MONTHS[currentIdx - 1];
 
     // ถ้าเดือนก่อนหน้ายังไม่จบ (เป็นเดือนปัจจุบันหรืออนาคต) ไม่ยกยอด
