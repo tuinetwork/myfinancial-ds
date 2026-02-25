@@ -60,10 +60,17 @@ const Index = () => {
     }
   }, [years, selectedYear]);
 
-  // Auto-select latest month when year changes
+  // Auto-select current month or latest available month when year changes
   useEffect(() => {
     if (monthsForYear.length > 0) {
-      setSelectedMonthKey(monthsForYear[0].month);
+      const THAI_MONTHS = [
+        "", "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน",
+        "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม",
+        "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+      ];
+      const currentMonthName = THAI_MONTHS[new Date().getMonth() + 1];
+      const found = monthsForYear.find((m) => m.month === currentMonthName);
+      setSelectedMonthKey(found ? found.month : monthsForYear[monthsForYear.length - 1].month);
     }
   }, [monthsForYear]);
 

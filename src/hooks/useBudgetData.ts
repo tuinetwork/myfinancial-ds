@@ -84,7 +84,7 @@ export function useAvailableMonths() {
       const options: MonthOption[] = [];
       for (const year of Object.keys(years).sort().reverse()) {
         const months = years[year];
-          const sortedMonths = Object.keys(months).sort((a, b) => getMonthIndex(b) - getMonthIndex(a));
+          const sortedMonths = Object.keys(months).sort((a, b) => getMonthIndex(a) - getMonthIndex(b));
           for (const month of sortedMonths) {
             options.push({ year, month, path: `history/${year}/${month}`, label: `${month} ${year}` });
           }
@@ -103,7 +103,7 @@ export function useAvailableMonths() {
       const options: MonthOption[] = [];
       for (const year of Object.keys(years).sort().reverse()) {
         const months = years[year];
-          const sortedMonths = Object.keys(months).sort((a, b) => getMonthIndex(b) - getMonthIndex(a));
+          const sortedMonths = Object.keys(months).sort((a, b) => getMonthIndex(a) - getMonthIndex(b));
           for (const month of sortedMonths) {
             options.push({ year, month, path: `history/${year}/${month}`, label: `${month} ${year}` });
           }
