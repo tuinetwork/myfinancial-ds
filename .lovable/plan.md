@@ -1,13 +1,33 @@
 
 
-## Plan: เรียงเดือนจากต้นปีขึ้นก่อน + เลือกเดือนปัจจุบันเป็นค่าเริ่มต้น
+## Plan: ยกยอดข้ามปี (ธันวาคม → มกราคมปีถัดไป)
 
-### การเปลี่ยนแปลง
+### สิ่งที่เปลี่ยน
 
-#### 1. `src/hooks/useBudgetData.ts` — เปลี่ยนการเรียงเดือนจาก descending เป็น ascending
-- บรรทัด 87 และ 106: เปลี่ยน `getMonthIndex(b) - getMonthIndex(a)` เป็น `getMonthIndex(a) - getMonthIndex(b)`
-- ผลลัพธ์: มกราคม อยู่บนสุด, ธันวาคม อยู่ล่างสุด (ตามภาพ)
+#### `src/pages/Index.tsx` — แก้ logic `previousPath`
 
-#### 2. `src/pages/Index.tsx` — เลือกเดือนปัจจุบันเป็นค่าเริ่มต้น
-- แก้ logic auto-select month (บรรทัด 64-68): แทนที่จะเลือก `monthsForYear[0]` ให้หาเดือนปัจจุบันจาก `THAI_MONTH_ORDER` แล้วเลือกเดือนที่ตรงกัน ถ้าไม่มีให้เลือกเดือนสุดท้าย (เดือนล่าสุดที่มีข้อมูล)
+ปัจจุบัน เดือนมกราคม (index 0) จะ return `undefined` ทันที ไม่มียกยอด
+
+แก้เป็น:
+- ถ้าเป็นมกราคม → หา path ของ **ธันวาคมปีก่อนหน้า** (`history/{year-1}/ธันวาคม`) จาก `months` data
+- ยังคงเช็คว่าเดือนก่อนหน้าต้องจบแล้ว (ธันวาคมปีก่อนจะจบแล้วเสมอถ้าปีปัจจุบันเริ่มแล้ว) — ใช้ logic เดิมที่เช็ค `prevMonthIdx >= realMonthIdx`
+- ถ้าไม่มีข้อมูลธันวาคมปีก่อนใน Firebase → return `undefined` ตามปกติ
+
+### โค้ดที่เปลี่ยน (บรรทัด ~90-95)
+
+```text
+เดิม:
+  if (currentIdx <= 0) return undefined;
+
+ใหม่:
+  if (currentIdx === 0) {
+    // ม.ค. → หายอดจาก ธ.ค. ปีก่อน
+    const prevYear = String(Number(selectedYear) - 1);
+    const found = months.find(m => m.year === prevYear && m.month === "ธันวาคม");
+    // ธ.ค. ปีก่อนจบแล้วแน่นอนถ้าเราอยู่ปีถัดไป ไม่ต้องเช็คเพิ่ม
+    return found?.path;
+  }
+```
+
+ไม่มีไฟล์อื่นที่ต้องแก้ การคำนวณ carryOver ใช้ `prevData` อยู่แล้ว
 
