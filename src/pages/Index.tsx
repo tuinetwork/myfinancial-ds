@@ -81,12 +81,21 @@ const Index = () => {
     return found?.path;
   }, [months, selectedYear, selectedMonthKey]);
 
-  // Find previous month path
-  const previousPath = (() => {
-    if (!months || !selectedPath) return undefined;
-    const idx = months.findIndex((m) => m.path === selectedPath);
-    return idx >= 0 && idx + 1 < months.length ? months[idx + 1].path : undefined;
-  })();
+  // Find previous month path (within same year, Jan has no carry-over)
+  const previousPath = useMemo(() => {
+    if (!months || !selectedPath || !selectedYear || !selectedMonthKey) return undefined;
+    const THAI_MONTHS = [
+      "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน",
+      "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม",
+      "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+    ];
+    const currentIdx = THAI_MONTHS.indexOf(selectedMonthKey);
+    // January (index 0) = no carry-over
+    if (currentIdx <= 0) return undefined;
+    const prevMonthName = THAI_MONTHS[currentIdx - 1];
+    const found = months.find((m) => m.year === selectedYear && m.month === prevMonthName);
+    return found?.path;
+  }, [months, selectedPath, selectedYear, selectedMonthKey]);
 
   const { data, isLoading, error } = useBudgetData(selectedPath);
   const { data: prevData } = useBudgetData(previousPath);
