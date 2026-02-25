@@ -93,6 +93,14 @@ const Index = () => {
     // January (index 0) = no carry-over
     if (currentIdx <= 0) return undefined;
     const prevMonthName = THAI_MONTHS[currentIdx - 1];
+
+    // ถ้าเดือนก่อนหน้ายังไม่จบ (เป็นเดือนปัจจุบันหรืออนาคต) ไม่ยกยอด
+    const now = new Date();
+    const realYear = String(now.getFullYear());
+    const realMonthIdx = now.getMonth(); // 0-based (Jan=0)
+    const prevMonthIdx = currentIdx - 1; // 0-based in THAI_MONTHS
+    if (selectedYear === realYear && prevMonthIdx >= realMonthIdx) return undefined;
+
     const found = months.find((m) => m.year === selectedYear && m.month === prevMonthName);
     return found?.path;
   }, [months, selectedPath, selectedYear, selectedMonthKey]);
