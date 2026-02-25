@@ -60,17 +60,10 @@ const Index = () => {
     }
   }, [years, selectedYear]);
 
-  // Auto-select current month or latest available month when year changes
+  // Auto-select latest month when year changes
   useEffect(() => {
     if (monthsForYear.length > 0) {
-      const THAI_MONTHS = [
-        "", "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน",
-        "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม",
-        "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
-      ];
-      const currentMonthName = THAI_MONTHS[new Date().getMonth() + 1];
-      const found = monthsForYear.find((m) => m.month === currentMonthName);
-      setSelectedMonthKey(found ? found.month : monthsForYear[monthsForYear.length - 1].month);
+      setSelectedMonthKey(monthsForYear[0].month);
     }
   }, [monthsForYear]);
 
@@ -81,33 +74,12 @@ const Index = () => {
     return found?.path;
   }, [months, selectedYear, selectedMonthKey]);
 
-  // Find previous month path (within same year, Jan has no carry-over)
-  const previousPath = useMemo(() => {
-    if (!months || !selectedPath || !selectedYear || !selectedMonthKey) return undefined;
-    const THAI_MONTHS = [
-      "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน",
-      "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม",
-      "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
-    ];
-    const currentIdx = THAI_MONTHS.indexOf(selectedMonthKey);
-    // January → carry-over from December of previous year
-    if (currentIdx === 0) {
-      const prevYear = String(Number(selectedYear) - 1);
-      const found = months.find((m) => m.year === prevYear && m.month === "ธันวาคม");
-      return found?.path;
-    }
-    const prevMonthName = THAI_MONTHS[currentIdx - 1];
-
-    // ถ้าเดือนก่อนหน้ายังไม่จบ (เป็นเดือนปัจจุบันหรืออนาคต) ไม่ยกยอด
-    const now = new Date();
-    const realYear = String(now.getFullYear());
-    const realMonthIdx = now.getMonth(); // 0-based (Jan=0)
-    const prevMonthIdx = currentIdx - 1; // 0-based in THAI_MONTHS
-    if (selectedYear === realYear && prevMonthIdx >= realMonthIdx) return undefined;
-
-    const found = months.find((m) => m.year === selectedYear && m.month === prevMonthName);
-    return found?.path;
-  }, [months, selectedPath, selectedYear, selectedMonthKey]);
+  // Find previous month path
+  const previousPath = (() => {
+    if (!months || !selectedPath) return undefined;
+    const idx = months.findIndex((m) => m.path === selectedPath);
+    return idx >= 0 && idx + 1 < months.length ? months[idx + 1].path : undefined;
+  })();
 
   const { data, isLoading, error } = useBudgetData(selectedPath);
   const { data: prevData } = useBudgetData(previousPath);

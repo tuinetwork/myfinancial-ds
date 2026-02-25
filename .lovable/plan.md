@@ -1,33 +1,32 @@
 
 
-## Plan: ยกยอดข้ามปี (ธันวาคม → มกราคมปีถัดไป)
+## Plan: เพิ่มหน้า PIN Lock พร้อมเช็ค pinSetup จาก Firebase
 
-### สิ่งที่เปลี่ยน
-
-#### `src/pages/Index.tsx` — แก้ logic `previousPath`
-
-ปัจจุบัน เดือนมกราคม (index 0) จะ return `undefined` ทันที ไม่มียกยอด
-
-แก้เป็น:
-- ถ้าเป็นมกราคม → หา path ของ **ธันวาคมปีก่อนหน้า** (`history/{year-1}/ธันวาคม`) จาก `months` data
-- ยังคงเช็คว่าเดือนก่อนหน้าต้องจบแล้ว (ธันวาคมปีก่อนจะจบแล้วเสมอถ้าปีปัจจุบันเริ่มแล้ว) — ใช้ logic เดิมที่เช็ค `prevMonthIdx >= realMonthIdx`
-- ถ้าไม่มีข้อมูลธันวาคมปีก่อนใน Firebase → return `undefined` ตามปกติ
-
-### โค้ดที่เปลี่ยน (บรรทัด ~90-95)
-
+### โครงสร้าง Firebase ที่ใช้
 ```text
-เดิม:
-  if (currentIdx <= 0) return undefined;
-
-ใหม่:
-  if (currentIdx === 0) {
-    // ม.ค. → หายอดจาก ธ.ค. ปีก่อน
-    const prevYear = String(Number(selectedYear) - 1);
-    const found = months.find(m => m.year === prevYear && m.month === "ธันวาคม");
-    // ธ.ค. ปีก่อนจบแล้วแน่นอนถ้าเราอยู่ปีถัดไป ไม่ต้องเช็คเพิ่ม
-    return found?.path;
-  }
+config/
+  pinSetup: true/false
+  pinKey: "102508"
 ```
 
-ไม่มีไฟล์อื่นที่ต้องแก้ การคำนวณ carryOver ใช้ `prevData` อยู่แล้ว
+### รายละเอียดการเปลี่ยนแปลง
+
+#### 1. สร้าง `src/components/PinLock.tsx`
+- แสดง UI เต็มจอพร้อมไอคอนกุญแจ ให้กรอก PIN 6 หลักด้วย `InputOTP`
+- ดึง `config/pinSetup` และ `config/pinKey` จาก Firebase Realtime Database
+- **ถ้า `pinSetup` เป็น `false`** → เรียก `onUnlock` ทันทีโดยไม่ต้องแสดงหน้ากรอก PIN
+- **ถ้า `pinSetup` เป็น `true`** → แสดงหน้ากรอก PIN แล้วเปรียบเทียบกับ `pinKey`
+- ถ้ากรอกถูก → เรียก `onUnlock` และบันทึกใน `sessionStorage`
+- ถ้ากรอกผิด → แสดง "PIN ไม่ถูกต้อง" พร้อมล้างช่องกรอก
+- ระหว่างโหลดข้อมูลจาก Firebase แสดง loading spinner
+
+#### 2. แก้ไข `src/App.tsx`
+- เพิ่ม state `isUnlocked` ตรวจสอบจาก `sessionStorage` key `"finance-dashboard-unlocked"`
+- ถ้ายังไม่ unlock → แสดง `PinLock`
+- เมื่อ unlock สำเร็จ → set `sessionStorage` และแสดงหน้าปกติ
+
+### ด้านเทคนิค
+- ใช้ `ref(db, "config/pinSetup")` และ `ref(db, "config/pinKey")` กับ `get()` จาก Firebase
+- ใช้ `InputOTP` component ที่มีอยู่แล้ว
+- Session storage key: `"finance-dashboard-unlocked"` เพื่อไม่ต้องกรอกซ้ำใน session เดียวกัน
 

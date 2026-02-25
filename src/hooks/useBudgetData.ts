@@ -38,16 +38,6 @@ export interface MonthOption {
   label: string;
 }
 
-const THAI_MONTH_ORDER: Record<string, number> = {
-  "มกราคม": 1, "กุมภาพันธ์": 2, "มีนาคม": 3, "เมษายน": 4,
-  "พฤษภาคม": 5, "มิถุนายน": 6, "กรกฎาคม": 7, "สิงหาคม": 8,
-  "กันยายน": 9, "ตุลาคม": 10, "พฤศจิกายน": 11, "ธันวาคม": 12,
-};
-
-function getMonthIndex(name: string): number {
-  return THAI_MONTH_ORDER[name] ?? 99;
-}
-
 function toArray<T>(val: unknown): T[] {
   if (Array.isArray(val)) return val;
   if (val && typeof val === "object") return Object.values(val) as T[];
@@ -84,10 +74,11 @@ export function useAvailableMonths() {
       const options: MonthOption[] = [];
       for (const year of Object.keys(years).sort().reverse()) {
         const months = years[year];
-          const sortedMonths = Object.keys(months).sort((a, b) => getMonthIndex(a) - getMonthIndex(b));
-          for (const month of sortedMonths) {
+        if (typeof months === "object" && months !== null) {
+          for (const month of Object.keys(months)) {
             options.push({ year, month, path: `history/${year}/${month}`, label: `${month} ${year}` });
           }
+        }
       }
       queryClient.setQueryData(["available-months"], options);
     });
@@ -103,10 +94,11 @@ export function useAvailableMonths() {
       const options: MonthOption[] = [];
       for (const year of Object.keys(years).sort().reverse()) {
         const months = years[year];
-          const sortedMonths = Object.keys(months).sort((a, b) => getMonthIndex(a) - getMonthIndex(b));
-          for (const month of sortedMonths) {
+        if (typeof months === "object" && months !== null) {
+          for (const month of Object.keys(months)) {
             options.push({ year, month, path: `history/${year}/${month}`, label: `${month} ${year}` });
           }
+        }
       }
       return options;
     },
