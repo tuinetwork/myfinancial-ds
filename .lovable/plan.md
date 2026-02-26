@@ -1,32 +1,21 @@
 
 
-## Plan: เพิ่มหน้า PIN Lock พร้อมเช็ค pinSetup จาก Firebase
+## Plan: แก้ไขลำดับการเรียงเดือนเพื่อให้ยกยอดถูกต้อง
 
-### โครงสร้าง Firebase ที่ใช้
+### สาเหตุของปัญหา
+ปัจจุบัน months array เรียงปีจากมากไปน้อย แต่เดือนภายในแต่ละปีเรียงจากน้อยไปมาก (01, 02, 03...) ทำให้ `idx + 1` ไม่ได้ชี้ไปที่เดือนก่อนหน้าจริง
+
 ```text
-config/
-  pinSetup: true/false
-  pinKey: "102508"
+ตัวอย่างปัจจุบัน: [2025/01, 2025/02, 2024/01, 2024/02]
+                           ↑ idx+1 ของ 02 = 2024/01 ❌
+
+ที่ถูกต้อง:       [2025/02, 2025/01, 2024/12, 2024/11]
+                           ↑ idx+1 ของ 02 = 2025/01 ✓
 ```
 
-### รายละเอียดการเปลี่ยนแปลง
+### การแก้ไข: `src/hooks/useBudgetData.ts`
+- เรียงเดือนภายในแต่ละปีจากมากไปน้อย (reverse) เพื่อให้ array ทั้งหมดเรียงจากล่าสุดไปเก่าสุด
+- เปลี่ยน `Object.keys(months)` เป็น `Object.keys(months).sort().reverse()` ทั้ง 2 จุด (realtime listener และ queryFn)
 
-#### 1. สร้าง `src/components/PinLock.tsx`
-- แสดง UI เต็มจอพร้อมไอคอนกุญแจ ให้กรอก PIN 6 หลักด้วย `InputOTP`
-- ดึง `config/pinSetup` และ `config/pinKey` จาก Firebase Realtime Database
-- **ถ้า `pinSetup` เป็น `false`** → เรียก `onUnlock` ทันทีโดยไม่ต้องแสดงหน้ากรอก PIN
-- **ถ้า `pinSetup` เป็น `true`** → แสดงหน้ากรอก PIN แล้วเปรียบเทียบกับ `pinKey`
-- ถ้ากรอกถูก → เรียก `onUnlock` และบันทึกใน `sessionStorage`
-- ถ้ากรอกผิด → แสดง "PIN ไม่ถูกต้อง" พร้อมล้างช่องกรอก
-- ระหว่างโหลดข้อมูลจาก Firebase แสดง loading spinner
-
-#### 2. แก้ไข `src/App.tsx`
-- เพิ่ม state `isUnlocked` ตรวจสอบจาก `sessionStorage` key `"finance-dashboard-unlocked"`
-- ถ้ายังไม่ unlock → แสดง `PinLock`
-- เมื่อ unlock สำเร็จ → set `sessionStorage` และแสดงหน้าปกติ
-
-### ด้านเทคนิค
-- ใช้ `ref(db, "config/pinSetup")` และ `ref(db, "config/pinKey")` กับ `get()` จาก Firebase
-- ใช้ `InputOTP` component ที่มีอยู่แล้ว
-- Session storage key: `"finance-dashboard-unlocked"` เพื่อไม่ต้องกรอกซ้ำใน session เดียวกัน
+ผลลัพธ์: เมื่อเลือกกุมภาพันธ์ `idx + 1` จะชี้ไปมกราคมอย่างถูกต้อง และยกยอดจะคำนวณจากเดือนก่อนหน้าจริง
 
