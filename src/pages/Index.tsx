@@ -170,7 +170,7 @@ const Index = () => {
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border shadow-lg z-50">
                     {monthsForYear.map((m) => (
-                      <SelectItem key={m.month} value={m.month}>{m.month}</SelectItem>
+                      <SelectItem key={m.month} value={m.month}>{m.monthName}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
