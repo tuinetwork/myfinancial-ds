@@ -34,6 +34,7 @@ export interface BudgetData {
 export interface MonthOption {
   year: string;
   month: string;
+  monthName: string;
   path: string;
   label: string;
 }
@@ -70,13 +71,15 @@ export function useAvailableMonths() {
     const dbRef = ref(db, "history");
     const unsubscribe = onValue(dbRef, (snapshot) => {
       if (!snapshot.exists()) return;
-      const years = snapshot.val() as Record<string, Record<string, unknown>>;
+      const years = snapshot.val() as Record<string, Record<string, Record<string, unknown>>>;
       const options: MonthOption[] = [];
       for (const year of Object.keys(years).sort().reverse()) {
         const months = years[year];
         if (typeof months === "object" && months !== null) {
           for (const month of Object.keys(months)) {
-            options.push({ year, month, path: `history/${year}/${month}`, label: `${month} ${year}` });
+            const monthData = months[month];
+            const monthName = (monthData?.monthName as string) ?? month;
+            options.push({ year, month, monthName, path: `history/${year}/${month}`, label: `${monthName} ${year}` });
           }
         }
       }
@@ -90,13 +93,15 @@ export function useAvailableMonths() {
     queryFn: async () => {
       const snapshot = await get(ref(db, "history"));
       if (!snapshot.exists()) return [];
-      const years = snapshot.val() as Record<string, Record<string, unknown>>;
+      const years = snapshot.val() as Record<string, Record<string, Record<string, unknown>>>;
       const options: MonthOption[] = [];
       for (const year of Object.keys(years).sort().reverse()) {
         const months = years[year];
         if (typeof months === "object" && months !== null) {
           for (const month of Object.keys(months)) {
-            options.push({ year, month, path: `history/${year}/${month}`, label: `${month} ${year}` });
+            const monthData = months[month];
+            const monthName = (monthData?.monthName as string) ?? month;
+            options.push({ year, month, monthName, path: `history/${year}/${month}`, label: `${monthName} ${year}` });
           }
         }
       }
