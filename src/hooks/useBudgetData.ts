@@ -48,7 +48,7 @@ function normalizeBudgetData(raw: Record<string, unknown>): BudgetData {
   const expenses = (raw.expenses ?? {}) as Record<string, unknown>;
   return {
     status: (raw.status as string) ?? "",
-    month: (raw.month as string) ?? "",
+    month: (raw.monthName as string) ?? (raw.month as string) ?? "",
     timestamp: (raw.timestamp as string) ?? new Date().toISOString(),
     income: toArray<BudgetItem>(raw.income),
     expenses: {
