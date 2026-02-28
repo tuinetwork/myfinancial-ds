@@ -79,9 +79,11 @@ type SortDir = "asc" | "desc" | null;
 const TYPE_ORDER = ["รายรับ", "ค่าใช้จ่าย", "เงินออม", "บิล/สาธารณูปโภค", "ค่าสมาชิกรายเดือน", "หนี้สิน"];
 
 export function TransactionTable({ data }: Props) {
+  const PAGE_SIZE = 50;
   const [filter, setFilter] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [page, setPage] = useState(0);
 
   const types = useMemo(() => {
     const available = Array.from(new Set(data.transactions.map((t) => t.type)));
@@ -141,6 +143,12 @@ export function TransactionTable({ data }: Props) {
     [filtered]
   );
 
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  // Reset page when filter changes
+  useMemo(() => { setPage(0); }, [filter]);
+
   const headerClass = "text-sm cursor-pointer select-none hover:text-foreground transition-colors";
 
   return (
@@ -192,7 +200,7 @@ export function TransactionTable({ data }: Props) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((t, i) => (
+              {paged.map((t, i) => (
                 <TableRow key={i} className="border-border">
                   <TableCell className="text-sm text-muted-foreground py-2.5">
                     {formatDate(t.date)}
@@ -234,6 +242,22 @@ export function TransactionTable({ data }: Props) {
             )}
           </Table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <span className="text-xs text-muted-foreground">
+              แสดง {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} จาก {filtered.length} รายการ
+            </span>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page === 0} onClick={() => setPage(page - 1)}>
+                ก่อนหน้า
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
+                ถัดไป
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
