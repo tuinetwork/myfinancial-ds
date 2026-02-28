@@ -165,14 +165,14 @@ const BudgetTable = ({
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className={`text-sm font-bold text-center ${titleColor}`}>{title}</CardTitle>
+    <Card className="shadow-md">
+      <CardHeader className="pb-3">
+        <CardTitle className={`text-base font-bold text-center ${titleColor}`}>{title}</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="px-4 pb-2">
+        <div className="px-4 pb-3">
           <Select value={selectedCategory} onValueChange={onCategoryChange}>
-            <SelectTrigger className="w-full text-xs">
+            <SelectTrigger className="w-full text-sm h-9">
               <SelectValue placeholder="เลือกหมวดหมู่" />
             </SelectTrigger>
             <SelectContent>
@@ -184,13 +184,13 @@ const BudgetTable = ({
         </div>
 
         <div className="border-t border-border">
-          <table className="w-full text-xs">
+          <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="text-left px-3 py-2 font-medium">หมวดหมู่</th>
-                <th className="text-right px-3 py-2 font-medium">งบประมาณ</th>
-                <th className="text-right px-3 py-2 font-medium">จ่ายแล้ว</th>
-                <th className="text-right px-3 py-2 font-medium">คงเหลือ</th>
+                <th className="text-left px-4 py-2.5 font-semibold">หมวดหมู่</th>
+                <th className="text-right px-4 py-2.5 font-semibold">งบประมาณ</th>
+                <th className="text-right px-4 py-2.5 font-semibold">จ่ายแล้ว</th>
+                <th className="text-right px-4 py-2.5 font-semibold">คงเหลือ</th>
               </tr>
             </thead>
             <tbody>
@@ -199,19 +199,19 @@ const BudgetTable = ({
                 const remaining = amount - actual;
                 return (
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                    <td className="px-3 py-2 text-muted-foreground">{sub}</td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-4 py-2.5 text-muted-foreground">{sub}</td>
+                    <td className="px-4 py-2.5 text-right">
                       <Input
                         type="number"
                         value={amount}
                         onChange={(e) => onAmountChange(selectedCategory, sub, Number(e.target.value) || 0)}
-                        className="h-7 w-24 text-xs text-right ml-auto"
+                        className="h-8 w-28 text-sm text-right ml-auto"
                       />
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
+                    <td className="px-4 py-2.5 text-right tabular-nums">
                       {actual > 0 ? fmt(actual) : "-"}
                     </td>
-                    <td className={`px-3 py-2 text-right tabular-nums ${remainingColor(amount, actual)}`}>
+                    <td className={`px-4 py-2.5 text-right tabular-nums ${remainingColor(amount, actual)}`}>
                       {actual > 0 ? fmt(remaining) : "-"}
                     </td>
                   </tr>
@@ -219,16 +219,16 @@ const BudgetTable = ({
               })}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-3 py-4 text-center text-muted-foreground">ไม่มีรายการ</td>
+                  <td colSpan={4} className="px-4 py-4 text-center text-muted-foreground">ไม่มีรายการ</td>
                 </tr>
               )}
             </tbody>
             <tfoot>
-              <tr className="bg-muted/50 font-medium">
-                <td className="px-3 py-2">รวม</td>
-                <td className="px-3 py-2 text-right tabular-nums">{fmt(totalBudget)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{fmt(totalActual)}</td>
-                <td className={`px-3 py-2 text-right tabular-nums ${remainingColor(totalBudget, totalActual)}`}>{fmt(totalRemaining)}</td>
+              <tr className="bg-muted/50 font-semibold">
+                <td className="px-4 py-2.5">รวม</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{fmt(totalBudget)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{fmt(totalActual)}</td>
+                <td className={`px-4 py-2.5 text-right tabular-nums ${remainingColor(totalBudget, totalActual)}`}>{fmt(totalRemaining)}</td>
               </tr>
             </tfoot>
           </table>
