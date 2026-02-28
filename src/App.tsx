@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import Index from "./pages/Index";
+import Transactions from "./pages/Transactions";
 import NotFound from "./pages/NotFound";
 import PinLock from "./components/PinLock";
 
@@ -34,6 +35,7 @@ const App = () => {
             <div className="min-h-screen flex w-full">
               <Routes>
                 <Route path="/" element={<Index />} />
+                <Route path="/transactions" element={<Transactions />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </div>
