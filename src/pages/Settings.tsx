@@ -35,12 +35,12 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   LogOut, User, Mail, Shield, ChevronRight, ChevronDown,
-  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2,
+  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 // ─── Sub-menu tabs ───
-type SettingsTab = "budget" | "categories" | "user";
+type SettingsTab = "budget" | "categories" | "savings" | "user";
 
 // ─── Budget tree types ───
 interface BudgetTreeData {
@@ -863,6 +863,186 @@ const CategorySettings = () => {
   );
 };
 
+// ─── Savings Goal Settings Tab ───
+const SavingsGoalSettings = () => {
+  const { userId } = useAuth();
+  const { data: months } = useAvailableMonths();
+  const [selectedYear, setSelectedYear] = useState<string>();
+  const [selectedMonth, setSelectedMonth] = useState<string>();
+  const [savingsTargets, setSavingsTargets] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const years = useMemo(() => {
+    if (!months) return [];
+    return Array.from(new Set(months.map((m) => m.year))).sort().reverse();
+  }, [months]);
+
+  const monthsForYear = useMemo(() => {
+    if (!months || !selectedYear) return [];
+    return months.filter((m) => m.year === selectedYear);
+  }, [months, selectedYear]);
+
+  useEffect(() => {
+    if (years.length > 0 && !selectedYear) setSelectedYear(years[0]);
+  }, [years, selectedYear]);
+
+  useEffect(() => {
+    if (monthsForYear.length > 0) setSelectedMonth(monthsForYear[0].month);
+  }, [monthsForYear]);
+
+  const period = useMemo(() => {
+    if (!selectedYear || !selectedMonth) return undefined;
+    return `${selectedYear}-${selectedMonth}`;
+  }, [selectedYear, selectedMonth]);
+
+  useEffect(() => {
+    if (!userId || !period) return;
+    setLoading(true);
+    const docRef = doc(firestore, "users", userId, "budgets", period);
+    getDoc(docRef).then(async (snap) => {
+      if (!snap.exists()) {
+        const created = await createBudgetFromLatest(userId, period);
+        if (created) {
+          const newSnap = await getDoc(docRef);
+          if (newSnap.exists()) snap = newSnap;
+          else { setLoading(false); return; }
+        } else { setLoading(false); return; }
+      }
+      const d = snap.data()!;
+      const expBudgets = (d.expense_budgets ?? {}) as Record<string, Record<string, number>>;
+      // Find savings group (เงินออมและการลงทุน)
+      const savingsGroup = expBudgets["เงินออมและการลงทุน"] ?? {};
+      setSavingsTargets({ ...savingsGroup });
+      setLoading(false);
+    });
+  }, [userId, period]);
+
+  const handleSave = async () => {
+    if (!userId || !period) return;
+    setSaving(true);
+    try {
+      const docRef = doc(firestore, "users", userId, "budgets", period);
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) throw new Error("ไม่พบเอกสาร");
+      const d = snap.data();
+      const expBudgets = { ...(d.expense_budgets ?? {}) } as Record<string, Record<string, number>>;
+      expBudgets["เงินออมและการลงทุน"] = { ...savingsTargets };
+      await updateDoc(docRef, { expense_budgets: expBudgets });
+      toast({ title: "บันทึกสำเร็จ", description: `อัปเดตเป้าหมายการออม ${period}` });
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  const totalTarget = Object.values(savingsTargets).reduce((s, v) => s + v, 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Period selector + Save */}
+      <div className="flex flex-wrap items-center gap-3">
+        {years.length > 0 && (
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-28 text-sm">
+              <SelectValue placeholder="ปี" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((y) => (
+                <SelectItem key={y} value={y} className="text-sm">{String(Number(y) + 543)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {monthsForYear.length > 0 && (
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-32 text-sm">
+              <SelectValue placeholder="เดือน" />
+            </SelectTrigger>
+            <SelectContent>
+              {monthsForYear.map((m) => (
+                <SelectItem key={m.month} value={m.month} className="text-sm">{m.monthName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <Button onClick={handleSave} disabled={saving || loading} size="sm" className="ml-auto gap-1.5">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {saving ? "กำลังบันทึก..." : "บันทึก"}
+        </Button>
+      </div>
+
+      {loading ? (
+        <Skeleton className="h-64 rounded-lg" />
+      ) : (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <PiggyBank className="h-4 w-4 text-primary" />
+              ตั้งเป้าหมายการออมรายเดือน
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              กำหนดยอดเป้าหมายสำหรับแต่ละหมวดการออม/การลงทุน เพื่อติดตามความคืบหน้าในแดชบอร์ด
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="border-t border-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="text-left px-3 py-2.5 font-medium">หมวดการออม</th>
+                    <th className="text-right px-3 py-2.5 font-medium">เป้าหมาย (บาท)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(savingsTargets).map(([label, amount]) => (
+                    <tr key={label} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <Target className="h-3.5 w-3.5 text-muted-foreground" />
+                          {label}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-right">
+                        <Input
+                          type="number"
+                          value={amount}
+                          onChange={(e) =>
+                            setSavingsTargets((prev) => ({
+                              ...prev,
+                              [label]: Number(e.target.value) || 0,
+                            }))
+                          }
+                          className="h-8 w-32 text-sm text-right ml-auto"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                  {Object.keys(savingsTargets).length === 0 && (
+                    <tr>
+                      <td colSpan={2} className="px-3 py-6 text-center text-muted-foreground">
+                        ยังไม่มีหมวดการออม — เพิ่มได้ในตั้งค่าหมวดหมู่
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-muted/50 font-medium">
+                    <td className="px-3 py-2.5">รวมเป้าหมาย</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums font-display">
+                      {totalTarget.toLocaleString("th-TH", { minimumFractionDigits: 2 })} ฿
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
 // ─── Main Settings Page ───
 const Settings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -872,6 +1052,7 @@ const Settings = () => {
   const titleMap: Record<SettingsTab, string> = {
     budget: "ตั้งค่างบประมาณ",
     categories: "ตั้งค่าหมวดหมู่",
+    savings: "เป้าหมายการออม",
     user: "ตั้งค่าผู้ใช้",
   };
 
@@ -912,6 +1093,7 @@ const Settings = () => {
 
             {tab === "budget" && <BudgetSettings />}
             {tab === "categories" && <CategorySettings />}
+            {tab === "savings" && <SavingsGoalSettings />}
             {tab === "user" && <UserSettings />}
           </div>
         </main>

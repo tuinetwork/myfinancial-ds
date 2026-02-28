@@ -41,6 +41,7 @@ const menuItems: MenuItem[] = [
     children: [
       { title: "งบประมาณ", url: "/settings?tab=budget" },
       { title: "หมวดหมู่", url: "/settings?tab=categories" },
+      { title: "เป้าหมายการออม", url: "/settings?tab=savings" },
       { title: "ผู้ใช้", url: "/settings?tab=user" },
     ],
   },
