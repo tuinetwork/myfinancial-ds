@@ -40,6 +40,7 @@ const menuItems: MenuItem[] = [
     icon: Settings,
     children: [
       { title: "งบประมาณ", url: "/settings?tab=budget" },
+      { title: "หมวดหมู่", url: "/settings?tab=categories" },
       { title: "ผู้ใช้", url: "/settings?tab=user" },
     ],
   },
