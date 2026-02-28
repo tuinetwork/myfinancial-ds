@@ -1,46 +1,57 @@
-import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Transactions from "./pages/Transactions";
 import NotFound from "./pages/NotFound";
-import PinLock from "./components/PinLock";
+import GoogleLogin from "./components/GoogleLogin";
+import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
-const SESSION_KEY = "finance-dashboard-unlocked";
 
-const App = () => {
-  const [isUnlocked, setIsUnlocked] = useState(() => sessionStorage.getItem(SESSION_KEY) === "true");
+const AppContent = () => {
+  const { user, loading } = useAuth();
 
-  const handleUnlock = () => {
-    sessionStorage.setItem(SESSION_KEY, "true");
-    setIsUnlocked(true);
-  };
-
-  if (!isUnlocked) {
-    return <PinLock onUnlock={handleUnlock} />;
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
+  if (!user) {
+    return <GoogleLogin />;
+  }
+
+  return (
+    <BrowserRouter>
+      <SidebarProvider>
+        <div className="min-h-screen flex w-full">
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
+      </SidebarProvider>
+    </BrowserRouter>
+  );
+};
+
+const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <SidebarProvider>
-            <div className="min-h-screen flex w-full">
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/transactions" element={<Transactions />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </div>
-          </SidebarProvider>
-        </BrowserRouter>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

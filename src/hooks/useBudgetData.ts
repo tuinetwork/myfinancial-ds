@@ -10,8 +10,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
-
-const USER_ID = "xgkdmyxxeJVlNiqoahNJWBekqmh2";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface BudgetItem {
   label: string;
@@ -77,12 +76,12 @@ const MAIN_CATEGORY_TYPE_MAP: Record<string, string> = {
   "เงินออมและการลงทุน": "เงินออม/การลงทุน",
 };
 
-function budgetsCollection() {
-  return collection(firestore, "users", USER_ID, "budgets");
+function budgetsCollection(userId: string) {
+  return collection(firestore, "users", userId, "budgets");
 }
 
-function transactionsCollection() {
-  return collection(firestore, "users", USER_ID, "transactions");
+function transactionsCollection(userId: string) {
+  return collection(firestore, "users", userId, "transactions");
 }
 
 function parseBudgetDoc(
@@ -154,9 +153,11 @@ function mapTransaction(docData: Record<string, unknown>): Transaction {
 /** Fetch available year/month options from budgets collection */
 export function useAvailableMonths() {
   const queryClient = useQueryClient();
+  const { userId } = useAuth();
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(budgetsCollection(), (snapshot) => {
+    if (!userId) return;
+    const unsubscribe = onSnapshot(budgetsCollection(userId), (snapshot) => {
       const options: MonthOption[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
@@ -172,15 +173,16 @@ export function useAvailableMonths() {
         });
       });
       options.sort((a, b) => b.period.localeCompare(a.period));
-      queryClient.setQueryData(["available-months"], options);
+      queryClient.setQueryData(["available-months", userId], options);
     });
     return () => unsubscribe();
-  }, [queryClient]);
+  }, [queryClient, userId]);
 
   return useQuery<MonthOption[]>({
-    queryKey: ["available-months"],
+    queryKey: ["available-months", userId],
     queryFn: async () => {
-      const snapshot = await getDocs(budgetsCollection());
+      if (!userId) return [];
+      const snapshot = await getDocs(budgetsCollection(userId));
       const options: MonthOption[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
@@ -198,6 +200,7 @@ export function useAvailableMonths() {
       options.sort((a, b) => b.period.localeCompare(a.period));
       return options;
     },
+    enabled: !!userId,
     staleTime: Infinity,
   });
 }
@@ -205,16 +208,16 @@ export function useAvailableMonths() {
 /** Fetch budget data + transactions for a period */
 export function useBudgetData(period?: string) {
   const queryClient = useQueryClient();
+  const { userId } = useAuth();
 
   useEffect(() => {
-    if (!period) return;
+    if (!period || !userId) return;
 
-    // Listen to budget doc
-    const budgetDocRef = doc(firestore, "users", USER_ID, "budgets", period);
+    const budgetDocRef = doc(firestore, "users", userId, "budgets", period);
     const unsubBudget = onSnapshot(budgetDocRef, async (budgetSnap) => {
       if (!budgetSnap.exists()) return;
       const txQuery = query(
-        transactionsCollection(),
+        transactionsCollection(userId),
         where("month_year", "==", period)
       );
       const txSnap = await getDocs(txQuery);
@@ -227,9 +230,8 @@ export function useBudgetData(period?: string) {
       );
     });
 
-    // Listen to transactions
     const txQuery = query(
-      transactionsCollection(),
+      transactionsCollection(userId),
       where("month_year", "==", period)
     );
     const unsubTx = onSnapshot(txQuery, async (txSnap) => {
@@ -248,17 +250,18 @@ export function useBudgetData(period?: string) {
       unsubBudget();
       unsubTx();
     };
-  }, [period, queryClient]);
+  }, [period, queryClient, userId]);
 
   return useQuery<BudgetData>({
     queryKey: ["budget-data", period],
     queryFn: async () => {
+      if (!userId) throw new Error("Not authenticated");
       const budgetSnap = await getDoc(
-        doc(firestore, "users", USER_ID, "budgets", period!)
+        doc(firestore, "users", userId, "budgets", period!)
       );
       if (!budgetSnap.exists()) throw new Error("No data found");
       const txQuery = query(
-        transactionsCollection(),
+        transactionsCollection(userId),
         where("month_year", "==", period!)
       );
       const txSnap = await getDocs(txQuery);
@@ -270,7 +273,7 @@ export function useBudgetData(period?: string) {
         transactions
       );
     },
-    enabled: !!period,
+    enabled: !!period && !!userId,
     staleTime: Infinity,
   });
 }

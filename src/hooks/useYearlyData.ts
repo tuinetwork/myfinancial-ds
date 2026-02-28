@@ -9,8 +9,7 @@ import {
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { BudgetData, BudgetItem, Transaction } from "./useBudgetData";
-
-const USER_ID = "xgkdmyxxeJVlNiqoahNJWBekqmh2";
+import { useAuth } from "@/contexts/AuthContext";
 
 const EXPENSE_CATEGORY_MAP: Record<string, keyof BudgetData["expenses"]> = {
   "ค่าใช้จ่ายทั่วไป": "general",
@@ -102,11 +101,13 @@ function mergeMonths(year: string, monthsData: { month: string; data: BudgetData
 }
 
 export function useYearlyData(year?: string) {
+  const { userId } = useAuth();
+
   return useQuery<YearlyData>({
-    queryKey: ["yearly-data", year],
+    queryKey: ["yearly-data", year, userId],
     queryFn: async () => {
-      // Get all budget docs for this year (periods like "2026-01" to "2026-12")
-      const budgetsCol = collection(firestore, "users", USER_ID, "budgets");
+      if (!userId) throw new Error("Not authenticated");
+      const budgetsCol = collection(firestore, "users", userId, "budgets");
       const budgetSnap = await getDocs(budgetsCol);
       
       const yearBudgets = budgetSnap.docs.filter((d) => {
@@ -116,8 +117,7 @@ export function useYearlyData(year?: string) {
 
       if (yearBudgets.length === 0) throw new Error("No data found");
 
-      // Get all transactions for this year
-      const txCol = collection(firestore, "users", USER_ID, "transactions");
+      const txCol = collection(firestore, "users", userId, "transactions");
       const allTxSnap = await getDocs(txCol);
       const txByMonth: Record<string, Transaction[]> = {};
       allTxSnap.forEach((d) => {
@@ -168,7 +168,7 @@ export function useYearlyData(year?: string) {
       monthsData.sort((a, b) => a.month.localeCompare(b.month));
       return mergeMonths(year!, monthsData);
     },
-    enabled: !!year,
+    enabled: !!year && !!userId,
     staleTime: 5 * 60 * 1000,
   });
 }
