@@ -151,6 +151,17 @@ const BudgetTable = ({
   const entries = Object.entries(currentGroup);
   const totalBudget = entries.reduce((s, [, v]) => s + v, 0);
   const totalActual = entries.reduce((s, [sub]) => s + (actuals[sub] ?? 0), 0);
+  const totalRemaining = totalBudget - totalActual;
+
+  const fmt = (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 2 });
+
+  const remainingColor = (budget: number, actual: number) => {
+    const diff = budget - actual;
+    if (actual === 0) return "text-muted-foreground";
+    if (diff < 0) return "text-destructive font-medium";
+    if (diff < budget * 0.2) return "text-orange-500 font-medium";
+    return "text-emerald-600";
+  };
 
   return (
     <Card>
@@ -178,11 +189,13 @@ const BudgetTable = ({
                 <th className="text-left px-3 py-2 font-medium">หมวดหมู่</th>
                 <th className="text-right px-3 py-2 font-medium">งบประมาณ</th>
                 <th className="text-right px-3 py-2 font-medium">จ่ายแล้ว</th>
+                <th className="text-right px-3 py-2 font-medium">คงเหลือ</th>
               </tr>
             </thead>
             <tbody>
               {entries.map(([sub, amount]) => {
                 const actual = actuals[sub] ?? 0;
+                const remaining = amount - actual;
                 return (
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="px-3 py-2 text-muted-foreground">{sub}</td>
@@ -195,22 +208,26 @@ const BudgetTable = ({
                       />
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">
-                      {actual > 0 ? actual.toLocaleString("th-TH", { minimumFractionDigits: 2 }) : "-"}
+                      {actual > 0 ? fmt(actual) : "-"}
+                    </td>
+                    <td className={`px-3 py-2 text-right tabular-nums ${remainingColor(amount, actual)}`}>
+                      {actual > 0 ? fmt(remaining) : "-"}
                     </td>
                   </tr>
                 );
               })}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-3 py-4 text-center text-muted-foreground">ไม่มีรายการ</td>
+                  <td colSpan={4} className="px-3 py-4 text-center text-muted-foreground">ไม่มีรายการ</td>
                 </tr>
               )}
             </tbody>
             <tfoot>
               <tr className="bg-muted/50 font-medium">
                 <td className="px-3 py-2">รวม</td>
-                <td className="px-3 py-2 text-right tabular-nums">{totalBudget.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{totalActual.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{fmt(totalBudget)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{fmt(totalActual)}</td>
+                <td className={`px-3 py-2 text-right tabular-nums ${remainingColor(totalBudget, totalActual)}`}>{fmt(totalRemaining)}</td>
               </tr>
             </tfoot>
           </table>
