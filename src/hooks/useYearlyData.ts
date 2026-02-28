@@ -136,10 +136,17 @@ export function useYearlyData(year?: string) {
         const monthIdx = parseInt(monthNum, 10) - 1;
         const monthName = THAI_MONTHS[monthIdx] ?? period;
 
-        const incomeEstimates = (data.income_estimates ?? {}) as Record<string, number>;
-        const income: BudgetItem[] = Object.entries(incomeEstimates).map(
-          ([label, budget]) => ({ label, budget })
-        );
+        const incomeEstimates = (data.income_estimates ?? {}) as Record<string, Record<string, number> | number>;
+        const income: BudgetItem[] = [];
+        for (const [key, val] of Object.entries(incomeEstimates)) {
+          if (typeof val === "number") {
+            income.push({ label: key, budget: val });
+          } else if (typeof val === "object") {
+            for (const [subLabel, subVal] of Object.entries(val)) {
+              income.push({ label: subLabel, budget: subVal });
+            }
+          }
+        }
 
         const expenseBudgets = (data.expense_budgets ?? {}) as Record<string, Record<string, number>>;
         const expenses: BudgetData["expenses"] = {
