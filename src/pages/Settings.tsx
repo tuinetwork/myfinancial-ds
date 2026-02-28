@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { collection, doc, getDoc, getDocs, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, updateDoc, query, where } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAvailableMonths } from "@/hooks/useBudgetData";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -136,6 +136,7 @@ const BudgetTable = ({
   selectedCategory,
   onCategoryChange,
   onAmountChange,
+  actuals,
 }: {
   title: string;
   titleColor: string;
@@ -144,10 +145,12 @@ const BudgetTable = ({
   selectedCategory: string;
   onCategoryChange: (cat: string) => void;
   onAmountChange: (group: string, sub: string, value: number) => void;
+  actuals: Record<string, number>;
 }) => {
   const currentGroup = categories[selectedCategory] ?? {};
   const entries = Object.entries(currentGroup);
-  const total = entries.reduce((s, [, v]) => s + v, 0);
+  const totalBudget = entries.reduce((s, [, v]) => s + v, 0);
+  const totalActual = entries.reduce((s, [sub]) => s + (actuals[sub] ?? 0), 0);
 
   return (
     <Card>
@@ -155,7 +158,6 @@ const BudgetTable = ({
         <CardTitle className={`text-sm font-bold text-center ${titleColor}`}>{title}</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        {/* Category dropdown */}
         <div className="px-4 pb-2">
           <Select value={selectedCategory} onValueChange={onCategoryChange}>
             <SelectTrigger className="w-full text-xs">
@@ -169,39 +171,46 @@ const BudgetTable = ({
           </Select>
         </div>
 
-        {/* Table */}
         <div className="border-t border-border">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="text-left px-3 py-2 font-medium">หมวดหมู่</th>
                 <th className="text-right px-3 py-2 font-medium">งบประมาณ</th>
+                <th className="text-right px-3 py-2 font-medium">จ่ายแล้ว</th>
               </tr>
             </thead>
             <tbody>
-              {entries.map(([sub, amount]) => (
-                <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                  <td className="px-3 py-2 text-muted-foreground">{sub}</td>
-                  <td className="px-3 py-2 text-right">
-                    <Input
-                      type="number"
-                      value={amount}
-                      onChange={(e) => onAmountChange(selectedCategory, sub, Number(e.target.value) || 0)}
-                      className="h-7 w-24 text-xs text-right ml-auto"
-                    />
-                  </td>
-                </tr>
-              ))}
+              {entries.map(([sub, amount]) => {
+                const actual = actuals[sub] ?? 0;
+                return (
+                  <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="px-3 py-2 text-muted-foreground">{sub}</td>
+                    <td className="px-3 py-2 text-right">
+                      <Input
+                        type="number"
+                        value={amount}
+                        onChange={(e) => onAmountChange(selectedCategory, sub, Number(e.target.value) || 0)}
+                        className="h-7 w-24 text-xs text-right ml-auto"
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {actual > 0 ? actual.toLocaleString("th-TH", { minimumFractionDigits: 2 }) : "-"}
+                    </td>
+                  </tr>
+                );
+              })}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={2} className="px-3 py-4 text-center text-muted-foreground">ไม่มีรายการ</td>
+                  <td colSpan={3} className="px-3 py-4 text-center text-muted-foreground">ไม่มีรายการ</td>
                 </tr>
               )}
             </tbody>
             <tfoot>
               <tr className="bg-muted/50 font-medium">
                 <td className="px-3 py-2">รวม</td>
-                <td className="px-3 py-2 text-right tabular-nums">{total.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{totalBudget.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{totalActual.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
               </tr>
             </tfoot>
           </table>
@@ -222,6 +231,7 @@ const BudgetSettings = () => {
   const [saving, setSaving] = useState(false);
   const [selectedExpenseCat, setSelectedExpenseCat] = useState<string>("");
   const [selectedIncomeCat, setSelectedIncomeCat] = useState<string>("");
+  const [txActuals, setTxActuals] = useState<Record<string, number>>({});
 
   const years = useMemo(() => {
     if (!months) return [];
@@ -269,6 +279,20 @@ const BudgetSettings = () => {
         setBudgetData(null);
       }
       setLoading(false);
+    });
+
+    // Fetch transactions for actuals
+    const txCol = collection(firestore, "users", userId, "transactions");
+    const txQ = query(txCol, where("month_year", "==", period));
+    getDocs(txQ).then((txSnap) => {
+      const map: Record<string, number> = {};
+      txSnap.forEach((d) => {
+        const data = d.data();
+        const subCat = (data.sub_category as string) ?? "";
+        const amount = (data.amount as number) ?? 0;
+        if (subCat) map[subCat] = (map[subCat] || 0) + amount;
+      });
+      setTxActuals(map);
     });
   }, [userId, period]);
 
@@ -360,6 +384,7 @@ const BudgetSettings = () => {
               selectedCategory={selectedExpenseCat}
               onCategoryChange={setSelectedExpenseCat}
               onAmountChange={updateExpense}
+              actuals={txActuals}
             />
             <BudgetTable
               title="รายรับ"
@@ -369,6 +394,7 @@ const BudgetSettings = () => {
               selectedCategory={selectedIncomeCat}
               onCategoryChange={setSelectedIncomeCat}
               onAmountChange={updateIncome}
+              actuals={txActuals}
             />
           </div>
 
