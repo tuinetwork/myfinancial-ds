@@ -127,6 +127,90 @@ const TreeGroup = ({
   );
 };
 
+// ─── Budget Table for a category group ───
+const BudgetTable = ({
+  title,
+  titleColor,
+  categories,
+  allCategories,
+  selectedCategory,
+  onCategoryChange,
+  onAmountChange,
+}: {
+  title: string;
+  titleColor: string;
+  categories: Record<string, Record<string, number>>;
+  allCategories: string[];
+  selectedCategory: string;
+  onCategoryChange: (cat: string) => void;
+  onAmountChange: (group: string, sub: string, value: number) => void;
+}) => {
+  const currentGroup = categories[selectedCategory] ?? {};
+  const entries = Object.entries(currentGroup);
+  const total = entries.reduce((s, [, v]) => s + v, 0);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className={`text-sm font-bold text-center ${titleColor}`}>{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        {/* Category dropdown */}
+        <div className="px-4 pb-2">
+          <Select value={selectedCategory} onValueChange={onCategoryChange}>
+            <SelectTrigger className="w-full text-xs">
+              <SelectValue placeholder="เลือกหมวดหมู่" />
+            </SelectTrigger>
+            <SelectContent>
+              {allCategories.map((cat) => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Table */}
+        <div className="border-t border-border">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="text-left px-3 py-2 font-medium">หมวดหมู่</th>
+                <th className="text-right px-3 py-2 font-medium">งบประมาณ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map(([sub, amount]) => (
+                <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                  <td className="px-3 py-2 text-muted-foreground">{sub}</td>
+                  <td className="px-3 py-2 text-right">
+                    <Input
+                      type="number"
+                      value={amount}
+                      onChange={(e) => onAmountChange(selectedCategory, sub, Number(e.target.value) || 0)}
+                      className="h-7 w-24 text-xs text-right ml-auto"
+                    />
+                  </td>
+                </tr>
+              ))}
+              {entries.length === 0 && (
+                <tr>
+                  <td colSpan={2} className="px-3 py-4 text-center text-muted-foreground">ไม่มีรายการ</td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot>
+              <tr className="bg-muted/50 font-medium">
+                <td className="px-3 py-2">รวม</td>
+                <td className="px-3 py-2 text-right tabular-nums">{total.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 // ─── Budget Settings Tab ───
 const BudgetSettings = () => {
   const { userId } = useAuth();
@@ -136,6 +220,8 @@ const BudgetSettings = () => {
   const [budgetData, setBudgetData] = useState<BudgetTreeData | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedExpenseCat, setSelectedExpenseCat] = useState<string>("");
+  const [selectedIncomeCat, setSelectedIncomeCat] = useState<string>("");
 
   const years = useMemo(() => {
     if (!months) return [];
@@ -160,7 +246,6 @@ const BudgetSettings = () => {
     return `${selectedYear}-${selectedMonth}`;
   }, [selectedYear, selectedMonth]);
 
-  // Fetch raw budget doc
   useEffect(() => {
     if (!userId || !period) return;
     setLoading(true);
@@ -168,12 +253,18 @@ const BudgetSettings = () => {
     getDoc(docRef).then((snap) => {
       if (snap.exists()) {
         const d = snap.data();
-        setBudgetData({
+        const data: BudgetTreeData = {
           income_estimates: (d.income_estimates ?? {}) as Record<string, Record<string, number>>,
           expense_budgets: (d.expense_budgets ?? {}) as Record<string, Record<string, number>>,
           carry_over: (d.carry_over as number) ?? 0,
           period: (d.period as string) ?? period,
-        });
+        };
+        setBudgetData(data);
+        // Set default selected categories
+        const expKeys = Object.keys(data.expense_budgets);
+        if (expKeys.length > 0 && !selectedExpenseCat) setSelectedExpenseCat(expKeys[0]);
+        const incKeys = Object.keys(data.income_estimates);
+        if (incKeys.length > 0 && !selectedIncomeCat) setSelectedIncomeCat(incKeys[0]);
       } else {
         setBudgetData(null);
       }
@@ -198,17 +289,6 @@ const BudgetSettings = () => {
     setSaving(false);
   };
 
-  const updateIncome = (group: string, label: string, value: number) => {
-    if (!budgetData) return;
-    setBudgetData({
-      ...budgetData,
-      income_estimates: {
-        ...budgetData.income_estimates,
-        [group]: { ...budgetData.income_estimates[group], [label]: value },
-      },
-    });
-  };
-
   const updateExpense = (mainCat: string, subCat: string, value: number) => {
     if (!budgetData) return;
     setBudgetData({
@@ -220,18 +300,19 @@ const BudgetSettings = () => {
     });
   };
 
-  const updateCarryOver = (value: number) => {
+  const updateIncome = (group: string, sub: string, value: number) => {
     if (!budgetData) return;
-    setBudgetData({ ...budgetData, carry_over: value });
+    setBudgetData({
+      ...budgetData,
+      income_estimates: {
+        ...budgetData.income_estimates,
+        [group]: { ...budgetData.income_estimates[group], [sub]: value },
+      },
+    });
   };
 
-  const EXPENSE_ICONS: Record<string, React.ReactNode> = {
-    "ค่าใช้จ่ายทั่วไป": <Wallet className="h-4 w-4 text-orange-500" />,
-    "บิลและสาธารณูปโภค": <Wallet className="h-4 w-4 text-blue-500" />,
-    "หนี้สิน": <Wallet className="h-4 w-4 text-red-500" />,
-    "ค่าสมาชิกรายเดือน": <Wallet className="h-4 w-4 text-purple-500" />,
-    "เงินออมและการลงทุน": <PiggyBank className="h-4 w-4 text-green-500" />,
-  };
+  const expenseCategories = budgetData ? Object.keys(budgetData.expense_budgets) : [];
+  const incomeCategories = budgetData ? Object.keys(budgetData.income_estimates) : [];
 
   return (
     <div className="space-y-4">
@@ -268,43 +349,33 @@ const BudgetSettings = () => {
       ) : !budgetData ? (
         <p className="text-sm text-muted-foreground">ไม่พบข้อมูลงบประมาณ</p>
       ) : (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">งบประมาณ {budgetData.period}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
+        <>
+          {/* Two-column layout: Expenses left, Income right */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <BudgetTable
+              title="รายจ่าย"
+              titleColor="text-destructive"
+              categories={budgetData.expense_budgets}
+              allCategories={expenseCategories}
+              selectedCategory={selectedExpenseCat}
+              onCategoryChange={setSelectedExpenseCat}
+              onAmountChange={updateExpense}
+            />
+            <BudgetTable
+              title="รายรับ"
+              titleColor="text-emerald-600"
+              categories={budgetData.income_estimates}
+              allCategories={incomeCategories}
+              selectedCategory={selectedIncomeCat}
+              onCategoryChange={setSelectedIncomeCat}
+              onAmountChange={updateIncome}
+            />
+          </div>
 
-            {/* Income groups */}
-            {Object.entries(budgetData.income_estimates).map(([group, subs]) => (
-              <TreeGroup
-                key={`income-${group}`}
-                label={group}
-                icon={<Wallet className="h-4 w-4 text-emerald-500" />}
-                items={Object.entries(subs)}
-                onUpdate={(sub, val) => updateIncome(group, sub, val)}
-              />
-            ))}
-
-            <Separator className="my-2" />
-
-            {/* Expenses */}
-            {Object.entries(budgetData.expense_budgets).map(([mainCat, subs]) => (
-              <TreeGroup
-                key={mainCat}
-                label={mainCat}
-                icon={EXPENSE_ICONS[mainCat] ?? <Wallet className="h-4 w-4" />}
-                items={Object.entries(subs)}
-                onUpdate={(sub, val) => updateExpense(mainCat, sub, val)}
-              />
-            ))}
-
-            <Separator className="my-2" />
-
-            <Button onClick={handleSave} disabled={saving} className="w-full">
-              {saving ? "กำลังบันทึก..." : "บันทึกการเปลี่ยนแปลง"}
-            </Button>
-          </CardContent>
-        </Card>
+          <Button onClick={handleSave} disabled={saving} className="w-full">
+            {saving ? "กำลังบันทึก..." : "บันทึกการเปลี่ยนแปลง"}
+          </Button>
+        </>
       )}
     </div>
   );
