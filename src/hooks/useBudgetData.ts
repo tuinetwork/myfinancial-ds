@@ -1,7 +1,17 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ref, get, onValue, off } from "firebase/database";
-import { db } from "@/lib/firebase";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  onSnapshot,
+} from "firebase/firestore";
+import { firestore } from "@/lib/firebase";
+
+const USER_ID = "xgkdmyxxeJVlNiqoahNJWBekqmh2";
 
 export interface BudgetItem {
   label: string;
@@ -29,113 +39,238 @@ export interface BudgetData {
     savings: BudgetItem[];
   };
   transactions: Transaction[];
+  carryOver?: number;
 }
 
 export interface MonthOption {
   year: string;
   month: string;
   monthName: string;
-  path: string;
+  period: string;
   label: string;
 }
 
-function toArray<T>(val: unknown): T[] {
-  if (Array.isArray(val)) return val;
-  if (val && typeof val === "object") return Object.values(val) as T[];
-  return [];
+const THAI_MONTHS = [
+  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+];
+
+function periodToMonthName(period: string): string {
+  const [, monthStr] = period.split("-");
+  const idx = parseInt(monthStr, 10) - 1;
+  return THAI_MONTHS[idx] ?? period;
 }
 
-function normalizeBudgetData(raw: Record<string, unknown>): BudgetData {
-  const expenses = (raw.expenses ?? {}) as Record<string, unknown>;
+const EXPENSE_CATEGORY_MAP: Record<string, keyof BudgetData["expenses"]> = {
+  "ค่าใช้จ่ายทั่วไป": "general",
+  "บิลและสาธารณูปโภค": "bills",
+  "หนี้สิน": "debts",
+  "ค่าสมาชิกรายเดือน": "subscriptions",
+  "เงินออมและการลงทุน": "savings",
+};
+
+const MAIN_CATEGORY_TYPE_MAP: Record<string, string> = {
+  "ค่าใช้จ่ายทั่วไป": "ค่าใช้จ่าย",
+  "บิลและสาธารณูปโภค": "บิล/สาธารณูปโภค",
+  "หนี้สิน": "หนี้สิน",
+  "ค่าสมาชิกรายเดือน": "ค่าสมาชิกรายเดือน",
+  "เงินออมและการลงทุน": "เงินออม/การลงทุน",
+};
+
+function budgetsCollection() {
+  return collection(firestore, "users", USER_ID, "budgets");
+}
+
+function transactionsCollection() {
+  return collection(firestore, "users", USER_ID, "transactions");
+}
+
+function parseBudgetDoc(
+  docData: Record<string, unknown>,
+  transactions: Transaction[]
+): BudgetData {
+  const period = (docData.period as string) ?? "";
+  const monthName = periodToMonthName(period);
+  const carryOver = (docData.carry_over as number) ?? 0;
+
+  // income_estimates → BudgetItem[]
+  const incomeEstimates = (docData.income_estimates ?? {}) as Record<string, number>;
+  const income: BudgetItem[] = Object.entries(incomeEstimates).map(
+    ([label, budget]) => ({ label, budget })
+  );
+
+  // expense_budgets → expenses groups
+  const expenseBudgets = (docData.expense_budgets ?? {}) as Record<
+    string,
+    Record<string, number>
+  >;
+  const expenses: BudgetData["expenses"] = {
+    general: [],
+    bills: [],
+    debts: [],
+    subscriptions: [],
+    savings: [],
+  };
+  for (const [mainCat, subs] of Object.entries(expenseBudgets)) {
+    const key = EXPENSE_CATEGORY_MAP[mainCat];
+    if (key && subs && typeof subs === "object") {
+      expenses[key] = Object.entries(subs).map(([label, budget]) => ({
+        label,
+        budget,
+      }));
+    }
+  }
+
   return {
-    status: (raw.status as string) ?? "",
-    month: (raw.monthName as string) ?? (raw.month as string) ?? "",
-    timestamp: (raw.timestamp as string) ?? new Date().toISOString(),
-    income: toArray<BudgetItem>(raw.income),
-    expenses: {
-      general: toArray<BudgetItem>(expenses.general),
-      bills: toArray<BudgetItem>(expenses.bills),
-      debts: toArray<BudgetItem>(expenses.debts),
-      subscriptions: toArray<BudgetItem>(expenses.subscriptions),
-      savings: toArray<BudgetItem>(expenses.savings),
-    },
-    transactions: toArray<Transaction>(raw.transactions),
+    status: "ok",
+    month: monthName,
+    timestamp: new Date().toISOString(),
+    income,
+    expenses,
+    transactions,
+    carryOver,
   };
 }
 
-/** Fetch available year/month options from history node + realtime updates */
+function mapTransaction(docData: Record<string, unknown>): Transaction {
+  const type = docData.type as string;
+  const mainCategory = (docData.main_category as string) ?? "";
+  let mappedType: string;
+  if (type === "income") {
+    mappedType = "รายรับ";
+  } else {
+    mappedType = MAIN_CATEGORY_TYPE_MAP[mainCategory] ?? "ค่าใช้จ่าย";
+  }
+
+  return {
+    date: (docData.date as string) ?? "",
+    amount: (docData.amount as number) ?? 0,
+    type: mappedType,
+    category: (docData.sub_category as string) ?? "",
+    description: (docData.note as string) ?? "",
+  };
+}
+
+/** Fetch available year/month options from budgets collection */
 export function useAvailableMonths() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const dbRef = ref(db, "history");
-    const unsubscribe = onValue(dbRef, (snapshot) => {
-      if (!snapshot.exists()) return;
-      const years = snapshot.val() as Record<string, Record<string, Record<string, unknown>>>;
+    const unsubscribe = onSnapshot(budgetsCollection(), (snapshot) => {
       const options: MonthOption[] = [];
-      for (const year of Object.keys(years).sort().reverse()) {
-        const months = years[year];
-        if (typeof months === "object" && months !== null) {
-          for (const month of Object.keys(months).sort().reverse()) {
-            const monthData = months[month];
-            const monthName = (monthData?.monthName as string) ?? month;
-            options.push({ year, month, monthName, path: `history/${year}/${month}`, label: `${monthName} ${year}` });
-          }
-        }
-      }
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const period = (data.period as string) ?? doc.id;
+        const [year, monthNum] = period.split("-");
+        const monthName = periodToMonthName(period);
+        options.push({
+          year,
+          month: monthNum,
+          monthName,
+          period,
+          label: `${monthName} ${year}`,
+        });
+      });
+      options.sort((a, b) => b.period.localeCompare(a.period));
       queryClient.setQueryData(["available-months"], options);
     });
-    return () => off(dbRef, "value", unsubscribe);
+    return () => unsubscribe();
   }, [queryClient]);
 
   return useQuery<MonthOption[]>({
     queryKey: ["available-months"],
     queryFn: async () => {
-      const snapshot = await get(ref(db, "history"));
-      if (!snapshot.exists()) return [];
-      const years = snapshot.val() as Record<string, Record<string, Record<string, unknown>>>;
+      const snapshot = await getDocs(budgetsCollection());
       const options: MonthOption[] = [];
-      for (const year of Object.keys(years).sort().reverse()) {
-        const months = years[year];
-        if (typeof months === "object" && months !== null) {
-          for (const month of Object.keys(months).sort().reverse()) {
-            const monthData = months[month];
-            const monthName = (monthData?.monthName as string) ?? month;
-            options.push({ year, month, monthName, path: `history/${year}/${month}`, label: `${monthName} ${year}` });
-          }
-        }
-      }
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const period = (data.period as string) ?? doc.id;
+        const [year, monthNum] = period.split("-");
+        const monthName = periodToMonthName(period);
+        options.push({
+          year,
+          month: monthNum,
+          monthName,
+          period,
+          label: `${monthName} ${year}`,
+        });
+      });
+      options.sort((a, b) => b.period.localeCompare(a.period));
       return options;
     },
     staleTime: Infinity,
   });
 }
 
-/** Fetch budget data with realtime listener */
-export function useBudgetData(path?: string) {
+/** Fetch budget data + transactions for a period */
+export function useBudgetData(period?: string) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!path) return;
-    const dbRef = ref(db, path);
-    const unsubscribe = onValue(dbRef, (snapshot) => {
-      if (!snapshot.exists()) return;
+    if (!period) return;
+
+    // Listen to budget doc
+    const budgetDocRef = doc(firestore, "users", USER_ID, "budgets", period);
+    const unsubBudget = onSnapshot(budgetDocRef, async (budgetSnap) => {
+      if (!budgetSnap.exists()) return;
+      const txQuery = query(
+        transactionsCollection(),
+        where("month_year", "==", period)
+      );
+      const txSnap = await getDocs(txQuery);
+      const transactions = txSnap.docs.map((d) =>
+        mapTransaction(d.data() as Record<string, unknown>)
+      );
       queryClient.setQueryData(
-        ["budget-data", path],
-        normalizeBudgetData(snapshot.val() as Record<string, unknown>)
+        ["budget-data", period],
+        parseBudgetDoc(budgetSnap.data() as Record<string, unknown>, transactions)
       );
     });
-    return () => off(dbRef, "value", unsubscribe);
-  }, [path, queryClient]);
+
+    // Listen to transactions
+    const txQuery = query(
+      transactionsCollection(),
+      where("month_year", "==", period)
+    );
+    const unsubTx = onSnapshot(txQuery, async (txSnap) => {
+      const budgetSnap = await getDoc(budgetDocRef);
+      if (!budgetSnap.exists()) return;
+      const transactions = txSnap.docs.map((d) =>
+        mapTransaction(d.data() as Record<string, unknown>)
+      );
+      queryClient.setQueryData(
+        ["budget-data", period],
+        parseBudgetDoc(budgetSnap.data() as Record<string, unknown>, transactions)
+      );
+    });
+
+    return () => {
+      unsubBudget();
+      unsubTx();
+    };
+  }, [period, queryClient]);
 
   return useQuery<BudgetData>({
-    queryKey: ["budget-data", path],
+    queryKey: ["budget-data", period],
     queryFn: async () => {
-      const snapshot = await get(ref(db, path));
-      if (!snapshot.exists()) throw new Error("No data found");
-      return normalizeBudgetData(snapshot.val() as Record<string, unknown>);
+      const budgetSnap = await getDoc(
+        doc(firestore, "users", USER_ID, "budgets", period!)
+      );
+      if (!budgetSnap.exists()) throw new Error("No data found");
+      const txQuery = query(
+        transactionsCollection(),
+        where("month_year", "==", period!)
+      );
+      const txSnap = await getDocs(txQuery);
+      const transactions = txSnap.docs.map((d) =>
+        mapTransaction(d.data() as Record<string, unknown>)
+      );
+      return parseBudgetDoc(
+        budgetSnap.data() as Record<string, unknown>,
+        transactions
+      );
     },
-    enabled: !!path,
+    enabled: !!period,
     staleTime: Infinity,
   });
 }

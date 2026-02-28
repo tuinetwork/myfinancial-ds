@@ -1,29 +1,53 @@
 import { useQuery } from "@tanstack/react-query";
-import { ref, get } from "firebase/database";
-import { db } from "@/lib/firebase";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  getDoc,
+} from "firebase/firestore";
+import { firestore } from "@/lib/firebase";
 import { BudgetData, BudgetItem, Transaction } from "./useBudgetData";
 
-function toArray<T>(val: unknown): T[] {
-  if (Array.isArray(val)) return val;
-  if (val && typeof val === "object") return Object.values(val) as T[];
-  return [];
-}
+const USER_ID = "xgkdmyxxeJVlNiqoahNJWBekqmh2";
 
-function normalizeBudgetData(raw: Record<string, unknown>): BudgetData {
-  const expenses = (raw.expenses ?? {}) as Record<string, unknown>;
+const EXPENSE_CATEGORY_MAP: Record<string, keyof BudgetData["expenses"]> = {
+  "ค่าใช้จ่ายทั่วไป": "general",
+  "บิลและสาธารณูปโภค": "bills",
+  "หนี้สิน": "debts",
+  "ค่าสมาชิกรายเดือน": "subscriptions",
+  "เงินออมและการลงทุน": "savings",
+};
+
+const MAIN_CATEGORY_TYPE_MAP: Record<string, string> = {
+  "ค่าใช้จ่ายทั่วไป": "ค่าใช้จ่าย",
+  "บิลและสาธารณูปโภค": "บิล/สาธารณูปโภค",
+  "หนี้สิน": "หนี้สิน",
+  "ค่าสมาชิกรายเดือน": "ค่าสมาชิกรายเดือน",
+  "เงินออมและการลงทุน": "เงินออม/การลงทุน",
+};
+
+const THAI_MONTHS = [
+  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+];
+
+function mapTransaction(docData: Record<string, unknown>): Transaction {
+  const type = docData.type as string;
+  const mainCategory = (docData.main_category as string) ?? "";
+  let mappedType: string;
+  if (type === "income") {
+    mappedType = "รายรับ";
+  } else {
+    mappedType = MAIN_CATEGORY_TYPE_MAP[mainCategory] ?? "ค่าใช้จ่าย";
+  }
   return {
-    status: (raw.status as string) ?? "",
-    month: (raw.month as string) ?? "",
-    timestamp: (raw.timestamp as string) ?? new Date().toISOString(),
-    income: toArray<BudgetItem>(raw.income),
-    expenses: {
-      general: toArray<BudgetItem>(expenses.general),
-      bills: toArray<BudgetItem>(expenses.bills),
-      debts: toArray<BudgetItem>(expenses.debts),
-      subscriptions: toArray<BudgetItem>(expenses.subscriptions),
-      savings: toArray<BudgetItem>(expenses.savings),
-    },
-    transactions: toArray<Transaction>(raw.transactions),
+    date: (docData.date as string) ?? "",
+    amount: (docData.amount as number) ?? 0,
+    type: mappedType,
+    category: (docData.sub_category as string) ?? "",
+    description: (docData.note as string) ?? "",
   };
 }
 
@@ -46,7 +70,6 @@ function mergeMonths(year: string, monthsData: { month: string; data: BudgetData
 
   for (const { data } of monthsData) {
     allTransactions.push(...data.transactions);
-
     for (const item of data.income) {
       incomeMap[item.label] = (incomeMap[item.label] || 0) + item.budget;
     }
@@ -82,12 +105,67 @@ export function useYearlyData(year?: string) {
   return useQuery<YearlyData>({
     queryKey: ["yearly-data", year],
     queryFn: async () => {
-      const snapshot = await get(ref(db, `history/${year}`));
-      if (!snapshot.exists()) throw new Error("No data found");
-      const raw = snapshot.val() as Record<string, Record<string, unknown>>;
-      const monthsData = Object.entries(raw)
-        .map(([month, val]) => ({ month, data: normalizeBudgetData(val) }))
-        .sort((a, b) => a.month.localeCompare(b.month));
+      // Get all budget docs for this year (periods like "2026-01" to "2026-12")
+      const budgetsCol = collection(firestore, "users", USER_ID, "budgets");
+      const budgetSnap = await getDocs(budgetsCol);
+      
+      const yearBudgets = budgetSnap.docs.filter((d) => {
+        const period = (d.data().period as string) ?? d.id;
+        return period.startsWith(year!);
+      });
+
+      if (yearBudgets.length === 0) throw new Error("No data found");
+
+      // Get all transactions for this year
+      const txCol = collection(firestore, "users", USER_ID, "transactions");
+      const allTxSnap = await getDocs(txCol);
+      const txByMonth: Record<string, Transaction[]> = {};
+      allTxSnap.forEach((d) => {
+        const data = d.data();
+        const monthYear = (data.month_year as string) ?? "";
+        if (monthYear.startsWith(year!)) {
+          if (!txByMonth[monthYear]) txByMonth[monthYear] = [];
+          txByMonth[monthYear].push(mapTransaction(data as Record<string, unknown>));
+        }
+      });
+
+      const monthsData = yearBudgets.map((budgetDoc) => {
+        const data = budgetDoc.data();
+        const period = (data.period as string) ?? budgetDoc.id;
+        const [, monthNum] = period.split("-");
+        const monthIdx = parseInt(monthNum, 10) - 1;
+        const monthName = THAI_MONTHS[monthIdx] ?? period;
+
+        const incomeEstimates = (data.income_estimates ?? {}) as Record<string, number>;
+        const income: BudgetItem[] = Object.entries(incomeEstimates).map(
+          ([label, budget]) => ({ label, budget })
+        );
+
+        const expenseBudgets = (data.expense_budgets ?? {}) as Record<string, Record<string, number>>;
+        const expenses: BudgetData["expenses"] = {
+          general: [], bills: [], debts: [], subscriptions: [], savings: [],
+        };
+        for (const [mainCat, subs] of Object.entries(expenseBudgets)) {
+          const key = EXPENSE_CATEGORY_MAP[mainCat];
+          if (key && subs && typeof subs === "object") {
+            expenses[key] = Object.entries(subs).map(([label, budget]) => ({ label, budget }));
+          }
+        }
+
+        const budgetData: BudgetData = {
+          status: "ok",
+          month: monthName,
+          timestamp: new Date().toISOString(),
+          income,
+          expenses,
+          transactions: txByMonth[period] ?? [],
+          carryOver: (data.carry_over as number) ?? 0,
+        };
+
+        return { month: period, data: budgetData };
+      });
+
+      monthsData.sort((a, b) => a.month.localeCompare(b.month));
       return mergeMonths(year!, monthsData);
     },
     enabled: !!year,
