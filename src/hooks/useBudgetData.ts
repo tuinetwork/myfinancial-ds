@@ -63,12 +63,14 @@ function normalizeBudgetData(raw: Record<string, unknown>): BudgetData {
   };
 }
 
+const USER_ID = "xgkdmyxxeJVlNiqoahNJWBekqmh2";
+
 /** Fetch available year/month options from history node + realtime updates */
 export function useAvailableMonths() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const dbRef = ref(db, "history");
+    const dbRef = ref(db, `users/${USER_ID}/history`);
     const unsubscribe = onValue(dbRef, (snapshot) => {
       if (!snapshot.exists()) return;
       const years = snapshot.val() as Record<string, Record<string, Record<string, unknown>>>;
@@ -79,7 +81,7 @@ export function useAvailableMonths() {
           for (const month of Object.keys(months).sort().reverse()) {
             const monthData = months[month];
             const monthName = (monthData?.monthName as string) ?? month;
-            options.push({ year, month, monthName, path: `history/${year}/${month}`, label: `${monthName} ${year}` });
+            options.push({ year, month, monthName, path: `users/${USER_ID}/history/${year}/${month}`, label: `${monthName} ${year}` });
           }
         }
       }
@@ -91,7 +93,7 @@ export function useAvailableMonths() {
   return useQuery<MonthOption[]>({
     queryKey: ["available-months"],
     queryFn: async () => {
-      const snapshot = await get(ref(db, "history"));
+      const snapshot = await get(ref(db, `users/${USER_ID}/history`));
       if (!snapshot.exists()) return [];
       const years = snapshot.val() as Record<string, Record<string, Record<string, unknown>>>;
       const options: MonthOption[] = [];
@@ -101,7 +103,7 @@ export function useAvailableMonths() {
           for (const month of Object.keys(months).sort().reverse()) {
             const monthData = months[month];
             const monthName = (monthData?.monthName as string) ?? month;
-            options.push({ year, month, monthName, path: `history/${year}/${month}`, label: `${monthName} ${year}` });
+            options.push({ year, month, monthName, path: `users/${USER_ID}/history/${year}/${month}`, label: `${monthName} ${year}` });
           }
         }
       }
