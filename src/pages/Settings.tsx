@@ -273,13 +273,6 @@ const BudgetSettings = () => {
             <CardTitle className="text-base">งบประมาณ {budgetData.period}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            {/* Carry over */}
-            <div className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-muted/30">
-              <span className="text-sm font-medium">ยอดยกมา</span>
-              <EditableAmount value={budgetData.carry_over} onSave={updateCarryOver} />
-            </div>
-
-            <Separator className="my-2" />
 
             {/* Income groups */}
             {Object.entries(budgetData.income_estimates).map(([group, subs]) => (
