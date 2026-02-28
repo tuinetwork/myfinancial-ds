@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { LayoutDashboard, Receipt, LogOut, Wallet, Settings, ChevronDown, ChevronRight, PiggyBank, User } from "lucide-react";
+import { LayoutDashboard, Receipt, LogOut, Wallet, Settings, ChevronDown, ChevronRight, PiggyBank, User, CalendarDays, BarChart3, DollarSign, Tags, Target, UserCog } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,7 +28,7 @@ interface MenuItem {
   title: string;
   url: string;
   icon: React.ComponentType<{ className?: string }>;
-  children?: { title: string; url: string }[];
+  children?: { title: string; url: string; icon?: React.ComponentType<{ className?: string }> }[];
 }
 
 const menuItems: MenuItem[] = [
@@ -37,8 +37,8 @@ const menuItems: MenuItem[] = [
     url: "/",
     icon: LayoutDashboard,
     children: [
-      { title: "รายเดือน", url: "/?view=monthly" },
-      { title: "รายปี", url: "/?view=yearly" },
+      { title: "รายเดือน", url: "/?view=monthly", icon: CalendarDays },
+      { title: "รายปี", url: "/?view=yearly", icon: BarChart3 },
     ],
   },
   { title: "รายการธุรกรรม", url: "/transactions", icon: Receipt },
@@ -47,10 +47,10 @@ const menuItems: MenuItem[] = [
     url: "/settings",
     icon: Settings,
     children: [
-      { title: "งบประมาณ", url: "/settings?tab=budget" },
-      { title: "หมวดหมู่", url: "/settings?tab=categories" },
-      { title: "เป้าหมายการออม", url: "/settings?tab=savings" },
-      { title: "ผู้ใช้", url: "/settings?tab=user" },
+      { title: "งบประมาณ", url: "/settings?tab=budget", icon: DollarSign },
+      { title: "หมวดหมู่", url: "/settings?tab=categories", icon: Tags },
+      { title: "เป้าหมายการออม", url: "/settings?tab=savings", icon: Target },
+      { title: "ผู้ใช้", url: "/settings?tab=user", icon: UserCog },
     ],
   },
 ];
@@ -152,12 +152,13 @@ export function AppSidebar() {
                                   <button
                                     key={child.url}
                                     onClick={() => navigate(child.url)}
-                                    className={`block w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${
+                                    className={`flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${
                                       active
                                         ? "text-sidebar-primary font-medium bg-sidebar-accent/50"
                                         : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
                                     }`}
                                   >
+                                    {child.icon && <child.icon className="h-3.5 w-3.5" />}
                                     {child.title}
                                   </button>
                                 );
