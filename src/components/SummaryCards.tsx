@@ -1,11 +1,56 @@
+import { useMemo } from "react";
 import { TrendingUp, TrendingDown, CreditCard, PiggyBank } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
+import { BudgetData, Transaction, formatCurrency } from "@/hooks/useBudgetData";
 
 interface Props {
   data: BudgetData;
   carryOver?: number;
   hideNetBalance?: boolean;
+}
+
+function MiniSparkline({ data }: { data: number[] }) {
+  if (data.length < 2) return null;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const w = 80;
+  const h = 32;
+  const pad = 2;
+
+  const points = data.map((v, i) => {
+    const x = pad + (i / (data.length - 1)) * (w - pad * 2);
+    const y = pad + (1 - (v - min) / range) * (h - pad * 2);
+    return `${x},${y}`;
+  });
+
+  const pathD = `M${points.join("L")}`;
+  const areaD = `${pathD}L${w - pad},${h - pad}L${pad},${h - pad}Z`;
+
+  return (
+    <svg width={w} height={h} className="absolute bottom-3 right-3 opacity-40">
+      <path d={areaD} fill="white" fillOpacity={0.15} />
+      <path d={pathD} fill="none" stroke="white" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function buildDailyTotals(transactions: Transaction[], typeFilter: (t: Transaction) => boolean): number[] {
+  const filtered = transactions.filter(typeFilter);
+  if (filtered.length === 0) return [];
+
+  // Group by date and accumulate
+  const byDate: Record<string, number> = {};
+  filtered.forEach((t) => {
+    byDate[t.date] = (byDate[t.date] || 0) + t.amount;
+  });
+
+  const sortedDates = Object.keys(byDate).sort();
+  let cumulative = 0;
+  return sortedDates.map((d) => {
+    cumulative += byDate[d];
+    return cumulative;
+  });
 }
 
 export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Props) {
@@ -20,14 +65,18 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
   const actualIncome = data.transactions
     .filter((t) => t.type === "รายรับ")
     .reduce((s, t) => s + t.amount, 0);
-  const actualExpense = data.transactions
-    .filter((t) => t.type === "ค่าใช้จ่าย" || t.type === "บิล/สาธารณูปโภค" || t.type === "ค่าสมาชิกรายเดือน")
-    .reduce((s, t) => s + t.amount, 0);
-  const actualDebt = data.transactions.filter((t) => t.type === "หนี้สิน").reduce((s, t) => s + t.amount, 0);
-  const actualSaving = data.transactions.filter((t) => t.type === "เงินออม/การลงทุน").reduce((s, t) => s + t.amount, 0);
   const actualNonIncome = data.transactions
     .filter((t) => t.type !== "รายรับ")
     .reduce((s, t) => s + t.amount, 0);
+  const actualDebt = data.transactions.filter((t) => t.type === "หนี้สิน").reduce((s, t) => s + t.amount, 0);
+  const actualSaving = data.transactions.filter((t) => t.type === "เงินออม/การลงทุน").reduce((s, t) => s + t.amount, 0);
+
+  const sparklines = useMemo(() => ({
+    income: buildDailyTotals(data.transactions, (t) => t.type === "รายรับ"),
+    expense: buildDailyTotals(data.transactions, (t) => t.type !== "รายรับ"),
+    debt: buildDailyTotals(data.transactions, (t) => t.type === "หนี้สิน"),
+    saving: buildDailyTotals(data.transactions, (t) => t.type === "เงินออม/การลงทุน"),
+  }), [data.transactions]);
 
   const cards = [
     {
@@ -38,6 +87,7 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
       carryOver,
       icon: TrendingUp,
       gradient: "from-[hsl(160,60%,45%)] to-[hsl(160,60%,35%)]",
+      sparkData: sparklines.income,
     },
     {
       title: "ค่าใช้จ่าย",
@@ -46,6 +96,7 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
       secondaryLabel: "ประมาณการ",
       icon: TrendingDown,
       gradient: "from-[hsl(217,72%,55%)] to-[hsl(217,72%,42%)]",
+      sparkData: sparklines.expense,
     },
     {
       title: "หนี้สิน",
@@ -54,6 +105,7 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
       secondaryLabel: "ตามแผน",
       icon: CreditCard,
       gradient: "from-[hsl(35,90%,55%)] to-[hsl(35,90%,42%)]",
+      sparkData: sparklines.debt,
     },
     {
       title: "เงินออม",
@@ -62,6 +114,7 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
       secondaryLabel: "เป้าหมาย",
       icon: PiggyBank,
       gradient: "from-[hsl(280,60%,55%)] to-[hsl(280,60%,42%)]",
+      sparkData: sparklines.saving,
     },
   ];
 
@@ -100,9 +153,9 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
                   )}
                 </div>
               </CardContent>
+              <MiniSparkline data={card.sparkData} />
               {/* Decorative background shape */}
               <div className="absolute -right-4 -top-4 w-24 h-24 rounded-full bg-white/10" />
-              <div className="absolute -right-2 -bottom-6 w-16 h-16 rounded-full bg-white/5" />
             </Card>
           );
         })}
