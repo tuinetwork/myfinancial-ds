@@ -32,6 +32,7 @@ const AddTransactionFAB = () => {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [type, setType] = useState<"expense" | "income">("expense");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState<Date>(new Date());
@@ -76,8 +77,12 @@ const AddTransactionFAB = () => {
   };
 
   const handleClose = () => {
-    setOpen(false);
-    setTimeout(resetForm, 300);
+    setClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+      resetForm();
+    }, 250);
   };
 
   const handleSave = async () => {
@@ -132,16 +137,22 @@ const AddTransactionFAB = () => {
       {/* Backdrop + Modal */}
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center animate-fade-in"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
           onClick={handleClose}
         >
           {/* Blur backdrop */}
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-xl" />
+          <div className={cn(
+            "absolute inset-0 bg-background/80 backdrop-blur-xl",
+            closing ? "animate-modal-backdrop-out" : "animate-modal-backdrop-in"
+          )} />
 
           {/* Modal */}
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative z-10 w-full max-w-md mx-4 mb-4 sm:mb-0 bg-card rounded-2xl shadow-2xl border border-border p-5 space-y-4 animate-scale-in"
+            className={cn(
+              "relative z-10 w-full max-w-md mx-4 mb-4 sm:mb-0 bg-card rounded-2xl shadow-2xl border border-border p-5 space-y-4",
+              closing ? "animate-modal-slide-down" : "animate-modal-slide-up"
+            )}
           >
             {/* Header */}
             <div className="flex items-center justify-between">
