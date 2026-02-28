@@ -1,4 +1,4 @@
-import { LayoutDashboard, Receipt, LogOut, Wallet } from "lucide-react";
+import { LayoutDashboard, Receipt, LogOut, Wallet, Settings } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +20,7 @@ import {
 const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "รายการธุรกรรม", url: "/transactions", icon: Receipt },
+  { title: "ตั้งค่า", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
