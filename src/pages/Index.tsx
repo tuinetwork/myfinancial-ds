@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { NotificationBell } from "@/components/NotificationBell";
 import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
 import { useYearlyData } from "@/hooks/useYearlyData";
 import { SummaryCards } from "@/components/SummaryCards";
@@ -85,8 +86,9 @@ const Index = () => {
 
       <div className="flex-1 flex flex-col min-h-screen">
         {/* Header - only sidebar trigger */}
-        <header className="h-14 flex items-center border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
+        <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
           <SidebarTrigger />
+          <NotificationBell />
         </header>
 
         {/* Content */}
