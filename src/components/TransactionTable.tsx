@@ -35,33 +35,20 @@ function getTypeBadgeClass(type: string) {
 }
 
 function formatDate(dateStr: string) {
-  // Support YYYY-MM-DD format
-  if (dateStr.includes("-")) {
-    const parts = dateStr.split("-");
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const day = parseInt(parts[2], 10);
-    const thaiYear = (year + 543) % 100;
-    const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-    return `${day} ${monthNames[month]} ${thaiYear}`;
-  }
-  // Legacy DD/MM/YYYY format
   const parts = dateStr.split("/");
   if (parts.length === 3) {
     const day = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1;
     const year = parseInt(parts[2], 10);
-    const thaiYear = (year + 543) % 100;
+    const d = new Date(year, month, day);
+    const thaiYear = (d.getFullYear() + 543) % 100;
     const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-    return `${day} ${monthNames[month]} ${thaiYear}`;
+    return `${day} ${monthNames[d.getMonth()]} ${thaiYear}`;
   }
   return dateStr;
 }
 
 function parseDateValue(dateStr: string): number {
-  if (dateStr.includes("-")) {
-    return new Date(dateStr).getTime();
-  }
   const parts = dateStr.split("/");
   if (parts.length === 3) {
     return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10)).getTime();
