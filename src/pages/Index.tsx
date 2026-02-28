@@ -100,7 +100,7 @@ const Index = () => {
 
         {/* Content */}
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">
-          <div className="max-w-7xl mx-auto space-y-6">
+          <div className="space-y-6">
             {/* Breadcrumb */}
             <Breadcrumb>
               <BreadcrumbList>
