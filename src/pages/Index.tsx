@@ -67,40 +67,21 @@ const Index = () => {
     }
   }, [monthsForYear]);
 
-  // Derive selectedPath from year + month
-  const selectedPath = useMemo(() => {
-    if (!selectedYear || !selectedMonthKey || !months) return undefined;
-    const found = months.find((m) => m.year === selectedYear && m.month === selectedMonthKey);
-    return found?.path;
-  }, [months, selectedYear, selectedMonthKey]);
+  // Derive selectedPeriod from year + month
+  const selectedPeriod = useMemo(() => {
+    if (!selectedYear || !selectedMonthKey) return undefined;
+    return `${selectedYear}-${selectedMonthKey}`;
+  }, [selectedYear, selectedMonthKey]);
 
-  // Find previous month path
-  const previousPath = (() => {
-    if (!months || !selectedPath) return undefined;
-    const idx = months.findIndex((m) => m.path === selectedPath);
-    return idx >= 0 && idx + 1 < months.length ? months[idx + 1].path : undefined;
-  })();
-
-  const { data, isLoading, error } = useBudgetData(selectedPath);
-  const { data: prevData } = useBudgetData(previousPath);
+  const { data, isLoading, error } = useBudgetData(selectedPeriod);
   const { data: yearlyData, isLoading: yearlyLoading } = useYearlyData(
     viewMode === "yearly" ? selectedYear : undefined
   );
 
-  // Calculate carry-over balance from previous month
-  const carryOver = (() => {
-    if (!prevData) return 0;
-    const prevIncome = prevData.transactions
-      .filter((t) => t.type === "รายรับ")
-      .reduce((s, t) => s + t.amount, 0);
-    const prevNonIncome = prevData.transactions
-      .filter((t) => t.type !== "รายรับ")
-      .reduce((s, t) => s + t.amount, 0);
-    return prevIncome - prevNonIncome;
-  })();
+  const carryOver = data?.carryOver ?? 0;
 
   const isPageLoading = viewMode === "monthly"
-    ? isLoading || monthsLoading || !selectedPath
+    ? isLoading || monthsLoading || !selectedPeriod
     : yearlyLoading || monthsLoading || !selectedYear;
 
   if (isPageLoading) {
