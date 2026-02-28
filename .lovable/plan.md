@@ -1,22 +1,41 @@
 
 
-## แผนการปรับปรุง: Sparkline + Sidebar Navigation
+## Plan: เพิ่ม Google Login และใช้ UID ดึงข้อมูลจาก Firestore
 
-### 1. เพิ่ม Sparkline ใน Summary Cards (`src/components/SummaryCards.tsx`)
-- สร้าง mini sparkline SVG จากข้อมูล transactions รายวัน (group by date → สะสมยอดแต่ละวัน)
-- แต่ละการ์ดจะมี sparkline เล็กๆ (ขนาดประมาณ 80x32px) วางที่มุมขวาล่าง ใช้สีขาว opacity ต่ำ
-- กราฟแสดงแนวโน้มรายวันของแต่ละหมวด (รายรับ/ค่าใช้จ่าย/หนี้สิน/เงินออม) โดยใช้ recharts `<Sparkline>` หรือ SVG path ตรงๆ เพื่อความเบา
+### สิ่งที่จะทำ
 
-### 2. เพิ่ม Sidebar Navigation
-- **สร้างไฟล์ใหม่** `src/components/AppSidebar.tsx` — sidebar ด้านซ้ายที่มีเมนู Dashboard, ตัวเลือกเดือน/ปี, และ view mode toggle (รายเดือน/รายปี)
-- **แก้ `src/App.tsx`** — ครอบด้วย `SidebarProvider` + layout flex, เพิ่ม `SidebarTrigger` ใน header
-- **แก้ `src/pages/Index.tsx`** — ย้าย month/year selectors และ view mode tabs ไปอยู่ใน sidebar แทน header ด้านบน, ลด padding เล็กน้อย
-- Sidebar ใช้ `collapsible="icon"` เพื่อให้ย่อเป็น icon strip ได้
-- เมนูหลัก: Dashboard (หน้าแรก), พร้อม section สำหรับเลือกเดือน/ปี
+1. **สร้าง Auth Context (`src/contexts/AuthContext.tsx`)**
+   - ใช้ Firebase Auth (`getAuth`, `GoogleAuthProvider`, `signInWithPopup`, `onAuthStateChanged`)
+   - สร้าง `AuthProvider` ที่ track สถานะ login และเก็บ `user` object (มี `uid`)
+   - สร้าง `useAuth()` hook สำหรับเข้าถึง user, uid, signIn, signOut
 
-### ไฟล์ที่แก้ไข
-1. `src/components/SummaryCards.tsx` — เพิ่ม sparkline component ในแต่ละการ์ด
-2. `src/components/AppSidebar.tsx` — **ไฟล์ใหม่** sidebar navigation
-3. `src/App.tsx` — ครอบ SidebarProvider + layout
-4. `src/pages/Index.tsx` — ย้าย controls ไป sidebar, ปรับ layout
+2. **สร้างหน้า Login (`src/components/GoogleLogin.tsx`)**
+   - แสดงปุ่ม "Sign in with Google"
+   - เมื่อ login สำเร็จ ตรวจสอบว่า UID ตรงกับ user document ใน Firestore collection `users/{uid}` หรือไม่
+   - ถ้าไม่มี document → แสดงข้อความ "ไม่พบข้อมูลผู้ใช้" และ sign out
+
+3. **อัปเดต Firebase config (`src/lib/firebase.ts`)**
+   - Export `auth` instance จาก `getAuth(app)`
+
+4. **แก้ไข `src/App.tsx`**
+   - ครอบ app ด้วย `AuthProvider`
+   - แทนที่ `PinLock` ด้วย `GoogleLogin` เป็นหน้า gate (หรือทำงานร่วมกัน)
+   - ถ้ายังไม่ login → แสดงหน้า login
+   - ถ้า login แล้ว → แสดง dashboard
+
+5. **แก้ไข `src/hooks/useBudgetData.ts` และ `src/hooks/useYearlyData.ts`**
+   - ลบ hardcoded `USER_ID`
+   - รับ `userId` จาก `useAuth()` hook
+   - ใช้ `userId` ใน path `users/{userId}/budgets` และ `users/{userId}/transactions`
+
+### รายละเอียดทางเทคนิค
+
+- Firebase Auth ใช้ `signInWithPopup` กับ `GoogleAuthProvider`
+- หลัง login สำเร็จ จะเช็ค `doc(firestore, "users", uid)` ว่ามีอยู่หรือไม่ เพื่อยืนยันว่าเป็น user ที่มีข้อมูล
+- PIN lock ยังคงทำงานได้ถ้าต้องการ (เป็น layer เพิ่ม) หรือจะแทนที่ด้วย Google login อย่างเดียว
+- Session จะ persist ผ่าน Firebase Auth persistence (default: local storage)
+
+### ไฟล์ที่จะแก้ไข/สร้าง
+- **สร้างใหม่**: `src/contexts/AuthContext.tsx`, `src/components/GoogleLogin.tsx`
+- **แก้ไข**: `src/lib/firebase.ts`, `src/App.tsx`, `src/hooks/useBudgetData.ts`, `src/hooks/useYearlyData.ts`
 
