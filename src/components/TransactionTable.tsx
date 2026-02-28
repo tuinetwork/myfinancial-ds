@@ -10,7 +10,15 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
 
 interface Props {
@@ -79,8 +87,9 @@ type SortDir = "asc" | "desc" | null;
 const TYPE_ORDER = ["รายรับ", "ค่าใช้จ่าย", "เงินออม", "บิล/สาธารณูปโภค", "ค่าสมาชิกรายเดือน", "หนี้สิน"];
 
 export function TransactionTable({ data }: Props) {
-  const PAGE_SIZE = 50;
+  const [pageSize, setPageSize] = useState(50);
   const [filter, setFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(0);
@@ -110,7 +119,18 @@ export function TransactionTable({ data }: Props) {
   };
 
   const filtered = useMemo(() => {
-    const items = filter === "all" ? data.transactions : data.transactions.filter((t) => t.type === filter);
+    let items = filter === "all" ? data.transactions : data.transactions.filter((t) => t.type === filter);
+
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      items = items.filter(
+        (t) =>
+          t.category.toLowerCase().includes(q) ||
+          (t.description || "").toLowerCase().includes(q) ||
+          t.type.toLowerCase().includes(q)
+      );
+    }
+
     const indexed = items.map((t, i) => ({ ...t, _idx: i }));
 
     if (sortDir === null) return indexed;
@@ -136,51 +156,81 @@ export function TransactionTable({ data }: Props) {
     });
 
     return indexed;
-  }, [data.transactions, filter, sortKey, sortDir]);
+  }, [data.transactions, filter, search, sortKey, sortDir]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((sum, t) => sum + t.amount, 0),
     [filtered]
   );
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
-  // Reset page when filter changes
-  useMemo(() => { setPage(0); }, [filter]);
+  // Reset page when filter/search/pageSize changes
+  useMemo(() => { setPage(0); }, [filter, search, pageSize]);
 
   const headerClass = "text-sm cursor-pointer select-none hover:text-foreground transition-colors";
 
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages: (number | "ellipsis")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 0; i < totalPages; i++) pages.push(i);
+    } else {
+      pages.push(0);
+      if (page > 2) pages.push("ellipsis");
+      for (let i = Math.max(1, page - 1); i <= Math.min(totalPages - 2, page + 1); i++) {
+        pages.push(i);
+      }
+      if (page < totalPages - 3) pages.push("ellipsis");
+      pages.push(totalPages - 1);
+    }
+    return pages;
+  };
+
   return (
     <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "560ms" }}>
-      <CardHeader className="pb-2 space-y-3">
-        <CardTitle className="text-base font-semibold">
-          รายการล่าสุด ({filtered.length} รายการ)
-        </CardTitle>
-        <div className="flex flex-wrap gap-1.5">
-          <Button
-            variant={filter === "all" ? "default" : "outline"}
-            size="sm"
-            className="h-7 text-xs rounded-full"
-            onClick={() => setFilter("all")}
-          >
-            ทั้งหมด
-          </Button>
-          {types.map((type) => (
-            <Button
-              key={type}
-              variant={filter === type ? "default" : "outline"}
-              size="sm"
-              className="h-7 text-xs rounded-full"
-              onClick={() => setFilter(type)}
-            >
-              {type}
-            </Button>
-          ))}
-        </div>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-semibold">รายการธุรกรรม</CardTitle>
       </CardHeader>
-      <CardContent className="px-0">
-        <div className="max-h-96 overflow-auto">
+      <CardContent className="space-y-4">
+        {/* Top controls */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+              <SelectTrigger className="w-[70px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 25, 50, 100].map((n) => (
+                  <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">รายการต่อหน้า</span>
+
+            <Select value={filter} onValueChange={setFilter}>
+              <SelectTrigger className="w-[160px] h-8 text-xs ml-2">
+                <SelectValue placeholder="ประเภท" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">ทั้งหมด</SelectItem>
+                {types.map((type) => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Input
+            placeholder="ค้นหา..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8 w-full sm:w-48 text-xs"
+          />
+        </div>
+
+        {/* Table */}
+        <div className="overflow-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-border">
@@ -243,17 +293,45 @@ export function TransactionTable({ data }: Props) {
           </Table>
         </div>
 
+        {/* Bottom pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+          <div className="flex items-center justify-between pt-2">
             <span className="text-xs text-muted-foreground">
-              แสดง {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} จาก {filtered.length} รายการ
+              แสดง {page * pageSize + 1} ถึง {Math.min((page + 1) * pageSize, filtered.length)} จาก {filtered.length} รายการ
             </span>
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page === 0} onClick={() => setPage(page - 1)}>
-                ก่อนหน้า
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                disabled={page === 0}
+                onClick={() => setPage(page - 1)}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
-                ถัดไป
+              {getPageNumbers().map((p, i) =>
+                p === "ellipsis" ? (
+                  <span key={`e${i}`} className="text-xs text-muted-foreground px-1">…</span>
+                ) : (
+                  <Button
+                    key={p}
+                    variant={page === p ? "default" : "outline"}
+                    size="icon"
+                    className="h-7 w-7 text-xs"
+                    onClick={() => setPage(p)}
+                  >
+                    {p + 1}
+                  </Button>
+                )
+              )}
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                disabled={page >= totalPages - 1}
+                onClick={() => setPage(page + 1)}
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
