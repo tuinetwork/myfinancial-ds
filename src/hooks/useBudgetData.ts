@@ -177,13 +177,13 @@ function ensureCurrentMonth(options: MonthOption[]): MonthOption[] {
   return options;
 }
 
-/** Auto-create a new budget document by copying the latest budget structure with zeroed amounts */
+/** Auto-create a new budget document by copying the latest budget (including amounts) */
 export async function createBudgetFromLatest(userId: string, period: string): Promise<boolean> {
   const budgetsCol = budgetsCollection(userId);
   
   // Get the latest existing budget (sorted by period descending)
   const allSnap = await getDocs(budgetsCol);
-  if (allSnap.empty) return false; // No existing budget to copy from
+  if (allSnap.empty) return false;
 
   // Find the latest period
   let latestDoc: Record<string, unknown> | null = null;
@@ -202,30 +202,13 @@ export async function createBudgetFromLatest(userId: string, period: string): Pr
   const incomeEstimates = (latestDoc.income_estimates ?? {}) as Record<string, Record<string, number>>;
   const expenseBudgets = (latestDoc.expense_budgets ?? {}) as Record<string, Record<string, number>>;
 
-  // Zero out all amounts while preserving structure
-  const zeroedIncome: Record<string, Record<string, number>> = {};
-  for (const [group, subs] of Object.entries(incomeEstimates)) {
-    zeroedIncome[group] = {};
-    for (const sub of Object.keys(subs)) {
-      zeroedIncome[group][sub] = 0;
-    }
-  }
-
-  const zeroedExpense: Record<string, Record<string, number>> = {};
-  for (const [group, subs] of Object.entries(expenseBudgets)) {
-    zeroedExpense[group] = {};
-    for (const sub of Object.keys(subs)) {
-      zeroedExpense[group][sub] = 0;
-    }
-  }
-
-  // Write new budget document
+  // Write new budget document copying amounts from latest
   const docRef = doc(firestore, "users", userId, "budgets", period);
   await setDoc(docRef, {
     period,
     carry_over: 0,
-    income_estimates: zeroedIncome,
-    expense_budgets: zeroedExpense,
+    income_estimates: incomeEstimates,
+    expense_budgets: expenseBudgets,
   });
 
   return true;
