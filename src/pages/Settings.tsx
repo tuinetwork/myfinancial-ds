@@ -35,7 +35,7 @@ type SettingsTab = "budget" | "user";
 
 // ─── Budget tree types ───
 interface BudgetTreeData {
-  income_estimates: Record<string, number>;
+  income_estimates: Record<string, Record<string, number>>;
   expense_budgets: Record<string, Record<string, number>>;
   carry_over: number;
   period: string;
@@ -169,7 +169,7 @@ const BudgetSettings = () => {
       if (snap.exists()) {
         const d = snap.data();
         setBudgetData({
-          income_estimates: (d.income_estimates ?? {}) as Record<string, number>,
+          income_estimates: (d.income_estimates ?? {}) as Record<string, Record<string, number>>,
           expense_budgets: (d.expense_budgets ?? {}) as Record<string, Record<string, number>>,
           carry_over: (d.carry_over as number) ?? 0,
           period: (d.period as string) ?? period,
@@ -198,11 +198,14 @@ const BudgetSettings = () => {
     setSaving(false);
   };
 
-  const updateIncome = (label: string, value: number) => {
+  const updateIncome = (group: string, label: string, value: number) => {
     if (!budgetData) return;
     setBudgetData({
       ...budgetData,
-      income_estimates: { ...budgetData.income_estimates, [label]: value },
+      income_estimates: {
+        ...budgetData.income_estimates,
+        [group]: { ...budgetData.income_estimates[group], [label]: value },
+      },
     });
   };
 
@@ -278,13 +281,16 @@ const BudgetSettings = () => {
 
             <Separator className="my-2" />
 
-            {/* Income */}
-            <TreeGroup
-              label="รายรับ"
-              icon={<Wallet className="h-4 w-4 text-emerald-500" />}
-              items={Object.entries(budgetData.income_estimates)}
-              onUpdate={updateIncome}
-            />
+            {/* Income groups */}
+            {Object.entries(budgetData.income_estimates).map(([group, subs]) => (
+              <TreeGroup
+                key={`income-${group}`}
+                label={group}
+                icon={<Wallet className="h-4 w-4 text-emerald-500" />}
+                items={Object.entries(subs)}
+                onUpdate={(sub, val) => updateIncome(group, sub, val)}
+              />
+            ))}
 
             <Separator className="my-2" />
 

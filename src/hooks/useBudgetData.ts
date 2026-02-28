@@ -92,11 +92,18 @@ function parseBudgetDoc(
   const monthName = periodToMonthName(period);
   const carryOver = (docData.carry_over as number) ?? 0;
 
-  // income_estimates → BudgetItem[]
-  const incomeEstimates = (docData.income_estimates ?? {}) as Record<string, number>;
-  const income: BudgetItem[] = Object.entries(incomeEstimates).map(
-    ([label, budget]) => ({ label, budget })
-  );
+  // income_estimates → BudgetItem[] (nested: { group: { label: amount } })
+  const incomeEstimates = (docData.income_estimates ?? {}) as Record<string, Record<string, number> | number>;
+  const income: BudgetItem[] = [];
+  for (const [key, val] of Object.entries(incomeEstimates)) {
+    if (typeof val === "number") {
+      income.push({ label: key, budget: val });
+    } else if (typeof val === "object") {
+      for (const [subLabel, subVal] of Object.entries(val)) {
+        income.push({ label: subLabel, budget: subVal });
+      }
+    }
+  }
 
   // expense_budgets → expenses groups
   const expenseBudgets = (docData.expense_budgets ?? {}) as Record<
