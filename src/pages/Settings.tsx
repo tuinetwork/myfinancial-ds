@@ -26,8 +26,16 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
   LogOut, User, Mail, Shield, ChevronRight, ChevronDown,
-  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree,
+  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -902,6 +910,28 @@ const Settings = () => {
 
         <main className="flex-1 p-4 md:p-6">
           <div className="max-w-3xl mx-auto space-y-6">
+            {/* Breadcrumb */}
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/" className="flex items-center gap-1">
+                    <Home className="h-4 w-4" />
+                    <span className="hidden sm:inline">หน้าหลัก</span>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/settings?tab=budget" className="cursor-pointer">
+                    ตั้งค่า
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{titleMap[tab]}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+
             <h1 className="text-2xl font-bold">{titleMap[tab]}</h1>
 
             {tab === "budget" && <BudgetSettings />}
