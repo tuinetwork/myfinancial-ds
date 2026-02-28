@@ -66,7 +66,7 @@ export function AppSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton className="bg-muted text-primary font-medium">
+                <SidebarMenuButton className="bg-sidebar-accent text-sidebar-primary font-medium">
                   <LayoutDashboard className="h-4 w-4" />
                   {!collapsed && <span>Dashboard</span>}
                 </SidebarMenuButton>
@@ -81,9 +81,9 @@ export function AppSidebar({
             <SidebarGroupLabel>มุมมอง</SidebarGroupLabel>
             <SidebarGroupContent className="px-2">
               <Tabs value={viewMode} onValueChange={(v) => onViewModeChange(v as "monthly" | "yearly")}>
-                <TabsList className="w-full bg-muted">
-                  <TabsTrigger value="monthly" className="flex-1 text-xs">รายเดือน</TabsTrigger>
-                  <TabsTrigger value="yearly" className="flex-1 text-xs">รายปี</TabsTrigger>
+                <TabsList className="w-full bg-sidebar-accent">
+                  <TabsTrigger value="monthly" className="flex-1 text-xs data-[state=active]:bg-sidebar-primary data-[state=active]:text-sidebar-primary-foreground">รายเดือน</TabsTrigger>
+                  <TabsTrigger value="yearly" className="flex-1 text-xs data-[state=active]:bg-sidebar-primary data-[state=active]:text-sidebar-primary-foreground">รายปี</TabsTrigger>
                 </TabsList>
               </Tabs>
             </SidebarGroupContent>
@@ -100,10 +100,10 @@ export function AppSidebar({
             <SidebarGroupContent className="px-2 space-y-2">
               {years.length > 0 && (
                 <Select value={selectedYear} onValueChange={onYearChange}>
-                  <SelectTrigger className="w-full bg-card border-border shadow-sm text-xs">
+                 <SelectTrigger className="w-full bg-sidebar-accent border-sidebar-border text-sidebar-foreground shadow-sm text-xs">
                     <SelectValue placeholder="ปี" />
                   </SelectTrigger>
-                  <SelectContent className="bg-card border-border shadow-lg z-50">
+                  <SelectContent className="bg-sidebar-background border-sidebar-border text-sidebar-foreground shadow-lg z-50">
                     {years.map((y) => (
                       <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
                     ))}
@@ -113,10 +113,10 @@ export function AppSidebar({
 
               {viewMode === "monthly" && monthsForYear.length > 0 && (
                 <Select value={selectedMonthKey} onValueChange={onMonthChange}>
-                  <SelectTrigger className="w-full bg-card border-border shadow-sm text-xs">
+                  <SelectTrigger className="w-full bg-sidebar-accent border-sidebar-border text-sidebar-foreground shadow-sm text-xs">
                     <SelectValue placeholder="เดือน" />
                   </SelectTrigger>
-                  <SelectContent className="bg-card border-border shadow-lg z-50">
+                  <SelectContent className="bg-sidebar-background border-sidebar-border text-sidebar-foreground shadow-lg z-50">
                     {monthsForYear.map((m) => (
                       <SelectItem key={m.month} value={m.month}>{m.monthName}</SelectItem>
                     ))}
