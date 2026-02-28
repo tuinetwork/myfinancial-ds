@@ -5,8 +5,11 @@ import {
   doc,
   getDoc,
   getDocs,
+  setDoc,
   query,
   where,
+  orderBy,
+  limit,
   onSnapshot,
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
@@ -174,6 +177,60 @@ function ensureCurrentMonth(options: MonthOption[]): MonthOption[] {
   return options;
 }
 
+/** Auto-create a new budget document by copying the latest budget structure with zeroed amounts */
+export async function createBudgetFromLatest(userId: string, period: string): Promise<boolean> {
+  const budgetsCol = budgetsCollection(userId);
+  
+  // Get the latest existing budget (sorted by period descending)
+  const allSnap = await getDocs(budgetsCol);
+  if (allSnap.empty) return false; // No existing budget to copy from
+
+  // Find the latest period
+  let latestDoc: Record<string, unknown> | null = null;
+  let latestPeriod = "";
+  allSnap.forEach((d) => {
+    const data = d.data();
+    const p = (data.period as string) ?? d.id;
+    if (p > latestPeriod && p !== period) {
+      latestPeriod = p;
+      latestDoc = data as Record<string, unknown>;
+    }
+  });
+
+  if (!latestDoc) return false;
+
+  const incomeEstimates = (latestDoc.income_estimates ?? {}) as Record<string, Record<string, number>>;
+  const expenseBudgets = (latestDoc.expense_budgets ?? {}) as Record<string, Record<string, number>>;
+
+  // Zero out all amounts while preserving structure
+  const zeroedIncome: Record<string, Record<string, number>> = {};
+  for (const [group, subs] of Object.entries(incomeEstimates)) {
+    zeroedIncome[group] = {};
+    for (const sub of Object.keys(subs)) {
+      zeroedIncome[group][sub] = 0;
+    }
+  }
+
+  const zeroedExpense: Record<string, Record<string, number>> = {};
+  for (const [group, subs] of Object.entries(expenseBudgets)) {
+    zeroedExpense[group] = {};
+    for (const sub of Object.keys(subs)) {
+      zeroedExpense[group][sub] = 0;
+    }
+  }
+
+  // Write new budget document
+  const docRef = doc(firestore, "users", userId, "budgets", period);
+  await setDoc(docRef, {
+    period,
+    carry_over: 0,
+    income_estimates: zeroedIncome,
+    expense_budgets: zeroedExpense,
+  });
+
+  return true;
+}
+
 /** Fetch available year/month options from budgets collection */
 export function useAvailableMonths() {
   const queryClient = useQueryClient();
@@ -239,7 +296,13 @@ export function useBudgetData(period?: string) {
 
     const budgetDocRef = doc(firestore, "users", userId, "budgets", period);
     const unsubBudget = onSnapshot(budgetDocRef, async (budgetSnap) => {
-      if (!budgetSnap.exists()) return;
+      if (!budgetSnap.exists()) {
+        // Auto-create budget from latest
+        const created = await createBudgetFromLatest(userId, period);
+        if (!created) return;
+        // onSnapshot will fire again after setDoc, so just return
+        return;
+      }
       const txQuery = query(
         transactionsCollection(userId),
         where("month_year", "==", period)
@@ -283,7 +346,23 @@ export function useBudgetData(period?: string) {
       const budgetSnap = await getDoc(
         doc(firestore, "users", userId, "budgets", period!)
       );
-      if (!budgetSnap.exists()) throw new Error("No data found");
+      if (!budgetSnap.exists()) {
+        // Auto-create budget from latest
+        const created = await createBudgetFromLatest(userId, period!);
+        if (!created) throw new Error("No data found");
+        // Re-fetch after creation
+        const newSnap = await getDoc(doc(firestore, "users", userId, "budgets", period!));
+        if (!newSnap.exists()) throw new Error("No data found");
+        const txQuery2 = query(
+          transactionsCollection(userId),
+          where("month_year", "==", period!)
+        );
+        const txSnap2 = await getDocs(txQuery2);
+        const transactions2 = txSnap2.docs.map((d) =>
+          mapTransaction(d.data() as Record<string, unknown>)
+        );
+        return parseBudgetDoc(newSnap.data() as Record<string, unknown>, transactions2);
+      }
       const txQuery = query(
         transactionsCollection(userId),
         where("month_year", "==", period!)

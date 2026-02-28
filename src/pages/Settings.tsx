@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { collection, doc, getDoc, getDocs, updateDoc, query, where } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
-import { useAvailableMonths } from "@/hooks/useBudgetData";
+import { useAvailableMonths, createBudgetFromLatest } from "@/hooks/useBudgetData";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -277,24 +277,37 @@ const BudgetSettings = () => {
     if (!userId || !period) return;
     setLoading(true);
     const docRef = doc(firestore, "users", userId, "budgets", period);
-    getDoc(docRef).then((snap) => {
-      if (snap.exists()) {
-        const d = snap.data();
-        const data: BudgetTreeData = {
-          income_estimates: (d.income_estimates ?? {}) as Record<string, Record<string, number>>,
-          expense_budgets: (d.expense_budgets ?? {}) as Record<string, Record<string, number>>,
-          carry_over: (d.carry_over as number) ?? 0,
-          period: (d.period as string) ?? period,
-        };
-        setBudgetData(data);
-        // Set default selected categories
-        const expKeys = Object.keys(data.expense_budgets);
-        if (expKeys.length > 0 && !selectedExpenseCat) setSelectedExpenseCat(expKeys[0]);
-        const incKeys = Object.keys(data.income_estimates);
-        if (incKeys.length > 0 && !selectedIncomeCat) setSelectedIncomeCat(incKeys[0]);
-      } else {
-        setBudgetData(null);
+    getDoc(docRef).then(async (snap) => {
+      if (!snap.exists()) {
+        // Auto-create budget from latest
+        const created = await createBudgetFromLatest(userId, period);
+        if (created) {
+          const newSnap = await getDoc(docRef);
+          if (newSnap.exists()) {
+            snap = newSnap;
+          } else {
+            setBudgetData(null);
+            setLoading(false);
+            return;
+          }
+        } else {
+          setBudgetData(null);
+          setLoading(false);
+          return;
+        }
       }
+      const d = snap.data()!;
+      const data: BudgetTreeData = {
+        income_estimates: (d.income_estimates ?? {}) as Record<string, Record<string, number>>,
+        expense_budgets: (d.expense_budgets ?? {}) as Record<string, Record<string, number>>,
+        carry_over: (d.carry_over as number) ?? 0,
+        period: (d.period as string) ?? period,
+      };
+      setBudgetData(data);
+      const expKeys = Object.keys(data.expense_budgets);
+      if (expKeys.length > 0 && !selectedExpenseCat) setSelectedExpenseCat(expKeys[0]);
+      const incKeys = Object.keys(data.income_estimates);
+      if (incKeys.length > 0 && !selectedIncomeCat) setSelectedIncomeCat(incKeys[0]);
       setLoading(false);
     });
 
@@ -524,18 +537,31 @@ const CategorySettings = () => {
     if (!userId || !period) return;
     setLoading(true);
     const docRef = doc(firestore, "users", userId, "budgets", period);
-    getDoc(docRef).then((snap) => {
-      if (snap.exists()) {
-        const d = snap.data();
-        const inc = (d.income_estimates ?? {}) as Record<string, Record<string, number>>;
-        const exp = (d.expense_budgets ?? {}) as Record<string, Record<string, number>>;
-        setIncomeGroups(
-          Object.fromEntries(Object.entries(inc).map(([k, v]) => [k, Object.keys(v)]))
-        );
-        setExpenseGroups(
-          Object.fromEntries(Object.entries(exp).map(([k, v]) => [k, Object.keys(v)]))
-        );
+    getDoc(docRef).then(async (snap) => {
+      if (!snap.exists()) {
+        const created = await createBudgetFromLatest(userId, period);
+        if (created) {
+          const newSnap = await getDoc(docRef);
+          if (newSnap.exists()) {
+            snap = newSnap;
+          } else {
+            setLoading(false);
+            return;
+          }
+        } else {
+          setLoading(false);
+          return;
+        }
       }
+      const d = snap.data()!;
+      const inc = (d.income_estimates ?? {}) as Record<string, Record<string, number>>;
+      const exp = (d.expense_budgets ?? {}) as Record<string, Record<string, number>>;
+      setIncomeGroups(
+        Object.fromEntries(Object.entries(inc).map(([k, v]) => [k, Object.keys(v)]))
+      );
+      setExpenseGroups(
+        Object.fromEntries(Object.entries(exp).map(([k, v]) => [k, Object.keys(v)]))
+      );
       setLoading(false);
     });
   }, [userId, period]);
