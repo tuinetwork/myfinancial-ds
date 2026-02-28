@@ -66,6 +66,12 @@ export function YearlyTransactionTable({ yearlyData }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
+  const thaiMonthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+  const formatPeriodThai = (period: string) => {
+    const [y, m] = period.split("-");
+    const thaiYear = (parseInt(y, 10) + 543) % 100;
+    return `${thaiMonthNames[parseInt(m, 10) - 1]} ${thaiYear}`;
+  };
   const monthOptions = yearlyData.months.map((m) => m.month);
 
   const transactions = useMemo(() => {
@@ -148,7 +154,7 @@ export function YearlyTransactionTable({ yearlyData }: Props) {
             <SelectContent className="bg-card border-border shadow-lg z-50">
               <SelectItem value="all">ทุกเดือน</SelectItem>
               {monthOptions.map((m) => (
-                <SelectItem key={m} value={m}>{m}</SelectItem>
+                <SelectItem key={m} value={m}>{formatPeriodThai(m)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
