@@ -734,95 +734,97 @@ const CategorySettings = () => {
         <Skeleton className="h-64 rounded-lg" />
       ) : (
         <>
-          {/* Income categories */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-emerald-500" />
-                หมวดหมู่รายรับ
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {Object.entries(incomeGroups).map(([group, subs]) => (
-                <CategoryGroup key={`inc-${group}`} type="income" groupName={group} subs={subs} />
-              ))}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Income categories - left */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-emerald-500" />
+                  หมวดหมู่รายรับ
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {Object.entries(incomeGroups).map(([group, subs]) => (
+                  <CategoryGroup key={`inc-${group}`} type="income" groupName={group} subs={subs} />
+                ))}
 
-              {addingGroupType === "income" ? (
-                <div className="flex items-center gap-1 px-3 py-2">
-                  <Input
-                    value={newGroupName}
-                    onChange={(e) => setNewGroupName(e.target.value)}
-                    placeholder="ชื่อกลุ่มรายรับ"
-                    className="h-7 text-xs flex-1"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") addGroup("income", newGroupName);
-                      if (e.key === "Escape") { setAddingGroupType(null); setNewGroupName(""); }
-                    }}
-                  />
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addGroup("income", newGroupName)}>
-                    <Check className="h-3 w-3 text-green-600" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingGroupType(null); setNewGroupName(""); }}>
-                    <X className="h-3 w-3 text-destructive" />
-                  </Button>
-                </div>
-              ) : (
-                <button
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:text-primary/80 transition-colors"
-                  onClick={() => { setAddingGroupType("income"); setNewGroupName(""); }}
-                >
-                  <Plus className="h-4 w-4" />
-                  เพิ่มกลุ่มรายรับ
-                </button>
-              )}
-            </CardContent>
-          </Card>
+                {addingGroupType === "income" ? (
+                  <div className="flex items-center gap-1 px-3 py-2">
+                    <Input
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      placeholder="ชื่อกลุ่มรายรับ"
+                      className="h-7 text-xs flex-1"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") addGroup("income", newGroupName);
+                        if (e.key === "Escape") { setAddingGroupType(null); setNewGroupName(""); }
+                      }}
+                    />
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addGroup("income", newGroupName)}>
+                      <Check className="h-3 w-3 text-green-600" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingGroupType(null); setNewGroupName(""); }}>
+                      <X className="h-3 w-3 text-destructive" />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                    onClick={() => { setAddingGroupType("income"); setNewGroupName(""); }}
+                  >
+                    <Plus className="h-4 w-4" />
+                    เพิ่มกลุ่มรายรับ
+                  </button>
+                )}
+              </CardContent>
+            </Card>
 
-          {/* Expense categories */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-orange-500" />
-                หมวดหมู่รายจ่าย
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {Object.entries(expenseGroups).map(([group, subs]) => (
-                <CategoryGroup key={`exp-${group}`} type="expense" groupName={group} subs={subs} />
-              ))}
+            {/* Expense categories - right */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-orange-500" />
+                  หมวดหมู่รายจ่าย
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {Object.entries(expenseGroups).map(([group, subs]) => (
+                  <CategoryGroup key={`exp-${group}`} type="expense" groupName={group} subs={subs} />
+                ))}
 
-              {addingGroupType === "expense" ? (
-                <div className="flex items-center gap-1 px-3 py-2">
-                  <Input
-                    value={newGroupName}
-                    onChange={(e) => setNewGroupName(e.target.value)}
-                    placeholder="ชื่อกลุ่มรายจ่าย"
-                    className="h-7 text-xs flex-1"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") addGroup("expense", newGroupName);
-                      if (e.key === "Escape") { setAddingGroupType(null); setNewGroupName(""); }
-                    }}
-                  />
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addGroup("expense", newGroupName)}>
-                    <Check className="h-3 w-3 text-green-600" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingGroupType(null); setNewGroupName(""); }}>
-                    <X className="h-3 w-3 text-destructive" />
-                  </Button>
-                </div>
-              ) : (
-                <button
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:text-primary/80 transition-colors"
-                  onClick={() => { setAddingGroupType("expense"); setNewGroupName(""); }}
-                >
-                  <Plus className="h-4 w-4" />
-                  เพิ่มกลุ่มรายจ่าย
-                </button>
-              )}
-            </CardContent>
-          </Card>
+                {addingGroupType === "expense" ? (
+                  <div className="flex items-center gap-1 px-3 py-2">
+                    <Input
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      placeholder="ชื่อกลุ่มรายจ่าย"
+                      className="h-7 text-xs flex-1"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") addGroup("expense", newGroupName);
+                        if (e.key === "Escape") { setAddingGroupType(null); setNewGroupName(""); }
+                      }}
+                    />
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addGroup("expense", newGroupName)}>
+                      <Check className="h-3 w-3 text-green-600" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingGroupType(null); setNewGroupName(""); }}>
+                      <X className="h-3 w-3 text-destructive" />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                    onClick={() => { setAddingGroupType("expense"); setNewGroupName(""); }}
+                  >
+                    <Plus className="h-4 w-4" />
+                    เพิ่มกลุ่มรายจ่าย
+                  </button>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving ? "กำลังบันทึก..." : "บันทึกการเปลี่ยนแปลง"}
