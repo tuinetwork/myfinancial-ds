@@ -18,7 +18,7 @@ const PinLock = ({ onUnlock }: PinLockProps) => {
   useEffect(() => {
     const checkSetup = async () => {
       try {
-        const setupSnap = await get(ref(db, "config/pinSetup"));
+        const setupSnap = await get(ref(db, "users/xgkdmyxxeJVlNiqoahNJWBekqmh2/config/pinSetup"));
         const pinSetup = setupSnap.val();
 
         if (!pinSetup) {
@@ -26,7 +26,7 @@ const PinLock = ({ onUnlock }: PinLockProps) => {
           return;
         }
 
-        const keySnap = await get(ref(db, "config/pinKey"));
+        const keySnap = await get(ref(db, "users/xgkdmyxxeJVlNiqoahNJWBekqmh2/config/pinKey"));
         pinKeyRef.current = String(keySnap.val() || "");
         setLoading(false);
       } catch {
