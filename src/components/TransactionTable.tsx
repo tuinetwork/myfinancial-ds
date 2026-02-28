@@ -205,7 +205,7 @@ export function TransactionTable({ data }: Props) {
     }));
     const ws = utils.json_to_sheet(rows);
     const wb = utils.book_new();
-    utils.book_append_sheet(wb, ws, "Transactions");
+    utils.book_append_sheet(wb, ws, "รายการธุรกรรม");
     writeFile(wb, `transactions_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 

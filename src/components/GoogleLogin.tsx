@@ -34,10 +34,10 @@ const GoogleLogin = () => {
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">
             F
           </div>
-          <span className="text-lg font-semibold text-foreground">Finance Dashboard</span>
+          <span className="text-lg font-semibold text-foreground">ระบบจัดการการเงิน</span>
         </div>
 
-        <h1 className="text-2xl font-bold text-foreground">Login</h1>
+        <h1 className="text-2xl font-bold text-foreground">เข้าสู่ระบบ</h1>
 
         {/* Google sign-in button */}
         <Button
