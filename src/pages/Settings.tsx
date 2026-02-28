@@ -750,7 +750,7 @@ const CategorySettings = () => {
 
   return (
     <div className="space-y-4">
-      {/* Period selector */}
+      {/* Period selector + Save button */}
       <div className="flex flex-wrap items-center gap-3">
         {years.length > 0 && (
           <Select value={selectedYear} onValueChange={setSelectedYear}>
@@ -776,6 +776,10 @@ const CategorySettings = () => {
             </SelectContent>
           </Select>
         )}
+        <Button onClick={handleSave} disabled={saving} size="sm" className="ml-auto gap-1.5">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {saving ? "กำลังบันทึก..." : "บันทึก"}
+        </Button>
       </div>
 
       {loading ? (
