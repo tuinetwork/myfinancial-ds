@@ -8,10 +8,18 @@ import { TransactionTable } from "@/components/TransactionTable";
 import { DailyChart } from "@/components/DailyChart";
 import { BudgetBreakdown } from "@/components/BudgetBreakdown";
 import { YearlyView } from "@/components/YearlyView";
-import { Wallet, Menu } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const Index = () => {
   const { data: months, isLoading: monthsLoading } = useAvailableMonths();
@@ -79,26 +87,54 @@ const Index = () => {
 
   return (
     <>
-      <AppSidebar
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        years={years}
-        selectedYear={selectedYear}
-        onYearChange={setSelectedYear}
-        monthsForYear={monthsForYear}
-        selectedMonthKey={selectedMonthKey}
-        onMonthChange={handleMonthChange}
-      />
+      <AppSidebar />
 
       <div className="flex-1 flex flex-col min-h-screen">
         {/* Header */}
-        <header className="h-14 flex items-center gap-3 border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
-          <SidebarTrigger />
-          <div className="flex items-center gap-2">
-            <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
-              <Wallet className="h-5 w-5" />
+        <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <SidebarTrigger />
+            <div className="flex items-center gap-2">
+              <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <h1 className="text-lg font-bold font-display">{title}</h1>
             </div>
-            <h1 className="text-lg font-bold font-display">{title}</h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "monthly" | "yearly")}>
+              <TabsList className="bg-muted">
+                <TabsTrigger value="monthly" className="text-xs">รายเดือน</TabsTrigger>
+                <TabsTrigger value="yearly" className="text-xs">รายปี</TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {years.length > 0 && (
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-28 bg-card border-border shadow-sm text-xs">
+                  <SelectValue placeholder="ปี" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border shadow-lg z-50">
+                  {years.map((y) => (
+                    <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {viewMode === "monthly" && monthsForYear.length > 0 && (
+              <Select value={selectedMonthKey} onValueChange={handleMonthChange}>
+                <SelectTrigger className="w-32 bg-card border-border shadow-sm text-xs">
+                  <SelectValue placeholder="เดือน" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border shadow-lg z-50">
+                  {monthsForYear.map((m) => (
+                    <SelectItem key={m.month} value={m.month}>{m.monthName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </header>
 
