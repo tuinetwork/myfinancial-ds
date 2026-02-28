@@ -54,6 +54,7 @@ function NotificationItem({ tx }: { tx: TransactionNotification }) {
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAllRead } = useTransactionNotifications();
+  const recent = notifications.slice(0, 5);
 
   return (
     <Popover onOpenChange={(open) => { if (open) markAllRead(); }}>
@@ -70,23 +71,21 @@ export function NotificationBell() {
       <PopoverContent className="w-80 p-0" align="end" sideOffset={8}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h4 className="text-sm font-semibold">รายการล่าสุด</h4>
-          {notifications.length > 0 && (
-            <span className="text-[11px] text-muted-foreground">{notifications.length} รายการ</span>
+          {recent.length > 0 && (
+            <span className="text-[11px] text-muted-foreground">{recent.length} รายการ</span>
           )}
         </div>
-        <ScrollArea className="max-h-80">
-          {notifications.length === 0 ? (
-            <div className="flex items-center justify-center py-8">
-              <p className="text-sm text-muted-foreground">ยังไม่มีรายการ</p>
-            </div>
-          ) : (
-            <div className="p-1">
-              {notifications.map((tx) => (
-                <NotificationItem key={tx.id} tx={tx} />
-              ))}
-            </div>
-          )}
-        </ScrollArea>
+        {recent.length === 0 ? (
+          <div className="flex items-center justify-center py-8">
+            <p className="text-sm text-muted-foreground">ยังไม่มีรายการ</p>
+          </div>
+        ) : (
+          <div className="p-1">
+            {recent.map((tx) => (
+              <NotificationItem key={tx.id} tx={tx} />
+            ))}
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );
