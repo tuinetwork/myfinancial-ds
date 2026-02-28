@@ -160,6 +160,64 @@ function mapTransaction(docData: Record<string, unknown>): Transaction {
   };
 }
 
+function getPreviousPeriod(period: string): string {
+  const [yearStr, monthStr] = period.split("-");
+  let year = parseInt(yearStr, 10);
+  let month = parseInt(monthStr, 10) - 1; // go back one month
+  if (month < 1) {
+    month = 12;
+    year -= 1;
+  }
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+/** Calculate net balance for a period from its budget doc + transactions */
+async function calculateNetBalance(userId: string, period: string): Promise<number | null> {
+  const budgetSnap = await getDoc(doc(firestore, "users", userId, "budgets", period));
+  if (!budgetSnap.exists()) return null;
+
+  const budgetData = budgetSnap.data() as Record<string, unknown>;
+  const carryOver = (budgetData.carry_over as number) ?? 0;
+
+  const txQuery = query(
+    transactionsCollection(userId),
+    where("month_year", "==", period)
+  );
+  const txSnap = await getDocs(txQuery);
+
+  let income = 0;
+  let expenses = 0;
+  txSnap.docs.forEach((d) => {
+    const data = d.data();
+    if (data.type === "income") {
+      income += (data.amount as number) ?? 0;
+    } else {
+      expenses += (data.amount as number) ?? 0;
+    }
+  });
+
+  return (income + carryOver) - expenses;
+}
+
+/** Auto-sync carry_over: calculate previous month's net balance and save to current month */
+async function syncCarryOver(userId: string, currentPeriod: string): Promise<void> {
+  const prevPeriod = getPreviousPeriod(currentPeriod);
+  const netBalance = await calculateNetBalance(userId, prevPeriod);
+  if (netBalance === null) return; // no previous month data
+
+  const currentDocRef = doc(firestore, "users", userId, "budgets", currentPeriod);
+  const currentSnap = await getDoc(currentDocRef);
+  if (!currentSnap.exists()) return;
+
+  const currentData = currentSnap.data();
+  const existingCarryOver = (currentData.carry_over as number) ?? 0;
+
+  // Only write if value changed
+  if (Math.abs(existingCarryOver - netBalance) > 0.01) {
+    await setDoc(currentDocRef, { carry_over: netBalance }, { merge: true });
+  }
+}
+
 function getCurrentMonthOption(): MonthOption {
   const now = new Date();
   const year = String(now.getFullYear());
@@ -274,16 +332,20 @@ export function useBudgetData(period?: string) {
   const queryClient = useQueryClient();
   const { userId } = useAuth();
 
+  // Auto-sync carry_over when period changes
+  useEffect(() => {
+    if (!period || !userId) return;
+    syncCarryOver(userId, period);
+  }, [period, userId]);
+
   useEffect(() => {
     if (!period || !userId) return;
 
     const budgetDocRef = doc(firestore, "users", userId, "budgets", period);
     const unsubBudget = onSnapshot(budgetDocRef, async (budgetSnap) => {
       if (!budgetSnap.exists()) {
-        // Auto-create budget from latest
         const created = await createBudgetFromLatest(userId, period);
         if (!created) return;
-        // onSnapshot will fire again after setDoc, so just return
         return;
       }
       const txQuery = query(
