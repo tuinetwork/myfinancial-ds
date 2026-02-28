@@ -235,10 +235,10 @@ export function TransactionTable({ data }: Props) {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Top controls */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
-              <SelectTrigger className="w-[70px] h-8 text-xs">
+              <SelectTrigger className="w-[65px] h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -247,10 +247,10 @@ export function TransactionTable({ data }: Props) {
                 ))}
               </SelectContent>
             </Select>
-            <span className="text-xs text-muted-foreground">รายการต่อหน้า</span>
+            <span className="text-xs text-muted-foreground hidden sm:inline">รายการต่อหน้า</span>
 
             <Select value={filter} onValueChange={setFilter}>
-              <SelectTrigger className="w-[160px] h-8 text-xs ml-2">
+              <SelectTrigger className="w-[130px] sm:w-[160px] h-8 text-xs">
                 <SelectValue placeholder="ประเภท" />
               </SelectTrigger>
               <SelectContent>
@@ -260,30 +260,31 @@ export function TransactionTable({ data }: Props) {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="ค้นหา..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-8 w-full sm:w-48 text-xs"
-            />
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
-                  <Download className="h-3.5 w-3.5" />
-                  Export
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-40 p-2" align="end">
-                <Button variant="ghost" size="sm" className="w-full justify-start text-xs" onClick={exportCSV}>
-                  📄 CSV
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start text-xs" onClick={exportExcel}>
-                  📊 Excel (.xlsx)
-                </Button>
-              </PopoverContent>
-            </Popover>
+
+            <div className="flex items-center gap-2 ml-auto">
+              <Input
+                placeholder="ค้นหา..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-8 w-28 sm:w-48 text-xs"
+              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0">
+                    <Download className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Export</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-40 p-2" align="end">
+                  <Button variant="ghost" size="sm" className="w-full justify-start text-xs" onClick={exportCSV}>
+                    📄 CSV
+                  </Button>
+                  <Button variant="ghost" size="sm" className="w-full justify-start text-xs" onClick={exportExcel}>
+                    📊 Excel (.xlsx)
+                  </Button>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
         </div>
 
@@ -310,20 +311,20 @@ export function TransactionTable({ data }: Props) {
             <TableBody>
               {paged.map((t, i) => (
                 <TableRow key={i} className="border-border">
-                  <TableCell className="text-sm text-muted-foreground py-2.5">
+                 <TableCell className="text-xs sm:text-sm text-muted-foreground py-2 sm:py-2.5 whitespace-nowrap">
                     {formatDate(t.date)}
                   </TableCell>
-                  <TableCell className="py-2.5">
-                    <Badge variant="secondary" className={`text-sm ${getTypeBadgeClass(t.type)}`}>
+                  <TableCell className="py-2 sm:py-2.5">
+                    <Badge variant="secondary" className={`text-xs sm:text-sm ${getTypeBadgeClass(t.type)}`}>
                       {t.type}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm py-2.5">{t.category}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground py-2.5 hidden sm:table-cell">
+                  <TableCell className="text-xs sm:text-sm py-2 sm:py-2.5 max-w-[100px] sm:max-w-none truncate">{t.category}</TableCell>
+                  <TableCell className="text-xs sm:text-sm text-muted-foreground py-2 sm:py-2.5 hidden sm:table-cell">
                     {t.description || "-"}
                   </TableCell>
                   <TableCell
-                    className={`text-sm text-right font-medium font-display py-2.5 ${
+                    className={`text-xs sm:text-sm text-right font-medium font-display py-2 sm:py-2.5 whitespace-nowrap ${
                       t.type === "รายรับ" ? "text-income" : "text-expense"
                     }`}
                   >
@@ -353,9 +354,9 @@ export function TransactionTable({ data }: Props) {
 
         {/* Bottom pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-2">
-            <span className="text-xs text-muted-foreground">
-              แสดง {page * pageSize + 1} ถึง {Math.min((page + 1) * pageSize, filtered.length)} จาก {filtered.length} รายการ
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2">
+            <span className="text-[11px] sm:text-xs text-muted-foreground">
+              {page * pageSize + 1}-{Math.min((page + 1) * pageSize, filtered.length)} / {filtered.length}
             </span>
             <div className="flex items-center gap-1">
               <Button
@@ -375,7 +376,7 @@ export function TransactionTable({ data }: Props) {
                     key={p}
                     variant={page === p ? "default" : "outline"}
                     size="icon"
-                    className="h-7 w-7 text-xs"
+                    className="h-6 w-6 sm:h-7 sm:w-7 text-xs"
                     onClick={() => setPage(p)}
                   >
                     {p + 1}

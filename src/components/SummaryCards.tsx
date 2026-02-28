@@ -129,25 +129,25 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
               className={`animate-fade-in border-none shadow-lg bg-gradient-to-br ${card.gradient} text-white overflow-hidden relative`}
               style={{ animationDelay: `${i * 80}ms` }}
             >
-              <CardContent className="p-5 relative z-10">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium opacity-90">{card.title}</span>
-                  <card.icon className="h-5 w-5 opacity-70" />
+              <CardContent className="p-3 sm:p-5 relative z-10">
+                <div className="flex items-center justify-between mb-2 sm:mb-3">
+                  <span className="text-xs sm:text-sm font-medium opacity-90">{card.title}</span>
+                  <card.icon className="h-4 w-4 sm:h-5 sm:w-5 opacity-70" />
                 </div>
-                <p className="text-2xl sm:text-3xl font-bold font-display tracking-tight">
+                <p className="text-lg sm:text-2xl md:text-3xl font-bold font-display tracking-tight">
                   {formatCurrency(card.primary)}
                 </p>
-                <div className="flex items-center gap-1.5 mt-2">
+                <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 mt-1.5 sm:mt-2">
                   {'carryOver' in card && card.carryOver !== 0 && (
-                    <span className="text-xs opacity-80 mr-1">
+                    <span className="text-[10px] sm:text-xs opacity-80 mr-1">
                       ยกยอด +{formatCurrency(Math.abs(card.carryOver))}
                     </span>
                   )}
-                  <span className="text-xs opacity-75">
+                  <span className="text-[10px] sm:text-xs opacity-75">
                     {card.secondaryLabel}: {formatCurrency(card.secondary)}
                   </span>
                   {card.secondary > 0 && (
-                    <span className="text-xs font-semibold opacity-90">
+                    <span className="text-[10px] sm:text-xs font-semibold opacity-90">
                       ({rawPct.toFixed(0)}%)
                     </span>
                   )}
@@ -163,16 +163,16 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
 
       {!hideNetBalance && (
         <Card className="border-none shadow-lg bg-gradient-to-r from-[hsl(220,25%,15%)] to-[hsl(220,25%,22%)] text-white animate-fade-in" style={{ animationDelay: "320ms" }}>
-          <CardContent className="p-5 flex items-center justify-between">
+          <CardContent className="p-3 sm:p-5 flex items-center justify-between">
             <div>
-              <p className="text-sm opacity-70">คงเหลือสุทธิ</p>
-              <p className="text-2xl font-bold font-display">
+              <p className="text-xs sm:text-sm opacity-70">คงเหลือสุทธิ</p>
+              <p className="text-lg sm:text-2xl font-bold font-display">
                 {formatCurrency((actualIncome + carryOver) - actualNonIncome)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm opacity-70">งบประมาณที่ตั้งไว้</p>
-              <p className="text-2xl font-bold font-display">
+              <p className="text-xs sm:text-sm opacity-70">งบประมาณที่ตั้งไว้</p>
+              <p className="text-lg sm:text-2xl font-bold font-display">
                 {formatCurrency(totalExpenses + totalDebts + totalSavings)}
               </p>
             </div>
