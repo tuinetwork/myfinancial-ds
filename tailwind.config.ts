@@ -96,11 +96,32 @@ export default {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "modal-backdrop-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "modal-backdrop-out": {
+          from: { opacity: "1" },
+          to: { opacity: "0" },
+        },
+        "modal-slide-up": {
+          "0%": { opacity: "0", transform: "translateY(40px) scale(0.96)" },
+          "60%": { opacity: "1", transform: "translateY(-4px) scale(1.01)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
+        "modal-slide-down": {
+          "0%": { opacity: "1", transform: "translateY(0) scale(1)" },
+          "100%": { opacity: "0", transform: "translateY(30px) scale(0.96)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.4s ease-out forwards",
+        "modal-backdrop-in": "modal-backdrop-in 0.3s ease-out forwards",
+        "modal-backdrop-out": "modal-backdrop-out 0.2s ease-in forwards",
+        "modal-slide-up": "modal-slide-up 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
+        "modal-slide-down": "modal-slide-down 0.25s ease-in forwards",
       },
     },
   },
