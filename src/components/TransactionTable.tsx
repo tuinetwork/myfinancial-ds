@@ -18,7 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
 
 interface Props {
@@ -169,6 +174,41 @@ export function TransactionTable({ data }: Props) {
   // Reset page when filter/search/pageSize changes
   useMemo(() => { setPage(0); }, [filter, search, pageSize]);
 
+  const exportCSV = () => {
+    const BOM = "\uFEFF";
+    const headers = ["วันที่", "ประเภท", "หมวดหมู่", "รายละเอียด", "จำนวน"];
+    const rows = filtered.map((t) => [
+      t.date,
+      t.type,
+      t.category,
+      t.description || "",
+      t.type === "รายรับ" ? t.amount : -t.amount,
+    ]);
+    const csv = BOM + [headers.join(","), ...rows.map((r) => r.map((v) => `"${v}"`).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transactions_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportExcel = async () => {
+    const { utils, writeFile } = await import("xlsx");
+    const rows = filtered.map((t) => ({
+      "วันที่": t.date,
+      "ประเภท": t.type,
+      "หมวดหมู่": t.category,
+      "รายละเอียด": t.description || "",
+      "จำนวน": t.type === "รายรับ" ? t.amount : -t.amount,
+    }));
+    const ws = utils.json_to_sheet(rows);
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, "Transactions");
+    writeFile(wb, `transactions_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   const headerClass = "text-sm cursor-pointer select-none hover:text-foreground transition-colors";
 
   // Generate page numbers for pagination
@@ -221,12 +261,30 @@ export function TransactionTable({ data }: Props) {
               </SelectContent>
             </Select>
           </div>
-          <Input
-            placeholder="ค้นหา..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-8 w-full sm:w-48 text-xs"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="ค้นหา..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 w-full sm:w-48 text-xs"
+            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+                  <Download className="h-3.5 w-3.5" />
+                  Export
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-40 p-2" align="end">
+                <Button variant="ghost" size="sm" className="w-full justify-start text-xs" onClick={exportCSV}>
+                  📄 CSV
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start text-xs" onClick={exportExcel}>
+                  📊 Excel (.xlsx)
+                </Button>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
 
         {/* Table */}
