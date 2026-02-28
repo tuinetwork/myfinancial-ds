@@ -59,29 +59,31 @@ export function useTransactionNotifications() {
           type: (data.type as string) ?? "",
           category: (data.sub_category as string) ?? "",
           note: (data.note as string) ?? "",
-          timestamp: data.created_at?.toMillis?.() ?? Date.now(),
+          timestamp: 0,
         });
       });
 
-      // Sort by newest first
-      allTx.sort((a, b) => b.timestamp - a.timestamp);
+      // Sort by date descending, then by id descending for same date
+      allTx.sort((a, b) => {
+        const cmp = b.date.localeCompare(a.date);
+        return cmp !== 0 ? cmp : b.id.localeCompare(a.id);
+      });
+
+      const latest5 = allTx.slice(0, 5);
 
       if (!initialLoadDone.current) {
-        // First load: mark all existing as seen
         initialLoadDone.current = true;
         allTx.forEach((tx) => seenIdsRef.current.add(tx.id));
         saveSeenIds(seenIdsRef.current);
-        setNotifications(allTx.slice(0, 20));
+        setNotifications(latest5);
         setUnreadCount(0);
         return;
       }
 
-      // Find new ones
       const newIds = allTx.filter((tx) => !seenIdsRef.current.has(tx.id));
-      setNotifications(allTx.slice(0, 20));
+      setNotifications(latest5);
       setUnreadCount((prev) => prev + newIds.length);
 
-      // Add new IDs to seen set (but don't mark read yet)
       newIds.forEach((tx) => seenIdsRef.current.add(tx.id));
       saveSeenIds(seenIdsRef.current);
     });
