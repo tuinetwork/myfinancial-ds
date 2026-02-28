@@ -8,16 +8,10 @@ import { TransactionTable } from "@/components/TransactionTable";
 import { DailyChart } from "@/components/DailyChart";
 import { BudgetBreakdown } from "@/components/BudgetBreakdown";
 import { YearlyView } from "@/components/YearlyView";
-import { Wallet } from "lucide-react";
+import { Wallet, Menu } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { AppSidebar } from "@/components/AppSidebar";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 const Index = () => {
   const { data: months, isLoading: monthsLoading } = useAvailableMonths();
@@ -79,126 +73,78 @@ const Index = () => {
     ? isLoading || monthsLoading || !selectedPeriod
     : yearlyLoading || monthsLoading || !selectedYear;
 
-  if (isPageLoading) {
-    return (
-      <div className="min-h-screen bg-background p-4 md:p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <Skeleton className="h-10 w-64" />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-28 rounded-lg" />
-            ))}
-          </div>
-          <Skeleton className="h-80 rounded-lg" />
-        </div>
-      </div>
-    );
-  }
-
-  if (viewMode === "monthly" && (error || !data)) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-destructive">ไม่สามารถโหลดข้อมูลได้</p>
-      </div>
-    );
-  }
-
   const title = viewMode === "monthly"
-    ? `บันทึกการเงินประจำเดือน ${data?.month}`
+    ? `บันทึกการเงินประจำเดือน ${data?.month ?? ""}`
     : `บันทึกการเงินประจำปี ${selectedYear}`;
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <>
+      <AppSidebar
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        years={years}
+        selectedYear={selectedYear}
+        onYearChange={setSelectedYear}
+        monthsForYear={monthsForYear}
+        selectedMonthKey={selectedMonthKey}
+        onMonthChange={handleMonthChange}
+      />
+
+      <div className="flex-1 flex flex-col min-h-screen">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
-          <div className="flex items-center gap-3">
-            <div className="bg-primary text-primary-foreground p-2.5 rounded-xl shadow-md">
-              <Wallet className="h-6 w-6" />
+        <header className="h-14 flex items-center gap-3 border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
+          <SidebarTrigger />
+          <div className="flex items-center gap-2">
+            <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
+              <Wallet className="h-5 w-5" />
             </div>
-            <h1 className="text-2xl font-bold font-display">{title}</h1>
+            <h1 className="text-lg font-bold font-display">{title}</h1>
           </div>
+        </header>
 
-          <div className="flex items-center gap-3">
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "monthly" | "yearly")}>
-              <TabsList className="bg-muted">
-                <TabsTrigger value="monthly" className="text-xs">รายเดือน</TabsTrigger>
-                <TabsTrigger value="yearly" className="text-xs">รายปี</TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-            {viewMode === "monthly" && months && months.length > 0 && (
-              <>
-                <Select value={selectedMonthKey} onValueChange={handleMonthChange}>
-                  <SelectTrigger className="w-36 bg-card border-border shadow-sm">
-                    <SelectValue placeholder="เดือน" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border shadow-lg z-50">
-                    {monthsForYear.map((m) => (
-                      <SelectItem key={m.month} value={m.month}>{m.monthName}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={selectedYear} onValueChange={(y) => setSelectedYear(y)}>
-                  <SelectTrigger className="w-28 bg-card border-border shadow-sm">
-                    <SelectValue placeholder="ปี" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border shadow-lg z-50">
-                    {years.map((y) => (
-                      <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </>
-            )}
-
-            {viewMode === "yearly" && years.length > 0 && (
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-32 bg-card border-border shadow-sm">
-                  <SelectValue placeholder="เลือกปี" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border shadow-lg z-50">
-                  {years.map((y) => (
-                    <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
+        {/* Content */}
+        <main className="flex-1 p-4 md:p-6">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {isPageLoading ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[...Array(4)].map((_, i) => (
+                    <Skeleton key={i} className="h-28 rounded-lg" />
                   ))}
-                </SelectContent>
-              </Select>
-            )}
+                </div>
+                <Skeleton className="h-80 rounded-lg" />
+              </div>
+            ) : viewMode === "monthly" && (error || !data) ? (
+              <div className="flex items-center justify-center h-64">
+                <p className="text-destructive">ไม่สามารถโหลดข้อมูลได้</p>
+              </div>
+            ) : viewMode === "monthly" && data ? (
+              <>
+                <SummaryCards data={data} carryOver={carryOver} />
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div className="lg:col-span-2">
+                    <DailyChart data={data} />
+                  </div>
+                  <ExpenseTabsChart data={data} />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div className="lg:col-span-2">
+                    <ExpenseChart data={data} />
+                  </div>
+                  <BudgetBreakdown data={data} />
+                </div>
+
+                <TransactionTable data={data} />
+              </>
+            ) : viewMode === "yearly" && yearlyData ? (
+              <YearlyView yearlyData={yearlyData} />
+            ) : null}
           </div>
-        </div>
-
-        {/* Monthly Content */}
-        {viewMode === "monthly" && data && (
-          <>
-            {/* Summary Cards Row */}
-            <SummaryCards data={data} carryOver={carryOver} />
-
-            {/* Main chart + side panel */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2">
-                <DailyChart data={data} />
-              </div>
-              <ExpenseTabsChart data={data} />
-            </div>
-
-            {/* Budget vs Actual + Breakdown */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2">
-                <ExpenseChart data={data} />
-              </div>
-              <BudgetBreakdown data={data} />
-            </div>
-
-            {/* Transactions */}
-            <TransactionTable data={data} />
-          </>
-        )}
-
-        {viewMode === "yearly" && yearlyData && (
-          <YearlyView yearlyData={yearlyData} />
-        )}
+        </main>
       </div>
-    </div>
+    </>
   );
 };
 
