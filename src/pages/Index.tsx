@@ -8,6 +8,9 @@ import { ExpenseTabsChart } from "@/components/ExpenseTabsChart";
 import { DailyChart } from "@/components/DailyChart";
 import { BudgetBreakdown } from "@/components/BudgetBreakdown";
 import { YearlyView } from "@/components/YearlyView";
+import { RecentTransactions } from "@/components/RecentTransactions";
+import { TopSpendingCategories } from "@/components/TopSpendingCategories";
+import { FinancialHealthCard } from "@/components/FinancialHealthCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -166,16 +169,25 @@ const Index = () => {
               <>
                 <SummaryCards data={data} carryOver={carryOver} />
 
+                <FinancialHealthCard data={data} carryOver={carryOver} />
+
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                   <div className="xl:col-span-2">
                     <DailyChart data={data} />
                   </div>
-                  <ExpenseTabsChart data={data} />
+                  <RecentTransactions data={data} />
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                   <div className="xl:col-span-2">
                     <ExpenseChart data={data} />
+                  </div>
+                  <TopSpendingCategories data={data} />
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                  <div className="xl:col-span-2">
+                    <ExpenseTabsChart data={data} />
                   </div>
                   <BudgetBreakdown data={data} />
                 </div>
