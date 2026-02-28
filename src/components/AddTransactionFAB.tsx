@@ -240,7 +240,13 @@ const AddTransactionFAB = () => {
                   className="w-full justify-start text-left font-normal h-12 border-border"
                 >
                   <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                  {format(date, "dd MMM yyyy", { locale: th })}
+                  {(() => {
+                    const d = date;
+                    const day = d.getDate();
+                    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+                    const thaiYear = (d.getFullYear() + 543) % 100;
+                    return `${day} ${thaiMonths[d.getMonth()]} ${thaiYear}`;
+                  })()}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 z-[60]" align="start">
