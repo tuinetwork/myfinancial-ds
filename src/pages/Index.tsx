@@ -11,6 +11,7 @@ import { YearlyView } from "@/components/YearlyView";
 import { RecentTransactions } from "@/components/RecentTransactions";
 import { TopSpendingCategories } from "@/components/TopSpendingCategories";
 import { FinancialHealthCard } from "@/components/FinancialHealthCard";
+import { SavingsGoalCard } from "@/components/SavingsGoalCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -169,7 +170,10 @@ const Index = () => {
               <>
                 <SummaryCards data={data} carryOver={carryOver} />
 
-                <FinancialHealthCard data={data} carryOver={carryOver} />
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  <FinancialHealthCard data={data} carryOver={carryOver} />
+                  <SavingsGoalCard data={data} />
+                </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                   <div className="xl:col-span-2">
