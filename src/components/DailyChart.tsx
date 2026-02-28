@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
 import {
@@ -11,46 +12,91 @@ import {
   Legend,
 } from "recharts";
 
+type ViewMode = "daily" | "weekly" | "monthly";
+
 interface Props {
   data: BudgetData;
 }
 
 export function DailyChart({ data }: Props) {
-  // Group transactions by date
-  const dailyMap: Record<string, { income: number; expense: number }> = {};
+  const [viewMode, setViewMode] = useState<ViewMode>("daily");
 
-  data.transactions.forEach((t) => {
-    const day = t.date;
-    if (!dailyMap[day]) dailyMap[day] = { income: 0, expense: 0 };
-    if (t.type === "รายรับ") {
-      dailyMap[day].income += t.amount;
-    } else {
-      dailyMap[day].expense += t.amount;
-    }
-  });
+  const chartData = useMemo(() => {
+    const groupMap: Record<string, { income: number; expense: number; label: string }> = {};
 
-  const sortedDays = Object.keys(dailyMap).sort((a, b) => a.localeCompare(b));
+    data.transactions.forEach((t) => {
+      let key: string;
+      let label: string;
+      const dateParts = t.date.includes("-") ? t.date.split("-") : [t.date];
 
-  let cumIncome = 0;
-  let cumExpense = 0;
+      if (viewMode === "daily") {
+        key = t.date;
+        const dayNum = dateParts[dateParts.length - 1];
+        label = `${parseInt(dayNum || t.date, 10)}`;
+      } else if (viewMode === "weekly") {
+        // Group by week number within the month
+        const dayNum = parseInt(dateParts[dateParts.length - 1] || "1", 10);
+        const weekNum = Math.ceil(dayNum / 7);
+        key = `w${weekNum}`;
+        label = `สัปดาห์ ${weekNum}`;
+      } else {
+        // Monthly - group all into one or by month if cross-month
+        const monthNum = dateParts.length >= 2 ? dateParts[dateParts.length - 2] : "01";
+        key = monthNum;
+        label = `เดือน ${parseInt(monthNum, 10)}`;
+      }
 
-  const chartData = sortedDays.map((day) => {
-    cumIncome += dailyMap[day].income;
-    cumExpense += dailyMap[day].expense;
-    const dayNum = day.includes("-") ? day.split("-").pop() : day;
-    return {
-      day: `${parseInt(dayNum || day, 10)}`,
-      "รายรับ": dailyMap[day].income,
-      "รายจ่าย": dailyMap[day].expense,
-      "รายรับสะสม": cumIncome,
-      "รายจ่ายสะสม": cumExpense,
-    };
-  });
+      if (!groupMap[key]) groupMap[key] = { income: 0, expense: 0, label };
+      if (t.type === "รายรับ") {
+        groupMap[key].income += t.amount;
+      } else {
+        groupMap[key].expense += t.amount;
+      }
+    });
+
+    const sortedKeys = Object.keys(groupMap).sort((a, b) => a.localeCompare(b));
+
+    let cumIncome = 0;
+    let cumExpense = 0;
+
+    return sortedKeys.map((key) => {
+      cumIncome += groupMap[key].income;
+      cumExpense += groupMap[key].expense;
+      return {
+        day: groupMap[key].label,
+        "รายรับ": groupMap[key].income,
+        "รายจ่าย": groupMap[key].expense,
+        "รายรับสะสม": cumIncome,
+        "รายจ่ายสะสม": cumExpense,
+      };
+    });
+  }, [data.transactions, viewMode]);
 
   return (
     <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "360ms" }}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold">รายรับ-รายจ่ายรายวัน</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-semibold">รายรับ-รายจ่ายรายวัน</CardTitle>
+          <div className="flex border border-border rounded-md overflow-hidden">
+            {([
+              { key: "daily", label: "วัน" },
+              { key: "weekly", label: "สัปดาห์" },
+              { key: "monthly", label: "เดือน" },
+            ] as const).map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setViewMode(opt.key)}
+                className={`px-3 py-1 text-xs font-medium transition-colors ${
+                  viewMode === opt.key
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="px-2 sm:px-6">
         <div className="h-52 sm:h-64 md:h-72 lg:h-80">
