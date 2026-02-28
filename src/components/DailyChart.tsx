@@ -81,7 +81,6 @@ export function DailyChart({ data }: Props) {
             {([
               { key: "daily", label: "วัน" },
               { key: "weekly", label: "สัปดาห์" },
-              { key: "monthly", label: "เดือน" },
             ] as const).map((opt) => (
               <button
                 key={opt.key}
