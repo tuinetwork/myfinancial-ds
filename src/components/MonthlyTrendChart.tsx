@@ -12,6 +12,14 @@ import {
   Legend,
 } from "recharts";
 
+const SHORT_THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+
+function formatPeriodThai(period: string) {
+  const [y, m] = period.split("-");
+  const thaiYear = (parseInt(y, 10) + 543) % 100;
+  return `${SHORT_THAI_MONTHS[parseInt(m, 10) - 1]} ${thaiYear}`;
+}
+
 interface Props {
   yearlyData: YearlyData;
 }
@@ -24,7 +32,7 @@ export function MonthlyTrendChart({ yearlyData }: Props) {
     const expense = data.transactions
       .filter((t) => t.type !== "รายรับ")
       .reduce((s, t) => s + t.amount, 0);
-    return { month, "รายรับ": income, "รายจ่าย": expense };
+    return { month: formatPeriodThai(month), "รายรับ": income, "รายจ่าย": expense };
   });
 
   return (

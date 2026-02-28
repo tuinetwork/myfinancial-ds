@@ -3,6 +3,14 @@ import { formatCurrency } from "@/hooks/useBudgetData";
 import { YearlyData } from "@/hooks/useYearlyData";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
+const SHORT_THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+
+function formatPeriodThai(period: string) {
+  const [y, m] = period.split("-");
+  const thaiYear = (parseInt(y, 10) + 543) % 100;
+  return `${SHORT_THAI_MONTHS[parseInt(m, 10) - 1]} ${thaiYear}`;
+}
+
 interface Props {
   yearlyData: YearlyData;
 }
@@ -33,7 +41,7 @@ export function MonthlyHighlights({ yearlyData }: Props) {
               <TrendingUp className="h-4 w-4" />
             </div>
           </div>
-          <p className="text-lg font-bold font-display">{maxExpense.month}</p>
+          <p className="text-lg font-bold font-display">{formatPeriodThai(maxExpense.month)}</p>
           <p className="text-xl font-bold font-display text-expense">
             {formatCurrency(maxExpense.expense)}
           </p>
@@ -51,7 +59,7 @@ export function MonthlyHighlights({ yearlyData }: Props) {
               <TrendingDown className="h-4 w-4" />
             </div>
           </div>
-          <p className="text-lg font-bold font-display">{minExpense.month}</p>
+          <p className="text-lg font-bold font-display">{formatPeriodThai(minExpense.month)}</p>
           <p className="text-xl font-bold font-display text-income">
             {formatCurrency(minExpense.expense)}
           </p>
