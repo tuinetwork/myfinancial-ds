@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { collection, doc, getDoc, getDocs, updateDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
@@ -370,7 +371,9 @@ const UserSettings = () => {
 
 // ─── Main Settings Page ───
 const Settings = () => {
-  const [tab, setTab] = useState<SettingsTab>("budget");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = (searchParams.get("tab") as SettingsTab) || "budget";
+  const setTab = (t: SettingsTab) => setSearchParams({ tab: t });
 
   const tabs: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
     { key: "budget", label: "งบประมาณ", icon: <Wallet className="h-4 w-4" /> },

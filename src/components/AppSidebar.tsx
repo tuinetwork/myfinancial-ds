@@ -1,5 +1,6 @@
-import { LayoutDashboard, Receipt, LogOut, Wallet, Settings } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { useState } from "react";
+import { LayoutDashboard, Receipt, LogOut, Wallet, Settings, ChevronDown, ChevronRight, PiggyBank, User } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,6 +10,7 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
@@ -16,23 +18,52 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
-const menuItems = [
+interface MenuItem {
+  title: string;
+  url: string;
+  icon: React.ComponentType<{ className?: string }>;
+  children?: { title: string; url: string }[];
+}
+
+const menuItems: MenuItem[] = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "รายการธุรกรรม", url: "/transactions", icon: Receipt },
-  { title: "ตั้งค่า", url: "/settings", icon: Settings },
+  {
+    title: "ตั้งค่า",
+    url: "/settings",
+    icon: Settings,
+    children: [
+      { title: "งบประมาณ", url: "/settings?tab=budget" },
+      { title: "ผู้ใช้", url: "/settings?tab=user" },
+    ],
+  },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
   const displayName = user?.displayName || "ผู้ใช้";
   const email = user?.email || "";
   const photoURL = user?.photoURL || "";
   const initials = displayName.slice(0, 2).toUpperCase();
+
+  const isActive = (url: string) => {
+    if (url === "/") return location.pathname === "/";
+    return location.pathname.startsWith(url.split("?")[0]);
+  };
+
+  const isSettingsActive = location.pathname.startsWith("/settings");
+  const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
 
   return (
     <Sidebar collapsible="icon">
@@ -49,23 +80,75 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
+            Navigation
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      end
-                      className="hover:bg-sidebar-accent/50"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {menuItems.map((item) =>
+                item.children ? (
+                  <SidebarMenuItem key={item.url}>
+                    <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton
+                          className={`w-full justify-between hover:bg-sidebar-accent/50 ${
+                            isSettingsActive ? "bg-sidebar-accent text-sidebar-primary font-medium" : ""
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <item.icon className="h-4 w-4" />
+                            {!collapsed && <span>{item.title}</span>}
+                          </div>
+                          {!collapsed && (
+                            settingsOpen
+                              ? <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+                              : <ChevronRight className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+                          )}
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      {!collapsed && (
+                        <CollapsibleContent>
+                          <div className="ml-6 border-l border-sidebar-border pl-2 mt-1 space-y-0.5">
+                            {item.children.map((child) => {
+                              const tabParam = new URL(child.url, "http://x").searchParams.get("tab");
+                              const currentTab = new URLSearchParams(location.search).get("tab");
+                              const active = location.pathname === "/settings" && currentTab === tabParam;
+
+                              return (
+                                <button
+                                  key={child.url}
+                                  onClick={() => navigate(child.url)}
+                                  className={`block w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${
+                                    active
+                                      ? "text-sidebar-primary font-medium bg-sidebar-accent/50"
+                                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
+                                  }`}
+                                >
+                                  {child.title}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </CollapsibleContent>
+                      )}
+                    </Collapsible>
+                  </SidebarMenuItem>
+                ) : (
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.url}
+                        end
+                        className="hover:bg-sidebar-accent/50"
+                        activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {!collapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
