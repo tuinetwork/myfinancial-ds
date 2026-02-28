@@ -396,27 +396,10 @@ const Settings = () => {
 
         <main className="flex-1 p-4 md:p-6">
           <div className="max-w-3xl mx-auto space-y-6">
-            <h1 className="text-2xl font-bold">ตั้งค่า</h1>
+            <h1 className="text-2xl font-bold">
+              {tab === "budget" ? "ตั้งค่างบประมาณ" : "ตั้งค่าผู้ใช้"}
+            </h1>
 
-            {/* Sub-menu tabs */}
-            <div className="flex gap-1 border-b border-border">
-              {tabs.map((t) => (
-                <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                    tab === t.key
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t.icon}
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Tab content */}
             {tab === "budget" && <BudgetSettings />}
             {tab === "user" && <UserSettings />}
           </div>
