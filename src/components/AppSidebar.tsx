@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LayoutDashboard, Receipt, LogOut, Wallet, Settings, ChevronDown, ChevronRight, PiggyBank, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
@@ -76,6 +76,14 @@ export function AppSidebar() {
   const isSettingsActive = location.pathname.startsWith("/settings");
   const [dashboardOpen, setDashboardOpen] = useState(isDashboardActive);
   const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
+
+  useEffect(() => {
+    if (isDashboardActive) setDashboardOpen(true);
+  }, [isDashboardActive]);
+
+  useEffect(() => {
+    if (isSettingsActive) setSettingsOpen(true);
+  }, [isSettingsActive]);
 
   return (
     <Sidebar collapsible="icon">
