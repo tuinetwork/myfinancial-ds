@@ -157,6 +157,23 @@ function mapTransaction(docData: Record<string, unknown>): Transaction {
   };
 }
 
+function getCurrentMonthOption(): MonthOption {
+  const now = new Date();
+  const year = String(now.getFullYear());
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const period = `${year}-${month}`;
+  const monthName = THAI_MONTHS[now.getMonth()];
+  return { year, month, monthName, period, label: `${monthName} ${year}` };
+}
+
+function ensureCurrentMonth(options: MonthOption[]): MonthOption[] {
+  const current = getCurrentMonthOption();
+  if (!options.some((o) => o.period === current.period)) {
+    return [current, ...options].sort((a, b) => b.period.localeCompare(a.period));
+  }
+  return options;
+}
+
 /** Fetch available year/month options from budgets collection */
 export function useAvailableMonths() {
   const queryClient = useQueryClient();
@@ -180,7 +197,7 @@ export function useAvailableMonths() {
         });
       });
       options.sort((a, b) => b.period.localeCompare(a.period));
-      queryClient.setQueryData(["available-months", userId], options);
+      queryClient.setQueryData(["available-months", userId], ensureCurrentMonth(options));
     });
     return () => unsubscribe();
   }, [queryClient, userId]);
@@ -205,7 +222,7 @@ export function useAvailableMonths() {
         });
       });
       options.sort((a, b) => b.period.localeCompare(a.period));
-      return options;
+      return ensureCurrentMonth(options);
     },
     enabled: !!userId,
     staleTime: Infinity,
