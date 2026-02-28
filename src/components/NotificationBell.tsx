@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTransactionNotifications, TransactionNotification } from "@/hooks/useTransactionNotifications";
 import { formatCurrency } from "@/hooks/useBudgetData";
+import { Link } from "react-router-dom";
 
 function formatThaiDate(dateStr: string) {
   const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -84,6 +85,13 @@ export function NotificationBell() {
             {recent.map((tx) => (
               <NotificationItem key={tx.id} tx={tx} />
             ))}
+          </div>
+        )}
+        {recent.length > 0 && (
+          <div className="border-t border-border px-4 py-2">
+            <Link to="/transactions" className="text-xs text-primary hover:underline font-medium">
+              ดูทั้งหมด →
+            </Link>
           </div>
         )}
       </PopoverContent>
