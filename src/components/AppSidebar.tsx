@@ -32,7 +32,7 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "แดชบอร์ด", url: "/", icon: LayoutDashboard },
   { title: "รายการธุรกรรม", url: "/transactions", icon: Receipt },
   {
     title: "ตั้งค่า",
@@ -82,7 +82,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
-            Navigation
+            เมนู
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
