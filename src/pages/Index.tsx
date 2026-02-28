@@ -41,33 +41,28 @@ const Index = () => {
     sendMonthToSheet(month);
   };
 
-  // Available years
   const years = useMemo(() => {
     if (!months) return [];
     return Array.from(new Set(months.map((m) => m.year))).sort().reverse();
   }, [months]);
 
-  // Months for the selected year
   const monthsForYear = useMemo(() => {
     if (!months || !selectedYear) return [];
     return months.filter((m) => m.year === selectedYear);
   }, [months, selectedYear]);
 
-  // Auto-select latest year
   useEffect(() => {
     if (years.length > 0 && !selectedYear) {
       setSelectedYear(years[0]);
     }
   }, [years, selectedYear]);
 
-  // Auto-select latest month when year changes
   useEffect(() => {
     if (monthsForYear.length > 0) {
       setSelectedMonthKey(monthsForYear[0].month);
     }
   }, [monthsForYear]);
 
-  // Derive selectedPeriod from year + month
   const selectedPeriod = useMemo(() => {
     if (!selectedYear || !selectedMonthKey) return undefined;
     return `${selectedYear}-${selectedMonthKey}`;
@@ -112,29 +107,19 @@ const Index = () => {
     ? `บันทึกการเงินประจำเดือน ${data?.month}`
     : `บันทึกการเงินประจำปี ${selectedYear}`;
 
-  const subtitle = viewMode === "monthly" && data
-    ? `อัปเดตล่าสุด: ${new Date(data.timestamp).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}`
-    : undefined;
-
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
           <div className="flex items-center gap-3">
-            <div className="bg-primary text-primary-foreground p-2.5 rounded-xl">
+            <div className="bg-primary text-primary-foreground p-2.5 rounded-xl shadow-md">
               <Wallet className="h-6 w-6" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold font-display">{title}</h1>
-              {subtitle && (
-                <p className="text-sm text-muted-foreground">{subtitle}</p>
-              )}
-            </div>
+            <h1 className="text-2xl font-bold font-display">{title}</h1>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* View Mode Tabs */}
             <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "monthly" | "yearly")}>
               <TabsList className="bg-muted">
                 <TabsTrigger value="monthly" className="text-xs">รายเดือน</TabsTrigger>
@@ -142,7 +127,6 @@ const Index = () => {
               </TabsList>
             </Tabs>
 
-            {/* Month/Year Selector */}
             {viewMode === "monthly" && months && months.length > 0 && (
               <>
                 <Select value={selectedMonthKey} onValueChange={handleMonthChange}>
@@ -155,7 +139,7 @@ const Index = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={selectedYear} onValueChange={(y) => { setSelectedYear(y); }}>
+                <Select value={selectedYear} onValueChange={(y) => setSelectedYear(y)}>
                   <SelectTrigger className="w-28 bg-card border-border shadow-sm">
                     <SelectValue placeholder="ปี" />
                   </SelectTrigger>
@@ -183,21 +167,30 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Content */}
+        {/* Monthly Content */}
         {viewMode === "monthly" && data && (
           <>
+            {/* Summary Cards Row */}
             <SummaryCards data={data} carryOver={carryOver} />
-            <DailyChart data={data} />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <ExpenseChart data={data} />
+
+            {/* Main chart + side panel */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2">
+                <DailyChart data={data} />
+              </div>
               <ExpenseTabsChart data={data} />
             </div>
+
+            {/* Budget vs Actual + Breakdown */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <BudgetBreakdown data={data} />
               <div className="lg:col-span-2">
-                <TransactionTable data={data} />
+                <ExpenseChart data={data} />
               </div>
+              <BudgetBreakdown data={data} />
             </div>
+
+            {/* Transactions */}
+            <TransactionTable data={data} />
           </>
         )}
 

@@ -48,7 +48,7 @@ export function DailyChart({ data }: Props) {
   });
 
   return (
-    <Card className="border-none shadow-sm animate-fade-in col-span-1 lg:col-span-2" style={{ animationDelay: "360ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "360ms" }}>
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold">รายรับ-รายจ่ายรายวัน</CardTitle>
       </CardHeader>
