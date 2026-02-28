@@ -26,12 +26,12 @@ import {
 } from "@/components/ui/collapsible";
 import {
   LogOut, User, Mail, Shield, ChevronRight, ChevronDown,
-  Pencil, Check, X, Wallet, PiggyBank,
+  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 // ─── Sub-menu tabs ───
-type SettingsTab = "budget" | "user";
+type SettingsTab = "budget" | "categories" | "user";
 
 // ─── Budget tree types ───
 interface BudgetTreeData {
@@ -368,16 +368,385 @@ const UserSettings = () => {
   );
 };
 
+// ─── Category Settings Tab ───
+const CategorySettings = () => {
+  const { userId } = useAuth();
+  const { data: months } = useAvailableMonths();
+  const [selectedYear, setSelectedYear] = useState<string>();
+  const [selectedMonth, setSelectedMonth] = useState<string>();
+  const [incomeGroups, setIncomeGroups] = useState<Record<string, string[]>>({});
+  const [expenseGroups, setExpenseGroups] = useState<Record<string, string[]>>({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [newSubName, setNewSubName] = useState("");
+  const [addingTo, setAddingTo] = useState<{ type: "income" | "expense"; group: string } | null>(null);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [addingGroupType, setAddingGroupType] = useState<"income" | "expense" | null>(null);
+
+  const years = useMemo(() => {
+    if (!months) return [];
+    return Array.from(new Set(months.map((m) => m.year))).sort().reverse();
+  }, [months]);
+
+  const monthsForYear = useMemo(() => {
+    if (!months || !selectedYear) return [];
+    return months.filter((m) => m.year === selectedYear);
+  }, [months, selectedYear]);
+
+  useEffect(() => {
+    if (years.length > 0 && !selectedYear) setSelectedYear(years[0]);
+  }, [years, selectedYear]);
+
+  useEffect(() => {
+    if (monthsForYear.length > 0) setSelectedMonth(monthsForYear[0].month);
+  }, [monthsForYear]);
+
+  const period = useMemo(() => {
+    if (!selectedYear || !selectedMonth) return undefined;
+    return `${selectedYear}-${selectedMonth}`;
+  }, [selectedYear, selectedMonth]);
+
+  useEffect(() => {
+    if (!userId || !period) return;
+    setLoading(true);
+    const docRef = doc(firestore, "users", userId, "budgets", period);
+    getDoc(docRef).then((snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        const inc = (d.income_estimates ?? {}) as Record<string, Record<string, number>>;
+        const exp = (d.expense_budgets ?? {}) as Record<string, Record<string, number>>;
+        setIncomeGroups(
+          Object.fromEntries(Object.entries(inc).map(([k, v]) => [k, Object.keys(v)]))
+        );
+        setExpenseGroups(
+          Object.fromEntries(Object.entries(exp).map(([k, v]) => [k, Object.keys(v)]))
+        );
+      }
+      setLoading(false);
+    });
+  }, [userId, period]);
+
+  const handleSave = async () => {
+    if (!userId || !period) return;
+    setSaving(true);
+    try {
+      const docRef = doc(firestore, "users", userId, "budgets", period);
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) throw new Error("ไม่พบเอกสาร");
+      const d = snap.data();
+      const oldInc = (d.income_estimates ?? {}) as Record<string, Record<string, number>>;
+      const oldExp = (d.expense_budgets ?? {}) as Record<string, Record<string, number>>;
+
+      // Rebuild income_estimates preserving existing values
+      const newInc: Record<string, Record<string, number>> = {};
+      for (const [group, subs] of Object.entries(incomeGroups)) {
+        newInc[group] = {};
+        for (const sub of subs) {
+          newInc[group][sub] = oldInc[group]?.[sub] ?? 0;
+        }
+      }
+
+      // Rebuild expense_budgets preserving existing values
+      const newExp: Record<string, Record<string, number>> = {};
+      for (const [group, subs] of Object.entries(expenseGroups)) {
+        newExp[group] = {};
+        for (const sub of subs) {
+          newExp[group][sub] = oldExp[group]?.[sub] ?? 0;
+        }
+      }
+
+      await updateDoc(docRef, { income_estimates: newInc, expense_budgets: newExp });
+      toast({ title: "บันทึกสำเร็จ", description: `อัปเดตหมวดหมู่ ${period}` });
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  const addSubCategory = (type: "income" | "expense", group: string, name: string) => {
+    if (!name.trim()) return;
+    if (type === "income") {
+      setIncomeGroups((prev) => ({
+        ...prev,
+        [group]: [...(prev[group] || []), name.trim()],
+      }));
+    } else {
+      setExpenseGroups((prev) => ({
+        ...prev,
+        [group]: [...(prev[group] || []), name.trim()],
+      }));
+    }
+    setNewSubName("");
+    setAddingTo(null);
+  };
+
+  const removeSubCategory = (type: "income" | "expense", group: string, sub: string) => {
+    if (type === "income") {
+      setIncomeGroups((prev) => ({
+        ...prev,
+        [group]: prev[group].filter((s) => s !== sub),
+      }));
+    } else {
+      setExpenseGroups((prev) => ({
+        ...prev,
+        [group]: prev[group].filter((s) => s !== sub),
+      }));
+    }
+  };
+
+  const addGroup = (type: "income" | "expense", name: string) => {
+    if (!name.trim()) return;
+    if (type === "income") {
+      setIncomeGroups((prev) => ({ ...prev, [name.trim()]: [] }));
+    } else {
+      setExpenseGroups((prev) => ({ ...prev, [name.trim()]: [] }));
+    }
+    setNewGroupName("");
+    setAddingGroupType(null);
+  };
+
+  const removeGroup = (type: "income" | "expense", group: string) => {
+    if (type === "income") {
+      setIncomeGroups((prev) => {
+        const copy = { ...prev };
+        delete copy[group];
+        return copy;
+      });
+    } else {
+      setExpenseGroups((prev) => {
+        const copy = { ...prev };
+        delete copy[group];
+        return copy;
+      });
+    }
+  };
+
+  const CategoryGroup = ({
+    type,
+    groupName,
+    subs,
+  }: {
+    type: "income" | "expense";
+    groupName: string;
+    subs: string[];
+  }) => {
+    const [open, setOpen] = useState(true);
+    return (
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <div className="flex items-center gap-1">
+          <CollapsibleTrigger className="flex items-center gap-2 flex-1 px-3 py-2 rounded-md hover:bg-muted/50 transition-colors text-sm font-medium">
+            {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+            <FolderTree className="h-4 w-4 text-primary" />
+            <span>{groupName}</span>
+            <span className="text-xs text-muted-foreground ml-auto mr-2">{subs.length} รายการ</span>
+          </CollapsibleTrigger>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+            onClick={() => removeGroup(type, groupName)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <CollapsibleContent>
+          <div className="ml-10 border-l border-border pl-3 space-y-1 py-1">
+            {subs.map((sub) => (
+              <div key={sub} className="flex items-center justify-between py-1 px-2 rounded hover:bg-muted/30 transition-colors group">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Tag className="h-3 w-3" />
+                  {sub}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                  onClick={() => removeSubCategory(type, groupName, sub)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+
+            {addingTo?.type === type && addingTo?.group === groupName ? (
+              <div className="flex items-center gap-1 px-2 py-1">
+                <Input
+                  value={newSubName}
+                  onChange={(e) => setNewSubName(e.target.value)}
+                  placeholder="ชื่อหมวดหมู่ย่อย"
+                  className="h-7 text-xs flex-1"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") addSubCategory(type, groupName, newSubName);
+                    if (e.key === "Escape") { setAddingTo(null); setNewSubName(""); }
+                  }}
+                />
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addSubCategory(type, groupName, newSubName)}>
+                  <Check className="h-3 w-3 text-green-600" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingTo(null); setNewSubName(""); }}>
+                  <X className="h-3 w-3 text-destructive" />
+                </Button>
+              </div>
+            ) : (
+              <button
+                className="flex items-center gap-2 px-2 py-1 text-xs text-primary hover:text-primary/80 transition-colors"
+                onClick={() => { setAddingTo({ type, group: groupName }); setNewSubName(""); }}
+              >
+                <Plus className="h-3 w-3" />
+                เพิ่มหมวดหมู่ย่อย
+              </button>
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Period selector */}
+      <div className="flex flex-wrap items-center gap-3">
+        {years.length > 0 && (
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-28 text-xs">
+              <SelectValue placeholder="ปี" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((y) => (
+                <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {monthsForYear.length > 0 && (
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-32 text-xs">
+              <SelectValue placeholder="เดือน" />
+            </SelectTrigger>
+            <SelectContent>
+              {monthsForYear.map((m) => (
+                <SelectItem key={m.month} value={m.month}>{m.monthName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {loading ? (
+        <Skeleton className="h-64 rounded-lg" />
+      ) : (
+        <>
+          {/* Income categories */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-emerald-500" />
+                หมวดหมู่รายรับ
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {Object.entries(incomeGroups).map(([group, subs]) => (
+                <CategoryGroup key={`inc-${group}`} type="income" groupName={group} subs={subs} />
+              ))}
+
+              {addingGroupType === "income" ? (
+                <div className="flex items-center gap-1 px-3 py-2">
+                  <Input
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    placeholder="ชื่อกลุ่มรายรับ"
+                    className="h-7 text-xs flex-1"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") addGroup("income", newGroupName);
+                      if (e.key === "Escape") { setAddingGroupType(null); setNewGroupName(""); }
+                    }}
+                  />
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addGroup("income", newGroupName)}>
+                    <Check className="h-3 w-3 text-green-600" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingGroupType(null); setNewGroupName(""); }}>
+                    <X className="h-3 w-3 text-destructive" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                  onClick={() => { setAddingGroupType("income"); setNewGroupName(""); }}
+                >
+                  <Plus className="h-4 w-4" />
+                  เพิ่มกลุ่มรายรับ
+                </button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Expense categories */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-orange-500" />
+                หมวดหมู่รายจ่าย
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {Object.entries(expenseGroups).map(([group, subs]) => (
+                <CategoryGroup key={`exp-${group}`} type="expense" groupName={group} subs={subs} />
+              ))}
+
+              {addingGroupType === "expense" ? (
+                <div className="flex items-center gap-1 px-3 py-2">
+                  <Input
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    placeholder="ชื่อกลุ่มรายจ่าย"
+                    className="h-7 text-xs flex-1"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") addGroup("expense", newGroupName);
+                      if (e.key === "Escape") { setAddingGroupType(null); setNewGroupName(""); }
+                    }}
+                  />
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addGroup("expense", newGroupName)}>
+                    <Check className="h-3 w-3 text-green-600" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingGroupType(null); setNewGroupName(""); }}>
+                    <X className="h-3 w-3 text-destructive" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                  onClick={() => { setAddingGroupType("expense"); setNewGroupName(""); }}
+                >
+                  <Plus className="h-4 w-4" />
+                  เพิ่มกลุ่มรายจ่าย
+                </button>
+              )}
+            </CardContent>
+          </Card>
+
+          <Button onClick={handleSave} disabled={saving} className="w-full">
+            {saving ? "กำลังบันทึก..." : "บันทึกการเปลี่ยนแปลง"}
+          </Button>
+        </>
+      )}
+    </div>
+  );
+};
+
 // ─── Main Settings Page ───
 const Settings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = (searchParams.get("tab") as SettingsTab) || "budget";
   const setTab = (t: SettingsTab) => setSearchParams({ tab: t });
 
-  const tabs: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
-    { key: "budget", label: "งบประมาณ", icon: <Wallet className="h-4 w-4" /> },
-    { key: "user", label: "ผู้ใช้", icon: <User className="h-4 w-4" /> },
-  ];
+  const titleMap: Record<SettingsTab, string> = {
+    budget: "ตั้งค่างบประมาณ",
+    categories: "ตั้งค่าหมวดหมู่",
+    user: "ตั้งค่าผู้ใช้",
+  };
 
   return (
     <>
@@ -389,11 +758,10 @@ const Settings = () => {
 
         <main className="flex-1 p-4 md:p-6">
           <div className="max-w-3xl mx-auto space-y-6">
-            <h1 className="text-2xl font-bold">
-              {tab === "budget" ? "ตั้งค่างบประมาณ" : "ตั้งค่าผู้ใช้"}
-            </h1>
+            <h1 className="text-2xl font-bold">{titleMap[tab]}</h1>
 
             {tab === "budget" && <BudgetSettings />}
+            {tab === "categories" && <CategorySettings />}
             {tab === "user" && <UserSettings />}
           </div>
         </main>
