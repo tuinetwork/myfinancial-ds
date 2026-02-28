@@ -1,6 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
 import { Target, CheckCircle2, AlertTriangle } from "lucide-react";
 
@@ -8,12 +7,30 @@ interface Props {
   data: BudgetData;
 }
 
+function AnimatedBar({ pct, colorClass, height = "h-3", delay = 0 }: { pct: number; colorClass: string; height?: string; delay?: number }) {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setWidth(pct), 100 + delay);
+    return () => clearTimeout(t);
+  }, [pct, delay]);
+
+  return (
+    <div className={`${height} rounded-full bg-muted overflow-hidden`}>
+      <div
+        className={`h-full rounded-full ${colorClass}`}
+        style={{
+          width: `${width}%`,
+          transition: "width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        }}
+      />
+    </div>
+  );
+}
+
 export function SavingsGoalCard({ data }: Props) {
   const { goals, totalTarget, totalActual, overallPct } = useMemo(() => {
-    // Budget targets from savings category
     const savingsBudgets = data.expenses.savings;
 
-    // Actual savings from transactions
     const actualByCategory: Record<string, number> = {};
     data.transactions
       .filter((t) => t.type === "เงินออม/การลงทุน")
@@ -54,6 +71,12 @@ export function SavingsGoalCard({ data }: Props) {
         ? "ผ่านครึ่งทางแล้ว"
         : "เริ่มต้นออม";
 
+  const overallBarColor = overallPct >= 100
+    ? "bg-income"
+    : overallPct >= 50
+      ? "bg-amber-500"
+      : "bg-expense";
+
   return (
     <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "520ms" }}>
       <CardHeader className="pb-3">
@@ -81,22 +104,13 @@ export function SavingsGoalCard({ data }: Props) {
               <AlertTriangle className="h-8 w-8 text-amber-400 opacity-40" />
             ) : null}
           </div>
-          <Progress
-            value={overallPct}
-            className={`h-3 [&>div]:transition-all [&>div]:duration-700 ${
-              overallPct >= 100
-                ? "[&>div]:bg-income"
-                : overallPct >= 50
-                  ? "[&>div]:bg-amber-500"
-                  : "[&>div]:bg-expense"
-            }`}
-          />
+          <AnimatedBar pct={overallPct} colorClass={overallBarColor} height="h-3" delay={0} />
         </div>
 
         {/* Individual goals */}
         {goals.length > 0 ? (
           <div className="space-y-3 pt-1">
-            {goals.map((g) => (
+            {goals.map((g, i) => (
               <div key={g.label}>
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1.5">
@@ -108,12 +122,14 @@ export function SavingsGoalCard({ data }: Props) {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Progress
-                    value={g.pct}
-                    className={`h-1.5 flex-1 ${
-                      g.completed ? "[&>div]:bg-income" : "[&>div]:bg-primary"
-                    }`}
-                  />
+                  <div className="flex-1">
+                    <AnimatedBar
+                      pct={g.pct}
+                      colorClass={g.completed ? "bg-income" : "bg-primary"}
+                      height="h-1.5"
+                      delay={(i + 1) * 150}
+                    />
+                  </div>
                   <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
                     {formatCurrency(g.actual)}
                   </span>
