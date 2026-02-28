@@ -32,7 +32,15 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { title: "แดชบอร์ด", url: "/", icon: LayoutDashboard },
+  {
+    title: "แดชบอร์ด",
+    url: "/",
+    icon: LayoutDashboard,
+    children: [
+      { title: "รายเดือน", url: "/?view=monthly" },
+      { title: "รายปี", url: "/?view=yearly" },
+    ],
+  },
   { title: "รายการธุรกรรม", url: "/transactions", icon: Receipt },
   {
     title: "ตั้งค่า",
@@ -64,7 +72,9 @@ export function AppSidebar() {
     return location.pathname.startsWith(url.split("?")[0]);
   };
 
+  const isDashboardActive = location.pathname === "/";
   const isSettingsActive = location.pathname.startsWith("/settings");
+  const [dashboardOpen, setDashboardOpen] = useState(isDashboardActive);
   const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
 
   return (
@@ -87,55 +97,72 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) =>
-                item.children ? (
-                  <SidebarMenuItem key={item.url}>
-                    <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
-                      <CollapsibleTrigger asChild>
-                        <SidebarMenuButton
-                          className={`w-full justify-between hover:bg-sidebar-accent/50 ${
-                            isSettingsActive ? "bg-sidebar-accent text-sidebar-primary font-medium" : ""
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <item.icon className="h-4 w-4" />
-                            {!collapsed && <span>{item.title}</span>}
-                          </div>
-                          {!collapsed && (
-                            settingsOpen
-                              ? <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/50" />
-                              : <ChevronRight className="h-3.5 w-3.5 text-sidebar-foreground/50" />
-                          )}
-                        </SidebarMenuButton>
-                      </CollapsibleTrigger>
-                      {!collapsed && (
-                        <CollapsibleContent>
-                          <div className="ml-6 border-l border-sidebar-border pl-2 mt-1 space-y-0.5">
-                            {item.children.map((child) => {
-                              const tabParam = new URL(child.url, "http://x").searchParams.get("tab");
-                              const currentTab = new URLSearchParams(location.search).get("tab");
-                              const active = location.pathname === "/settings" && currentTab === tabParam;
+              {menuItems.map((item) => {
+                if (item.children) {
+                  const isParentActive = item.url === "/" ? isDashboardActive : isSettingsActive;
+                  const isOpen = item.url === "/" ? dashboardOpen : settingsOpen;
+                  const setOpen = item.url === "/" ? setDashboardOpen : setSettingsOpen;
 
-                              return (
-                                <button
-                                  key={child.url}
-                                  onClick={() => navigate(child.url)}
-                                  className={`block w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${
-                                    active
-                                      ? "text-sidebar-primary font-medium bg-sidebar-accent/50"
-                                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
-                                  }`}
-                                >
-                                  {child.title}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </CollapsibleContent>
-                      )}
-                    </Collapsible>
-                  </SidebarMenuItem>
-                ) : (
+                  return (
+                    <SidebarMenuItem key={item.url}>
+                      <Collapsible open={isOpen} onOpenChange={setOpen}>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton
+                            className={`w-full justify-between hover:bg-sidebar-accent/50 ${
+                              isParentActive ? "bg-sidebar-accent text-sidebar-primary font-medium" : ""
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <item.icon className="h-4 w-4" />
+                              {!collapsed && <span>{item.title}</span>}
+                            </div>
+                            {!collapsed && (
+                              isOpen
+                                ? <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+                                : <ChevronRight className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+                            )}
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        {!collapsed && (
+                          <CollapsibleContent>
+                            <div className="ml-6 border-l border-sidebar-border pl-2 mt-1 space-y-0.5">
+                              {item.children.map((child) => {
+                                const childUrl = new URL(child.url, "http://x");
+                                const childPath = childUrl.pathname;
+                                const childParams = childUrl.searchParams;
+
+                                let active = false;
+                                if (childPath === "/") {
+                                  const currentView = new URLSearchParams(location.search).get("view") || "monthly";
+                                  active = location.pathname === "/" && currentView === (childParams.get("view") || "monthly");
+                                } else {
+                                  const currentTab = new URLSearchParams(location.search).get("tab");
+                                  active = location.pathname === childPath && currentTab === childParams.get("tab");
+                                }
+
+                                return (
+                                  <button
+                                    key={child.url}
+                                    onClick={() => navigate(child.url)}
+                                    className={`block w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${
+                                      active
+                                        ? "text-sidebar-primary font-medium bg-sidebar-accent/50"
+                                        : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
+                                    }`}
+                                  >
+                                    {child.title}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </CollapsibleContent>
+                        )}
+                      </Collapsible>
+                    </SidebarMenuItem>
+                  );
+                }
+
+                return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild>
                       <NavLink
@@ -149,8 +176,8 @@ export function AppSidebar() {
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                )
-              )}
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
 import { useYearlyData } from "@/hooks/useYearlyData";
@@ -15,7 +16,6 @@ import { SavingsGoalCard } from "@/components/SavingsGoalCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -32,8 +32,9 @@ import {
 } from "@/components/ui/select";
 
 const Index = () => {
+  const [searchParams] = useSearchParams();
+  const viewMode = (searchParams.get("view") || "monthly") as "monthly" | "yearly";
   const { data: months, isLoading: monthsLoading } = useAvailableMonths();
-  const [viewMode, setViewMode] = useState<"monthly" | "yearly">("monthly");
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | undefined>(undefined);
 
@@ -105,52 +106,49 @@ const Index = () => {
         {/* Content */}
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">
           <div className="space-y-6">
-            {/* Breadcrumb */}
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbPage className="flex items-center gap-1">
-                    <Home className="h-4 w-4" />
-                    <span className="hidden sm:inline">แดชบอร์ด</span>
-                  </BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+            {/* Breadcrumb + Dropdowns */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbPage className="flex items-center gap-1">
+                      <Home className="h-4 w-4" />
+                      <span className="hidden sm:inline">แดชบอร์ด</span>
+                      <span className="text-muted-foreground text-xs ml-1">
+                        ({viewMode === "monthly" ? "รายเดือน" : "รายปี"})
+                      </span>
+                    </BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
 
-            {/* Controls bar */}
-            <div className="flex flex-wrap items-center gap-3">
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "monthly" | "yearly")}>
-                <TabsList className="bg-muted">
-                  <TabsTrigger value="monthly" className="text-xs">รายเดือน</TabsTrigger>
-                  <TabsTrigger value="yearly" className="text-xs">รายปี</TabsTrigger>
-                </TabsList>
-              </Tabs>
+              <div className="flex items-center gap-2">
+                {years.length > 0 && (
+                  <Select value={selectedYear} onValueChange={setSelectedYear}>
+                    <SelectTrigger className="w-28 bg-card border-border shadow-sm text-xs">
+                      <SelectValue placeholder="ปี" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border shadow-lg z-50">
+                      {years.map((y) => (
+                        <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
 
-              {years.length > 0 && (
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger className="w-28 bg-card border-border shadow-sm text-xs">
-                    <SelectValue placeholder="ปี" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border shadow-lg z-50">
-                    {years.map((y) => (
-                      <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
-              {viewMode === "monthly" && monthsForYear.length > 0 && (
-                <Select value={selectedMonthKey} onValueChange={handleMonthChange}>
-                  <SelectTrigger className="w-32 bg-card border-border shadow-sm text-xs">
-                    <SelectValue placeholder="เดือน" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border shadow-lg z-50">
-                    {monthsForYear.map((m) => (
-                      <SelectItem key={m.month} value={m.month}>{m.monthName}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+                {viewMode === "monthly" && monthsForYear.length > 0 && (
+                  <Select value={selectedMonthKey} onValueChange={handleMonthChange}>
+                    <SelectTrigger className="w-32 bg-card border-border shadow-sm text-xs">
+                      <SelectValue placeholder="เดือน" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border shadow-lg z-50">
+                      {monthsForYear.map((m) => (
+                        <SelectItem key={m.month} value={m.month}>{m.monthName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             </div>
 
             {isPageLoading ? (
