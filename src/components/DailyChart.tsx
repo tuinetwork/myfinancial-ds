@@ -73,7 +73,7 @@ export function DailyChart({ data }: Props) {
   }, [data.transactions, viewMode]);
 
   return (
-    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "360ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in h-full flex flex-col" style={{ animationDelay: "360ms" }}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold">รายรับ-รายจ่ายรายวัน</CardTitle>
@@ -97,7 +97,7 @@ export function DailyChart({ data }: Props) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="px-2 sm:px-6">
+      <CardContent className="px-2 sm:px-6 flex-1">
         <div className="h-52 sm:h-64 md:h-72 lg:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
