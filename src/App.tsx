@@ -10,6 +10,7 @@ import Transactions from "./pages/Transactions";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import GoogleLogin from "./components/GoogleLogin";
+import AddTransactionFAB from "./components/AddTransactionFAB";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const AppContent = () => {
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <AddTransactionFAB />
         </div>
       </SidebarProvider>
     </BrowserRouter>
