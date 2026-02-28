@@ -175,30 +175,30 @@ const BudgetTable = ({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className={`text-sm font-bold text-center ${titleColor}`}>{title}</CardTitle>
+        <CardTitle className={`text-base font-bold text-center ${titleColor}`}>{title}</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         <div className="px-4 pb-2">
           <Select value={selectedCategory} onValueChange={onCategoryChange}>
-            <SelectTrigger className="w-full text-xs">
+            <SelectTrigger className="w-full text-sm">
               <SelectValue placeholder="เลือกหมวดหมู่" />
             </SelectTrigger>
             <SelectContent>
               {allCategories.map((cat) => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                <SelectItem key={cat} value={cat} className="text-sm">{cat}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
         <div className="border-t border-border">
-          <table className="w-full text-xs">
+          <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="text-left px-3 py-2 font-medium">หมวดหมู่</th>
-                <th className="text-right px-3 py-2 font-medium">งบประมาณ</th>
-                <th className="text-right px-3 py-2 font-medium">จ่ายแล้ว</th>
-                <th className="text-right px-3 py-2 font-medium">คงเหลือ</th>
+                <th className="text-left px-3 py-2.5 font-medium">หมวดหมู่</th>
+                <th className="text-right px-3 py-2.5 font-medium">งบประมาณ</th>
+                <th className="text-right px-3 py-2.5 font-medium">จ่ายแล้ว</th>
+                <th className="text-right px-3 py-2.5 font-medium">คงเหลือ</th>
               </tr>
             </thead>
             <tbody>
@@ -207,19 +207,19 @@ const BudgetTable = ({
                 const remaining = amount - actual;
                 return (
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                    <td className="px-3 py-2 text-muted-foreground">{sub}</td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-3 py-2.5 text-muted-foreground">{sub}</td>
+                    <td className="px-3 py-2.5 text-right">
                       <Input
                         type="number"
                         value={amount}
                         onChange={(e) => onAmountChange(selectedCategory, sub, Number(e.target.value) || 0)}
-                        className="h-7 w-24 text-xs text-right ml-auto"
+                        className="h-8 w-28 text-sm text-right ml-auto"
                       />
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
+                    <td className="px-3 py-2.5 text-right tabular-nums">
                       {actual > 0 ? fmt(actual) : "-"}
                     </td>
-                    <td className={`px-3 py-2 text-right tabular-nums ${remainingColor(amount, actual)}`}>
+                    <td className={`px-3 py-2.5 text-right tabular-nums ${remainingColor(amount, actual)}`}>
                       {actual > 0 ? fmt(remaining) : "-"}
                     </td>
                   </tr>
@@ -233,10 +233,10 @@ const BudgetTable = ({
             </tbody>
             <tfoot>
               <tr className="bg-muted/50 font-medium">
-                <td className="px-3 py-2">รวม</td>
-                <td className="px-3 py-2 text-right tabular-nums">{fmt(totalBudget)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{fmt(totalActual)}</td>
-                <td className={`px-3 py-2 text-right tabular-nums ${remainingColor(totalBudget, totalActual)}`}>{fmt(totalRemaining)}</td>
+                <td className="px-3 py-2.5">รวม</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalBudget)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalActual)}</td>
+                <td className={`px-3 py-2.5 text-right tabular-nums ${remainingColor(totalBudget, totalActual)}`}>{fmt(totalRemaining)}</td>
               </tr>
             </tfoot>
           </table>
@@ -383,24 +383,24 @@ const BudgetSettings = () => {
       <div className="flex flex-wrap items-center gap-3">
         {years.length > 0 && (
           <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-28 text-xs">
+            <SelectTrigger className="w-28 text-sm">
               <SelectValue placeholder="ปี" />
             </SelectTrigger>
             <SelectContent>
               {years.map((y) => (
-                <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
+                <SelectItem key={y} value={y} className="text-sm">{String(Number(y) + 543)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         )}
         {monthsForYear.length > 0 && (
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-32 text-xs">
+            <SelectTrigger className="w-32 text-sm">
               <SelectValue placeholder="เดือน" />
             </SelectTrigger>
             <SelectContent>
               {monthsForYear.map((m) => (
-                <SelectItem key={m.month} value={m.month}>{m.monthName}</SelectItem>
+                <SelectItem key={m.month} value={m.month} className="text-sm">{m.monthName}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -687,7 +687,7 @@ const CategorySettings = () => {
             {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
             <FolderTree className="h-4 w-4 text-primary" />
             <span>{groupName}</span>
-            <span className="text-xs text-muted-foreground ml-auto mr-2">{subs.length} รายการ</span>
+            <span className="text-sm text-muted-foreground ml-auto mr-2">{subs.length} รายการ</span>
           </CollapsibleTrigger>
           <Button
             variant="ghost"
@@ -723,7 +723,7 @@ const CategorySettings = () => {
                   value={newSubName}
                   onChange={(e) => setNewSubName(e.target.value)}
                   placeholder="ชื่อหมวดหมู่ย่อย"
-                  className="h-7 text-xs flex-1"
+                  className="h-8 text-sm flex-1"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter") addSubCategory(type, groupName, newSubName);
@@ -739,7 +739,7 @@ const CategorySettings = () => {
               </div>
             ) : (
               <button
-                className="flex items-center gap-2 px-2 py-1 text-xs text-primary hover:text-primary/80 transition-colors"
+                className="flex items-center gap-2 px-2 py-1 text-sm text-primary hover:text-primary/80 transition-colors"
                 onClick={() => { setAddingTo({ type, group: groupName }); setNewSubName(""); }}
               >
                 <Plus className="h-3 w-3" />
@@ -758,24 +758,24 @@ const CategorySettings = () => {
       <div className="flex flex-wrap items-center gap-3">
         {years.length > 0 && (
           <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-28 text-xs">
+            <SelectTrigger className="w-28 text-sm">
               <SelectValue placeholder="ปี" />
             </SelectTrigger>
             <SelectContent>
               {years.map((y) => (
-                <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
+                <SelectItem key={y} value={y} className="text-sm">{String(Number(y) + 543)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         )}
         {monthsForYear.length > 0 && (
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-32 text-xs">
+            <SelectTrigger className="w-32 text-sm">
               <SelectValue placeholder="เดือน" />
             </SelectTrigger>
             <SelectContent>
               {monthsForYear.map((m) => (
-                <SelectItem key={m.month} value={m.month}>{m.monthName}</SelectItem>
+                <SelectItem key={m.month} value={m.month} className="text-sm">{m.monthName}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -806,7 +806,7 @@ const CategorySettings = () => {
                       value={newGroupName}
                       onChange={(e) => setNewGroupName(e.target.value)}
                       placeholder="ชื่อกลุ่มรายจ่าย"
-                      className="h-7 text-xs flex-1"
+                      className="h-8 text-sm flex-1"
                       autoFocus
                       onKeyDown={(e) => {
                         if (e.key === "Enter") addGroup("expense", newGroupName);
@@ -851,7 +851,7 @@ const CategorySettings = () => {
                       value={newGroupName}
                       onChange={(e) => setNewGroupName(e.target.value)}
                       placeholder="ชื่อกลุ่มรายรับ"
-                      className="h-7 text-xs flex-1"
+                      className="h-8 text-sm flex-1"
                       autoFocus
                       onKeyDown={(e) => {
                         if (e.key === "Enter") addGroup("expense", newGroupName);
