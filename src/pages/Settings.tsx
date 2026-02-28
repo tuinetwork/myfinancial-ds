@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   LogOut, User, Mail, Shield, ChevronRight, ChevronDown,
-  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home,
+  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -436,10 +436,6 @@ const BudgetSettings = () => {
               actuals={txActuals}
             />
           </div>
-
-          <Button onClick={handleSave} disabled={saving} className="w-full">
-            {saving ? "กำลังบันทึก..." : "บันทึกการเปลี่ยนแปลง"}
-          </Button>
         </>
       )}
     </div>
@@ -877,10 +873,6 @@ const CategorySettings = () => {
               </CardContent>
             </Card>
           </div>
-
-          <Button onClick={handleSave} disabled={saving} className="w-full">
-            {saving ? "กำลังบันทึก..." : "บันทึกการเปลี่ยนแปลง"}
-          </Button>
         </>
       )}
     </div>
