@@ -335,7 +335,9 @@ export function useBudgetData(period?: string) {
   // Auto-sync carry_over when period changes
   useEffect(() => {
     if (!period || !userId) return;
-    syncCarryOver(userId, period);
+    syncCarryOver(userId, period).catch((err) =>
+      console.warn("syncCarryOver failed:", err)
+    );
   }, [period, userId]);
 
   useEffect(() => {
