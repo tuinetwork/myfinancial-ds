@@ -142,7 +142,7 @@ const AddTransactionFAB = () => {
         >
           {/* Blur backdrop */}
           <div className={cn(
-            "absolute inset-0 bg-background/80 backdrop-blur-xl",
+            "absolute inset-0 bg-background/40 backdrop-blur-xl",
             closing ? "animate-modal-backdrop-out" : "animate-modal-backdrop-in"
           )} />
 
