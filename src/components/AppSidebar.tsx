@@ -1,4 +1,6 @@
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, Receipt } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
   SidebarContent,
@@ -12,9 +14,15 @@ import {
 } from "@/components/ui/sidebar";
 import { Wallet } from "lucide-react";
 
+const menuItems = [
+  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "รายการธุรกรรม", url: "/transactions", icon: Receipt },
+];
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const location = useLocation();
 
   return (
     <Sidebar collapsible="icon">
@@ -33,12 +41,21 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton className="bg-sidebar-accent text-sidebar-primary font-medium">
-                  <LayoutDashboard className="h-4 w-4" />
-                  {!collapsed && <span>Dashboard</span>}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {menuItems.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to={item.url}
+                      end
+                      className="hover:bg-sidebar-accent/50"
+                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

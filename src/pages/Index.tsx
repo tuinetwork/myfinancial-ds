@@ -4,7 +4,6 @@ import { useYearlyData } from "@/hooks/useYearlyData";
 import { SummaryCards } from "@/components/SummaryCards";
 import { ExpenseChart } from "@/components/ExpenseChart";
 import { ExpenseTabsChart } from "@/components/ExpenseTabsChart";
-import { TransactionTable } from "@/components/TransactionTable";
 import { DailyChart } from "@/components/DailyChart";
 import { BudgetBreakdown } from "@/components/BudgetBreakdown";
 import { YearlyView } from "@/components/YearlyView";
@@ -172,7 +171,7 @@ const Index = () => {
                   <BudgetBreakdown data={data} />
                 </div>
 
-                <TransactionTable data={data} />
+                
               </>
             ) : viewMode === "yearly" && yearlyData ? (
               <YearlyView yearlyData={yearlyData} />
