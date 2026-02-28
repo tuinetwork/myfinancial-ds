@@ -1,6 +1,5 @@
 import { TrendingUp, TrendingDown, CreditCard, PiggyBank } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
 
 interface Props {
@@ -17,7 +16,6 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
   const totalSubs = data.expenses.subscriptions.reduce((s, i) => s + i.budget, 0);
   const totalSavings = data.expenses.savings.reduce((s, i) => s + i.budget, 0);
   const totalExpenses = totalGeneral + totalBills + totalSubs;
-  const balance = totalIncome - totalExpenses - totalDebts - totalSavings;
 
   const actualIncome = data.transactions
     .filter((t) => t.type === "รายรับ")
@@ -25,7 +23,6 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
   const actualExpense = data.transactions
     .filter((t) => t.type === "ค่าใช้จ่าย" || t.type === "บิล/สาธารณูปโภค" || t.type === "ค่าสมาชิกรายเดือน")
     .reduce((s, t) => s + t.amount, 0);
-
   const actualDebt = data.transactions.filter((t) => t.type === "หนี้สิน").reduce((s, t) => s + t.amount, 0);
   const actualSaving = data.transactions.filter((t) => t.type === "เงินออม/การลงทุน").reduce((s, t) => s + t.amount, 0);
   const actualNonIncome = data.transactions
@@ -37,114 +34,91 @@ export function SummaryCards({ data, carryOver = 0, hideNetBalance = false }: Pr
       title: "รายรับ",
       primary: actualIncome + carryOver,
       secondary: totalIncome,
-      secondaryLabel: "ประมาณการรายรับ",
+      secondaryLabel: "ประมาณการ",
       carryOver,
       icon: TrendingUp,
-      color: "text-income" as const,
-      bgColor: "bg-income/10" as const,
-      cardBg: "bg-income/5" as const,
+      gradient: "from-[hsl(160,60%,45%)] to-[hsl(160,60%,35%)]",
     },
     {
       title: "ค่าใช้จ่าย",
       primary: actualNonIncome,
       secondary: totalExpenses,
-      secondaryLabel: "ประมาณการรายจ่าย",
+      secondaryLabel: "ประมาณการ",
       icon: TrendingDown,
-      color: "text-expense" as const,
-      bgColor: "bg-expense/10" as const,
-      cardBg: "bg-expense/5" as const,
+      gradient: "from-[hsl(217,72%,55%)] to-[hsl(217,72%,42%)]",
     },
     {
       title: "หนี้สิน",
       primary: actualDebt,
       secondary: totalDebts,
-      secondaryLabel: "ยอดหนี้ตามแผน",
+      secondaryLabel: "ตามแผน",
       icon: CreditCard,
-      color: "text-debt" as const,
-      bgColor: "bg-debt/10" as const,
-      cardBg: "bg-debt/5" as const,
+      gradient: "from-[hsl(35,90%,55%)] to-[hsl(35,90%,42%)]",
     },
     {
       title: "เงินออม",
       primary: Math.abs(actualSaving),
       secondary: totalSavings,
-      secondaryLabel: "เป้าหมายออม",
+      secondaryLabel: "เป้าหมาย",
       icon: PiggyBank,
-      color: "text-saving" as const,
-      bgColor: "bg-saving/10" as const,
-      cardBg: "bg-saving/5" as const,
+      gradient: "from-[hsl(280,60%,55%)] to-[hsl(280,60%,42%)]",
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {cards.map((card, i) => (
-        <Card
-          key={card.title}
-          className={`animate-fade-in border-none shadow-sm ${card.cardBg}`}
-          style={{ animationDelay: `${i * 80}ms` }}
-        >
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground font-medium">{card.title}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {'carryOver' in card && card.carryOver !== 0 && (
-                  <span className="text-xs text-income font-medium">
-                    ยกยอดมา: +{formatCurrency(Math.abs(card.carryOver))}
-                  </span>
-                )}
-                <div className={`${card.bgColor} ${card.color} p-2 rounded-lg`}>
-                  <card.icon className="h-4 w-4" />
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {cards.map((card, i) => {
+          const rawPct = card.secondary > 0 ? (card.primary / card.secondary) * 100 : 0;
+          return (
+            <Card
+              key={card.title}
+              className={`animate-fade-in border-none shadow-lg bg-gradient-to-br ${card.gradient} text-white overflow-hidden relative`}
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
+              <CardContent className="p-5 relative z-10">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium opacity-90">{card.title}</span>
+                  <card.icon className="h-5 w-5 opacity-70" />
                 </div>
-              </div>
-            </div>
-            <p className={`text-2xl sm:text-3xl font-bold font-display ${card.color}`}>
-              {formatCurrency(card.primary)}
-            </p>
-            {(() => {
-              const pct = card.secondary > 0 ? Math.min((card.primary / card.secondary) * 100, 100) : 0;
-              const rawPct = card.secondary > 0 ? (card.primary / card.secondary) * 100 : 0;
-              const pctColor = card.title === "รายรับ"
-                ? rawPct >= 100 ? "text-income" : "text-muted-foreground"
-                : rawPct > 100 ? "text-destructive" : "text-muted-foreground";
-              const barColor = card.title === "รายรับ"
-                ? "[&>div]:bg-income"
-                : rawPct > 100
-                  ? "[&>div]:bg-destructive"
-                  : `[&>div]:bg-current ${card.color}`;
-              return (
-                <>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {card.secondaryLabel}: {formatCurrency(card.secondary)}
-                    {card.secondary > 0 && (
-                      <span className={`ml-1.5 font-semibold ${pctColor}`}>
-                        ({rawPct.toFixed(0)}%)
-                      </span>
-                    )}
-                  </p>
-                  {card.secondary > 0 && (
-                    <Progress value={pct} className={`h-1.5 mt-2 bg-muted ${barColor}`} />
+                <p className="text-2xl sm:text-3xl font-bold font-display tracking-tight">
+                  {formatCurrency(card.primary)}
+                </p>
+                <div className="flex items-center gap-1.5 mt-2">
+                  {'carryOver' in card && card.carryOver !== 0 && (
+                    <span className="text-xs opacity-80 mr-1">
+                      ยกยอด +{formatCurrency(Math.abs(card.carryOver))}
+                    </span>
                   )}
-                </>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      ))}
+                  <span className="text-xs opacity-75">
+                    {card.secondaryLabel}: {formatCurrency(card.secondary)}
+                  </span>
+                  {card.secondary > 0 && (
+                    <span className="text-xs font-semibold opacity-90">
+                      ({rawPct.toFixed(0)}%)
+                    </span>
+                  )}
+                </div>
+              </CardContent>
+              {/* Decorative background shape */}
+              <div className="absolute -right-4 -top-4 w-24 h-24 rounded-full bg-white/10" />
+              <div className="absolute -right-2 -bottom-6 w-16 h-16 rounded-full bg-white/5" />
+            </Card>
+          );
+        })}
+      </div>
 
       {!hideNetBalance && (
-        <Card className="col-span-2 lg:col-span-4 border-none shadow-sm bg-primary text-primary-foreground animate-fade-in" style={{ animationDelay: "320ms" }}>
+        <Card className="border-none shadow-lg bg-gradient-to-r from-[hsl(220,25%,15%)] to-[hsl(220,25%,22%)] text-white animate-fade-in" style={{ animationDelay: "320ms" }}>
           <CardContent className="p-5 flex items-center justify-between">
             <div>
-              <p className="text-sm opacity-80">คงเหลือสุทธิ</p>
+              <p className="text-sm opacity-70">คงเหลือสุทธิ</p>
               <p className="text-2xl font-bold font-display">
                 {formatCurrency((actualIncome + carryOver) - actualNonIncome)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm opacity-80">งบประมาณที่ตั้งไว้</p>
+              <p className="text-sm opacity-70">งบประมาณที่ตั้งไว้</p>
               <p className="text-2xl font-bold font-display">
                 {formatCurrency(totalExpenses + totalDebts + totalSavings)}
               </p>
