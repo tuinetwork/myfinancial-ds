@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, X, CalendarIcon } from "lucide-react";
-import { collection, doc, getDocs, addDoc } from "firebase/firestore";
+import { collection, doc, getDocs, setDoc, query, where } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -85,6 +85,22 @@ const AddTransactionFAB = () => {
     }, 250);
   };
 
+  const getNextTransactionId = async (userId: string, monthYear: string): Promise<string> => {
+    const txCol = collection(firestore, "users", userId, "transactions");
+    const q = query(txCol, where("month_year", "==", monthYear));
+    const snap = await getDocs(q);
+    const prefix = `${monthYear}-tx-`;
+    let maxNum = 0;
+    snap.forEach((d) => {
+      const id = d.id;
+      if (id.startsWith(prefix)) {
+        const num = parseInt(id.slice(prefix.length), 10);
+        if (!isNaN(num) && num > maxNum) maxNum = num;
+      }
+    });
+    return `${prefix}${String(maxNum + 1).padStart(3, "0")}`;
+  };
+
   const handleSave = async () => {
     if (!userId) return;
     const numAmount = parseFloat(amount);
@@ -101,8 +117,9 @@ const AddTransactionFAB = () => {
     try {
       const dateStr = format(date, "yyyy-MM-dd");
       const monthYear = format(date, "yyyy-MM");
+      const newId = await getNextTransactionId(userId, monthYear);
 
-      await addDoc(collection(firestore, "users", userId, "transactions"), {
+      await setDoc(doc(firestore, "users", userId, "transactions", newId), {
         type,
         amount: numAmount,
         date: dateStr,
