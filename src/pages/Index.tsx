@@ -13,6 +13,13 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbPage,
+} from "@/components/ui/breadcrumb";
+import { Home } from "lucide-react";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -94,6 +101,18 @@ const Index = () => {
         {/* Content */}
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">
           <div className="max-w-7xl mx-auto space-y-6">
+            {/* Breadcrumb */}
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbPage className="flex items-center gap-1">
+                    <Home className="h-4 w-4" />
+                    <span className="hidden sm:inline">แดชบอร์ด</span>
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+
             {/* Controls bar */}
             <div className="flex flex-wrap items-center gap-3">
               <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "monthly" | "yearly")}>
