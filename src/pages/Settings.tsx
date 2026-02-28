@@ -754,32 +754,8 @@ const CategorySettings = () => {
 
   return (
     <div className="space-y-4">
-      {/* Period selector + Save button */}
-      <div className="flex flex-wrap items-center gap-3">
-        {years.length > 0 && (
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-28 text-sm">
-              <SelectValue placeholder="ปี" />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map((y) => (
-                <SelectItem key={y} value={y} className="text-sm">{String(Number(y) + 543)}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        {monthsForYear.length > 0 && (
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-32 text-sm">
-              <SelectValue placeholder="เดือน" />
-            </SelectTrigger>
-            <SelectContent>
-              {monthsForYear.map((m) => (
-                <SelectItem key={m.month} value={m.month} className="text-sm">{m.monthName}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+      {/* Save button */}
+      <div className="flex items-center">
         <Button onClick={handleSave} disabled={saving} size="sm" className="ml-auto gap-1.5">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           {saving ? "กำลังบันทึก..." : "บันทึก"}
