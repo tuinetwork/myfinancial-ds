@@ -136,7 +136,7 @@ const AddTransactionFAB = () => {
           onClick={handleClose}
         >
           {/* Blur backdrop */}
-          <div className="absolute inset-0 bg-background/60 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-xl" />
 
           {/* Modal */}
           <div
