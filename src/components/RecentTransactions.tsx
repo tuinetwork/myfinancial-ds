@@ -12,7 +12,7 @@ export function RecentTransactions({ data }: Props) {
   const recent = useMemo(() => {
     return [...data.transactions]
       .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 7);
+      .slice(0, 5);
   }, [data.transactions]);
 
   const formatDate = (dateStr: string) => {
@@ -24,14 +24,14 @@ export function RecentTransactions({ data }: Props) {
   };
 
   return (
-    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "480ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in h-full flex flex-col" style={{ animationDelay: "480ms" }}>
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-muted-foreground" />
           <CardTitle className="text-base font-semibold">รายการล่าสุด</CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="space-y-1">
+      <CardContent className="space-y-1 flex-1">
         {recent.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">ยังไม่มีรายการ</p>
         ) : (
