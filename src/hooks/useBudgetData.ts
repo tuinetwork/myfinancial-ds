@@ -21,6 +21,7 @@ export interface BudgetItem {
 }
 
 export interface Transaction {
+  id: string;
   date: string;
   amount: number;
   type: string;
@@ -141,7 +142,7 @@ function parseBudgetDoc(
   };
 }
 
-function mapTransaction(docData: Record<string, unknown>): Transaction {
+function mapTransaction(docId: string, docData: Record<string, unknown>): Transaction {
   const type = docData.type as string;
   const mainCategory = (docData.main_category as string) ?? "";
   let mappedType: string;
@@ -152,6 +153,7 @@ function mapTransaction(docData: Record<string, unknown>): Transaction {
   }
 
   return {
+    id: docId,
     date: (docData.date as string) ?? "",
     amount: (docData.amount as number) ?? 0,
     type: mappedType,
@@ -356,7 +358,7 @@ export function useBudgetData(period?: string) {
       );
       const txSnap = await getDocs(txQuery);
       const transactions = txSnap.docs.map((d) =>
-        mapTransaction(d.data() as Record<string, unknown>)
+        mapTransaction(d.id, d.data() as Record<string, unknown>)
       );
       queryClient.setQueryData(
         ["budget-data", period],
@@ -372,7 +374,7 @@ export function useBudgetData(period?: string) {
       const budgetSnap = await getDoc(budgetDocRef);
       if (!budgetSnap.exists()) return;
       const transactions = txSnap.docs.map((d) =>
-        mapTransaction(d.data() as Record<string, unknown>)
+        mapTransaction(d.id, d.data() as Record<string, unknown>)
       );
       queryClient.setQueryData(
         ["budget-data", period],
@@ -406,7 +408,7 @@ export function useBudgetData(period?: string) {
         );
         const txSnap2 = await getDocs(txQuery2);
         const transactions2 = txSnap2.docs.map((d) =>
-          mapTransaction(d.data() as Record<string, unknown>)
+          mapTransaction(d.id, d.data() as Record<string, unknown>)
         );
         return parseBudgetDoc(newSnap.data() as Record<string, unknown>, transactions2);
       }
@@ -416,7 +418,7 @@ export function useBudgetData(period?: string) {
       );
       const txSnap = await getDocs(txQuery);
       const transactions = txSnap.docs.map((d) =>
-        mapTransaction(d.data() as Record<string, unknown>)
+        mapTransaction(d.id, d.data() as Record<string, unknown>)
       );
       return parseBudgetDoc(
         budgetSnap.data() as Record<string, unknown>,

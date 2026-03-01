@@ -11,7 +11,10 @@ interface Props {
 export function RecentTransactions({ data }: Props) {
   const recent = useMemo(() => {
     return [...data.transactions]
-      .sort((a, b) => b.date.localeCompare(a.date))
+      .sort((a, b) => {
+        const cmp = b.date.localeCompare(a.date);
+        return cmp !== 0 ? cmp : b.id.localeCompare(a.id);
+      })
       .slice(0, 5);
   }, [data.transactions]);
 
