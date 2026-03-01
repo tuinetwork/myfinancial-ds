@@ -3,11 +3,6 @@ import { LayoutDashboard, Receipt, Wallet, Settings, ChevronDown, ChevronRight, 
 import { useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
@@ -61,11 +56,15 @@ export function AppSidebar() {
   const isDashboardActive = location.pathname === "/";
   const isSettingsActive = location.pathname.startsWith("/settings");
   const [dashboardOpen, setDashboardOpen] = useState(isDashboardActive);
-  const [settingsPopoverOpen, setSettingsPopoverOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
 
   useEffect(() => {
     if (isDashboardActive) setDashboardOpen(true);
   }, [isDashboardActive]);
+
+  useEffect(() => {
+    if (isSettingsActive) setSettingsOpen(true);
+  }, [isSettingsActive]);
 
   const renderChildActive = (childUrl: string) => {
     const childUrlObj = new URL(childUrl, "http://x");
@@ -180,8 +179,31 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-sidebar-border">
-        <Popover open={settingsPopoverOpen} onOpenChange={setSettingsPopoverOpen}>
-          <PopoverTrigger asChild>
+        <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
+          {!collapsed && (
+            <CollapsibleContent>
+              <div className="ml-6 border-l border-sidebar-border pl-2 mb-1 space-y-0.5">
+                {settingsChildren.map((child) => {
+                  const active = renderChildActive(child.url);
+                  return (
+                    <button
+                      key={child.url}
+                      onClick={() => navigate(child.url)}
+                      className={`flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${
+                        active
+                          ? "text-sidebar-primary font-medium bg-sidebar-accent/50"
+                          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
+                      }`}
+                    >
+                      {child.icon && <child.icon className="h-3.5 w-3.5" />}
+                      {child.title}
+                    </button>
+                  );
+                })}
+              </div>
+            </CollapsibleContent>
+          )}
+          <CollapsibleTrigger asChild>
             <SidebarMenuButton
               className={`w-full justify-between hover:bg-sidebar-accent/50 ${
                 isSettingsActive ? "bg-sidebar-accent text-sidebar-primary font-medium" : ""
@@ -192,40 +214,13 @@ export function AppSidebar() {
                 {!collapsed && <span>ตั้งค่า</span>}
               </div>
               {!collapsed && (
-                <ChevronRight className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+                settingsOpen
+                  ? <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+                  : <ChevronRight className="h-3.5 w-3.5 text-sidebar-foreground/50" />
               )}
             </SidebarMenuButton>
-          </PopoverTrigger>
-          <PopoverContent
-            side="right"
-            align="end"
-            sideOffset={8}
-            className="w-48 p-1"
-          >
-            <div className="space-y-0.5">
-              {settingsChildren.map((child) => {
-                const active = renderChildActive(child.url);
-                return (
-                  <button
-                    key={child.url}
-                    onClick={() => {
-                      navigate(child.url);
-                      setSettingsPopoverOpen(false);
-                    }}
-                    className={`flex items-center gap-2.5 w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
-                      active
-                        ? "text-primary font-medium bg-accent"
-                        : "text-foreground/70 hover:text-foreground hover:bg-muted/50"
-                    }`}
-                  >
-                    {child.icon && <child.icon className="h-4 w-4" />}
-                    {child.title}
-                  </button>
-                );
-              })}
-            </div>
-          </PopoverContent>
-        </Popover>
+          </CollapsibleTrigger>
+        </Collapsible>
       </SidebarFooter>
     </Sidebar>
   );
