@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
+import { UserProfilePopover } from "@/components/UserProfilePopover";
+import { AppFooter } from "@/components/AppFooter";
 import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
 import { TransactionTable } from "@/components/TransactionTable";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -122,6 +124,7 @@ const Transactions = () => {
             )}
           </div>
         </main>
+        <AppFooter />
       </div>
     </>
   );

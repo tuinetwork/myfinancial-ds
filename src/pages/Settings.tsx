@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
+import { AppFooter } from "@/components/AppFooter";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { collection, doc, getDoc, getDocs, updateDoc, setDoc, query, where } from "firebase/firestore";
@@ -1251,6 +1252,7 @@ const Settings = () => {
             {tab === "user" && <UserSettings />}
           </div>
         </main>
+        <AppFooter />
       </div>
     </>
   );
