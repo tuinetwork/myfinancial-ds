@@ -7,6 +7,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Transactions from "./pages/Transactions";
+import Analysis from "./pages/Analysis";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import GoogleLogin from "./components/GoogleLogin";
@@ -37,6 +38,7 @@ const AppContent = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/analysis" element={<Analysis />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
