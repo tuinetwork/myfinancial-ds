@@ -42,6 +42,30 @@ export function ExpenseChart({ data }: Props) {
     return v.toFixed(2);
   };
 
+  const maxValue = Math.max(
+    ...chartData.flatMap((d) => [d["งบประมาณ"], d["ใช้จริง"]])
+  );
+
+  const renderSmartLabel = (props: any) => {
+    const { x, y, width, height, value } = props;
+    const text = formatValue(value);
+    const textWidth = text.length * 6.5;
+    const isInside = width > textWidth + 8;
+    return (
+      <text
+        x={isInside ? x + width - 5 : x + width + 4}
+        y={y + height / 2}
+        dy={4}
+        textAnchor={isInside ? "end" : "start"}
+        fill={isInside ? "white" : "hsl(220 10% 40%)"}
+        fontSize={10}
+        fontWeight={600}
+      >
+        {text}
+      </text>
+    );
+  };
+
   return (
     <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "400ms" }}>
       <CardHeader className="pb-2">
@@ -88,12 +112,7 @@ export function ExpenseChart({ data }: Props) {
                 ]}
               />
               <Bar dataKey="งบประมาณ" fill="hsl(199 89% 48%)" radius={[0, 4, 4, 0]} barSize={14}>
-                <LabelList
-                  dataKey="งบประมาณ"
-                  position="insideRight"
-                  formatter={(v: number) => formatValue(v)}
-                  style={{ fill: "white", fontSize: 10, fontWeight: 600 }}
-                />
+                <LabelList dataKey="งบประมาณ" content={renderSmartLabel} />
               </Bar>
               <Bar dataKey="ใช้จริง" radius={[0, 4, 4, 0]} barSize={14}>
                 {chartData.map((entry, index) => (
@@ -102,12 +121,7 @@ export function ExpenseChart({ data }: Props) {
                     fill={entry.overBudget ? "hsl(0 72% 51%)" : "hsl(166 72% 56%)"}
                   />
                 ))}
-                <LabelList
-                  dataKey="ใช้จริง"
-                  position="insideRight"
-                  formatter={(v: number) => formatValue(v)}
-                  style={{ fill: "white", fontSize: 10, fontWeight: 600 }}
-                />
+                <LabelList dataKey="ใช้จริง" content={renderSmartLabel} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
