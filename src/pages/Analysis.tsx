@@ -6,6 +6,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { AppFooter } from "@/components/AppFooter";
 import { useBudgetData, useAvailableMonths, formatCurrency } from "@/hooks/useBudgetData";
+import { useYearlyData } from "@/hooks/useYearlyData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -82,8 +83,29 @@ const Analysis = () => {
   }, [selectedYear, selectedMonthKey]);
 
   const { data, isLoading } = useBudgetData(selectedPeriod);
+  const { data: yearlyData, isLoading: yearlyLoading } = useYearlyData(selectedYear);
 
   const isPageLoading = isLoading || monthsLoading || !selectedPeriod;
+
+  // Monthly comparison data
+  const monthlyComparison = useMemo(() => {
+    if (!yearlyData) return [];
+    const THAI_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    return yearlyData.months
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .map(({ month, data: mData }) => {
+        const [, mm] = month.split("-");
+        const idx = parseInt(mm, 10) - 1;
+        const income = mData.transactions.filter((t) => t.type === "รายรับ").reduce((s, t) => s + t.amount, 0);
+        const expense = mData.transactions.filter((t) => t.type !== "รายรับ").reduce((s, t) => s + t.amount, 0);
+        return {
+          name: THAI_SHORT[idx] || month,
+          รายรับ: income,
+          รายจ่าย: expense,
+          คงเหลือ: income - expense,
+        };
+      });
+  }, [yearlyData]);
 
   // === Computed analytics ===
   const analytics = useMemo(() => {
@@ -394,6 +416,34 @@ const Analysis = () => {
                                 <Cell key={i} fill={COLORS[i % COLORS.length]} />
                               ))}
                             </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Monthly Comparison Chart */}
+                {monthlyComparison.length > 1 && (
+                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "560ms" }}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base font-semibold">เปรียบเทียบรายเดือน (ปี {selectedYear ? String(Number(selectedYear) + 543) : ""})</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-2 sm:px-6">
+                      <div className="h-72">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={monthlyComparison} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 90%)" />
+                            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                            <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+                            <Tooltip
+                              formatter={(value: number) => formatCurrency(value) + " ฿"}
+                              contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "12px" }}
+                            />
+                            <Legend wrapperStyle={{ fontSize: "11px" }} />
+                            <Bar dataKey="รายรับ" fill="hsl(199 89% 48%)" radius={[4, 4, 0, 0]} barSize={20} />
+                            <Bar dataKey="รายจ่าย" fill="hsl(0 72% 51%)" radius={[4, 4, 0, 0]} barSize={20} />
+                            <Bar dataKey="คงเหลือ" fill="hsl(166 72% 56%)" radius={[4, 4, 0, 0]} barSize={20} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
