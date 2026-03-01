@@ -524,13 +524,18 @@ const CategorySettings = () => {
       getDoc(doc(firestore, "users", userId, "categories", "expense")),
       getDoc(doc(firestore, "users", userId, "categories", "income")),
     ]).then(([expSnap, incSnap]) => {
+      const toGroups = (raw: Record<string, any>): Record<string, string[]> => {
+        const result: Record<string, string[]> = {};
+        for (const [key, val] of Object.entries(raw)) {
+          result[key] = Array.isArray(val) ? val : [];
+        }
+        return result;
+      };
       if (expSnap.exists()) {
-        const data = expSnap.data() as Record<string, string[]>;
-        setExpenseGroups(data);
+        setExpenseGroups(toGroups(expSnap.data()));
       }
       if (incSnap.exists()) {
-        const data = incSnap.data() as Record<string, string[]>;
-        setIncomeGroups(data);
+        setIncomeGroups(toGroups(incSnap.data()));
       }
       setLoading(false);
     });
