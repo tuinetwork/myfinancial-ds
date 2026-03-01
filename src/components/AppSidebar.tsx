@@ -50,7 +50,7 @@ const menuItems: MenuItem[] = [
       { title: "งบประมาณ", url: "/settings?tab=budget", icon: DollarSign },
       { title: "หมวดหมู่", url: "/settings?tab=categories", icon: Tags },
       { title: "เป้าหมายการออม", url: "/settings?tab=savings", icon: Target },
-      { title: "ผู้ใช้", url: "/settings?tab=user", icon: UserCog },
+      // { title: "ผู้ใช้", url: "/settings?tab=user", icon: UserCog },
     ],
   },
 ];

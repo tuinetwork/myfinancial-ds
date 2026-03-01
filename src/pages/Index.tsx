@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
+import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
 import { useYearlyData } from "@/hooks/useYearlyData";
 import { SummaryCards } from "@/components/SummaryCards";
@@ -100,7 +101,10 @@ const Index = () => {
         {/* Header - only sidebar trigger */}
         <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
           <SidebarTrigger />
-          <NotificationBell />
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <UserProfilePopover />
+          </div>
         </header>
 
         {/* Content */}
