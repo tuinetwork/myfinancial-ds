@@ -525,8 +525,9 @@ const CategorySettings = () => {
       getDoc(doc(firestore, "users", userId, "categories", "income")),
     ]).then(([expSnap, incSnap]) => {
       const toGroups = (raw: Record<string, any>): Record<string, string[]> => {
+        const mc = raw?.main_categories ?? raw;
         const result: Record<string, string[]> = {};
-        for (const [key, val] of Object.entries(raw)) {
+        for (const [key, val] of Object.entries(mc)) {
           result[key] = Array.isArray(val) ? val : [];
         }
         return result;
@@ -546,8 +547,16 @@ const CategorySettings = () => {
     setSaving(true);
     try {
       await Promise.all([
-        setDoc(doc(firestore, "users", userId, "categories", "expense"), expenseGroups),
-        setDoc(doc(firestore, "users", userId, "categories", "income"), incomeGroups),
+        setDoc(doc(firestore, "users", userId, "categories", "expense"), {
+          label: "รายจ่าย",
+          type: "expense",
+          main_categories: expenseGroups,
+        }),
+        setDoc(doc(firestore, "users", userId, "categories", "income"), {
+          label: "รายรับ",
+          type: "income",
+          main_categories: incomeGroups,
+        }),
       ]);
       toast({ title: "บันทึกสำเร็จ", description: "อัปเดตหมวดหมู่เรียบร้อย" });
     } catch (err: any) {
