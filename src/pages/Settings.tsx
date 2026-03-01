@@ -775,7 +775,18 @@ const CategorySettings = () => {
                       <div
                         ref={provided.innerRef}
                         {...provided.draggableProps}
-                        className={`flex items-center justify-between py-1 px-2 rounded hover:bg-muted/30 transition-colors group ${snapshot.isDragging ? "bg-muted shadow-md" : ""}`}
+                        style={{
+                          ...provided.draggableProps.style,
+                          transition: snapshot.isDropAnimating
+                            ? "all 0.25s cubic-bezier(0.2, 0, 0, 1)"
+                            : provided.draggableProps.style?.transition,
+                        }}
+                        className={cn(
+                          "flex items-center justify-between py-1 px-2 rounded transition-all duration-200 group",
+                          snapshot.isDragging
+                            ? "bg-primary/10 shadow-md scale-[1.02] ring-1 ring-primary/20"
+                            : "hover:bg-muted/30"
+                        )}
                       >
                         {editingSub === sub ? (
                           <div className="flex items-center gap-1 flex-1">
@@ -885,7 +896,16 @@ const CategorySettings = () => {
                         <Draggable key={`exp-${group}`} draggableId={`exp-${group}`} index={idx}>
                           {(provided, snapshot) => (
                             <div ref={provided.innerRef} {...provided.draggableProps}
-                              className={snapshot.isDragging ? "bg-muted rounded-md shadow-md" : ""}>
+                              style={{
+                                ...provided.draggableProps.style,
+                                transition: snapshot.isDropAnimating
+                                  ? "all 0.25s cubic-bezier(0.2, 0, 0, 1)"
+                                  : provided.draggableProps.style?.transition,
+                              }}
+                              className={cn(
+                                "rounded-md transition-all duration-200",
+                                snapshot.isDragging ? "bg-primary/5 shadow-lg scale-[1.01] ring-1 ring-primary/20" : ""
+                              )}>
                               <CategoryGroup type="expense" groupName={group} subs={subs} dragHandleProps={provided.dragHandleProps} />
                             </div>
                           )}
@@ -940,7 +960,16 @@ const CategorySettings = () => {
                         <Draggable key={`inc-${group}`} draggableId={`inc-${group}`} index={idx}>
                           {(provided, snapshot) => (
                             <div ref={provided.innerRef} {...provided.draggableProps}
-                              className={snapshot.isDragging ? "bg-muted rounded-md shadow-md" : ""}>
+                              style={{
+                                ...provided.draggableProps.style,
+                                transition: snapshot.isDropAnimating
+                                  ? "all 0.25s cubic-bezier(0.2, 0, 0, 1)"
+                                  : provided.draggableProps.style?.transition,
+                              }}
+                              className={cn(
+                                "rounded-md transition-all duration-200",
+                                snapshot.isDragging ? "bg-primary/5 shadow-lg scale-[1.01] ring-1 ring-primary/20" : ""
+                              )}>
                               <CategoryGroup type="income" groupName={group} subs={subs} dragHandleProps={provided.dragHandleProps} />
                             </div>
                           )}
