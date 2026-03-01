@@ -34,7 +34,7 @@ import {
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
-  AreaChart, Area,
+  AreaChart, Area, LineChart, Line, ReferenceLine,
 } from "recharts";
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, PieChart as PieIcon } from "lucide-react";
 import { useEffect } from "react";
@@ -98,11 +98,13 @@ const Analysis = () => {
         const idx = parseInt(mm, 10) - 1;
         const income = mData.transactions.filter((t) => t.type === "รายรับ").reduce((s, t) => s + t.amount, 0);
         const expense = mData.transactions.filter((t) => t.type !== "รายรับ").reduce((s, t) => s + t.amount, 0);
+        const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
         return {
           name: THAI_SHORT[idx] || month,
           รายรับ: income,
           รายจ่าย: expense,
           คงเหลือ: income - expense,
+          อัตราการออม: Math.round(savingsRate * 10) / 10,
         };
       });
   }, [yearlyData]);
@@ -445,6 +447,39 @@ const Analysis = () => {
                             <Bar dataKey="รายจ่าย" fill="hsl(0 72% 51%)" radius={[4, 4, 0, 0]} barSize={20} />
                             <Bar dataKey="คงเหลือ" fill="hsl(166 72% 56%)" radius={[4, 4, 0, 0]} barSize={20} />
                           </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Savings Rate Trend */}
+                {monthlyComparison.length > 1 && (
+                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "620ms" }}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base font-semibold">แนวโน้มอัตราการออมรายเดือน (%)</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-2 sm:px-6">
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={monthlyComparison} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 90%)" />
+                            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                            <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${v}%`} />
+                            <Tooltip
+                              formatter={(value: number) => `${value.toFixed(1)}%`}
+                              contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "12px" }}
+                            />
+                            <ReferenceLine y={0} stroke="hsl(0 72% 51%)" strokeDasharray="4 4" strokeOpacity={0.6} />
+                            <Line
+                              type="monotone"
+                              dataKey="อัตราการออม"
+                              stroke="hsl(166 72% 56%)"
+                              strokeWidth={2.5}
+                              dot={{ r: 5, fill: "hsl(166 72% 56%)", stroke: "white", strokeWidth: 2 }}
+                              activeDot={{ r: 7 }}
+                            />
+                          </LineChart>
                         </ResponsiveContainer>
                       </div>
                     </CardContent>
