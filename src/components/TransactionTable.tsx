@@ -194,20 +194,6 @@ export function TransactionTable({ data }: Props) {
     URL.revokeObjectURL(url);
   };
 
-  const exportExcel = async () => {
-    const { utils, writeFile } = await import("xlsx");
-    const rows = filtered.map((t) => ({
-      "วันที่": t.date,
-      "ประเภท": t.type,
-      "หมวดหมู่": t.category,
-      "รายละเอียด": t.description || "",
-      "จำนวน": t.type === "รายรับ" ? t.amount : -t.amount,
-    }));
-    const ws = utils.json_to_sheet(rows);
-    const wb = utils.book_new();
-    utils.book_append_sheet(wb, ws, "รายการธุรกรรม");
-    writeFile(wb, `transactions_${new Date().toISOString().slice(0, 10)}.xlsx`);
-  };
 
   const headerClass = "text-sm cursor-pointer select-none hover:text-foreground transition-colors";
 
@@ -278,9 +264,6 @@ export function TransactionTable({ data }: Props) {
                 <PopoverContent className="w-40 p-2" align="end">
                   <Button variant="ghost" size="sm" className="w-full justify-start text-xs" onClick={exportCSV}>
                     📄 CSV
-                  </Button>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-xs" onClick={exportExcel}>
-                    📊 Excel (.xlsx)
                   </Button>
                 </PopoverContent>
               </Popover>
