@@ -27,15 +27,19 @@ export function ExpenseChart({ data }: Props) {
 
   const chartData = data.expenses.general
     .filter((item) => item.budget > 0 || (actualByCategory[item.label] || 0) > 0)
-    .map((item) => ({
-      name: item.label,
-      "งบประมาณ": item.budget,
-      "ใช้จริง": actualByCategory[item.label] || 0,
-    }));
+    .map((item) => {
+      const actual = actualByCategory[item.label] || 0;
+      return {
+        name: item.label,
+        "งบประมาณ": item.budget,
+        "ใช้จริง": actual,
+        overBudget: actual > item.budget && item.budget > 0,
+      };
+    });
 
   const formatValue = (v: number) => {
-    if (v >= 1000) return `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k`;
-    return String(v);
+    if (v >= 1000) return `${(v / 1000).toFixed(2)}k`;
+    return v.toFixed(2);
   };
 
   return (
@@ -84,7 +88,13 @@ export function ExpenseChart({ data }: Props) {
                   style={{ fill: "white", fontSize: 10, fontWeight: 600 }}
                 />
               </Bar>
-              <Bar dataKey="ใช้จริง" fill="hsl(166 72% 56%)" radius={[0, 4, 4, 0]} barSize={14}>
+              <Bar dataKey="ใช้จริง" radius={[0, 4, 4, 0]} barSize={14}>
+                {chartData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.overBudget ? "hsl(0 72% 51%)" : "hsl(166 72% 56%)"}
+                  />
+                ))}
                 <LabelList
                   dataKey="ใช้จริง"
                   position="insideRight"
