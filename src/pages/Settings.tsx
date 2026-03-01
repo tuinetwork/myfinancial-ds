@@ -3,6 +3,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { collection, doc, getDoc, getDocs, updateDoc, setDoc, query, where } from "firebase/firestore";
+import { cn } from "@/lib/utils";
 import { firestore } from "@/lib/firebase";
 import { useAvailableMonths, createBudgetFromLatest } from "@/hooks/useBudgetData";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -761,8 +762,13 @@ const CategorySettings = () => {
         </div>
         <CollapsibleContent>
           <Droppable droppableId={`subs-${type}-${groupName}`} type="subs">
-            {(provided) => (
-              <div ref={provided.innerRef} {...provided.droppableProps} className="ml-10 border-l border-border pl-3 space-y-1 py-1">
+            {(provided, snapshot) => (
+              <div ref={provided.innerRef} {...provided.droppableProps} className={cn(
+                "ml-10 border-l-2 pl-3 space-y-1 py-1 rounded-r-md transition-all duration-200",
+                snapshot.isDraggingOver
+                  ? "border-primary/60 bg-primary/5"
+                  : "border-border"
+              )}>
                 {subs.map((sub, subIdx) => (
                   <Draggable key={sub} draggableId={`${type}-${groupName}-${sub}`} index={subIdx}>
                     {(provided, snapshot) => (
