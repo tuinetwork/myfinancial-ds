@@ -1,6 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
 import { ArrowUpRight, ArrowDownRight, Clock } from "lucide-react";
 
@@ -17,6 +16,26 @@ export function RecentTransactions({ data }: Props) {
       })
       .slice(0, 5);
   }, [data.transactions]);
+
+  // Track previous IDs to detect new entries
+  const prevIdsRef = useRef<Set<string>>(new Set());
+  const [newIds, setNewIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const currentIds = new Set(recent.map((t) => t.id));
+    const freshIds = new Set<string>();
+    currentIds.forEach((id) => {
+      if (prevIdsRef.current.size > 0 && !prevIdsRef.current.has(id)) {
+        freshIds.add(id);
+      }
+    });
+    prevIdsRef.current = currentIds;
+    if (freshIds.size > 0) {
+      setNewIds(freshIds);
+      const timer = setTimeout(() => setNewIds(new Set()), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [recent]);
 
   const formatDate = (dateStr: string) => {
     const parts = dateStr.split("-");
@@ -40,10 +59,13 @@ export function RecentTransactions({ data }: Props) {
         ) : (
           recent.map((t, i) => {
             const isIncome = t.type === "รายรับ";
+            const isNew = newIds.has(t.id);
             return (
               <div
-                key={`${t.date}-${t.category}-${i}`}
-                className="flex items-center gap-3 py-2.5 border-b border-border/50 last:border-0"
+                key={t.id}
+                className={`flex items-center gap-3 py-2.5 border-b border-border/50 last:border-0 transition-all duration-300 ${
+                  isNew ? "animate-fade-in bg-primary/5 rounded-lg" : ""
+                }`}
               >
                 <div className={`shrink-0 p-1.5 rounded-lg ${isIncome ? "bg-income/10" : "bg-expense/10"}`}>
                   {isIncome ? (
