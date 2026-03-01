@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
+import { AppFooter } from "@/components/AppFooter";
 import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
 import { useYearlyData } from "@/hooks/useYearlyData";
 import { SummaryCards } from "@/components/SummaryCards";
@@ -203,6 +204,7 @@ const Index = () => {
             ) : null}
           </div>
         </main>
+        <AppFooter />
       </div>
     </>
   );
