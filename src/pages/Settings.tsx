@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,9 +35,10 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   LogOut, User, Mail, Shield, ChevronRight, ChevronDown,
-  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target,
+  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 
 // ─── Sub-menu tabs ───
 type SettingsTab = "budget" | "categories" | "savings" | "user";
@@ -643,14 +644,50 @@ const CategorySettings = () => {
     }));
   };
 
+  // Reorder helpers
+  const reorderGroups = useCallback((type: "income" | "expense", fromIndex: number, toIndex: number) => {
+    const setter = type === "income" ? setIncomeGroups : setExpenseGroups;
+    setter((prev) => {
+      const entries = Object.entries(prev);
+      const [moved] = entries.splice(fromIndex, 1);
+      entries.splice(toIndex, 0, moved);
+      return Object.fromEntries(entries);
+    });
+  }, []);
+
+  const reorderSubs = useCallback((type: "income" | "expense", group: string, fromIndex: number, toIndex: number) => {
+    const setter = type === "income" ? setIncomeGroups : setExpenseGroups;
+    setter((prev) => {
+      const subs = [...prev[group]];
+      const [moved] = subs.splice(fromIndex, 1);
+      subs.splice(toIndex, 0, moved);
+      return { ...prev, [group]: subs };
+    });
+  }, []);
+
+  const handleDragEnd = useCallback((type: "income" | "expense") => (result: DropResult) => {
+    if (!result.destination) return;
+    const { source, destination, type: dragType } = result;
+    if (source.index === destination.index) return;
+    if (dragType === "group") {
+      reorderGroups(type, source.index, destination.index);
+    } else {
+      // dragType is like "subs-groupName"
+      const group = dragType.replace("subs-", "");
+      reorderSubs(type, group, source.index, destination.index);
+    }
+  }, [reorderGroups, reorderSubs]);
+
   const CategoryGroup = ({
     type,
     groupName,
     subs,
+    dragHandleProps,
   }: {
     type: "income" | "expense";
     groupName: string;
     subs: string[];
+    dragHandleProps?: any;
   }) => {
     const [open, setOpen] = useState(true);
     const [editingGroup, setEditingGroup] = useState(false);
@@ -661,8 +698,11 @@ const CategorySettings = () => {
     return (
       <Collapsible open={open} onOpenChange={setOpen}>
         <div className="flex items-center gap-1">
+          <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground hover:text-foreground">
+            <GripVertical className="h-4 w-4" />
+          </div>
           {editingGroup ? (
-            <div className="flex items-center gap-1 flex-1 px-3 py-1">
+            <div className="flex items-center gap-1 flex-1 px-1 py-1">
               <Input
                 value={groupDraft}
                 onChange={(e) => setGroupDraft(e.target.value)}
@@ -681,7 +721,7 @@ const CategorySettings = () => {
               </Button>
             </div>
           ) : (
-            <CollapsibleTrigger className="flex items-center gap-2 flex-1 px-3 py-2 rounded-md hover:bg-muted/50 transition-colors text-sm font-medium">
+            <CollapsibleTrigger className="flex items-center gap-2 flex-1 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors text-sm font-medium">
               {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
               <FolderTree className="h-4 w-4 text-primary" />
               <span>{groupName}</span>
@@ -689,106 +729,99 @@ const CategorySettings = () => {
             </CollapsibleTrigger>
           )}
           {!editingGroup && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-primary shrink-0"
-              onClick={() => { setGroupDraft(groupName); setEditingGroup(true); }}
-            >
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary shrink-0"
+              onClick={() => { setGroupDraft(groupName); setEditingGroup(true); }}>
               <Pencil className="h-3.5 w-3.5" />
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
-            onClick={() => removeGroup(type, groupName)}
-          >
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+            onClick={() => removeGroup(type, groupName)}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
         <CollapsibleContent>
-          <div className="ml-10 border-l border-border pl-3 space-y-1 py-1">
-            {subs.map((sub) => (
-              <div key={sub} className="flex items-center justify-between py-1 px-2 rounded hover:bg-muted/30 transition-colors group">
-                {editingSub === sub ? (
-                  <div className="flex items-center gap-1 flex-1">
-                    <Input
-                      value={subDraft}
-                      onChange={(e) => setSubDraft(e.target.value)}
-                      className="h-7 text-sm flex-1"
-                      autoFocus
+          <Droppable droppableId={`subs-${type}-${groupName}`} type={`subs-${groupName}`}>
+            {(provided) => (
+              <div ref={provided.innerRef} {...provided.droppableProps} className="ml-10 border-l border-border pl-3 space-y-1 py-1">
+                {subs.map((sub, subIdx) => (
+                  <Draggable key={sub} draggableId={`${type}-${groupName}-${sub}`} index={subIdx}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        className={`flex items-center justify-between py-1 px-2 rounded hover:bg-muted/30 transition-colors group ${snapshot.isDragging ? "bg-muted shadow-md" : ""}`}
+                      >
+                        {editingSub === sub ? (
+                          <div className="flex items-center gap-1 flex-1">
+                            <Input value={subDraft} onChange={(e) => setSubDraft(e.target.value)}
+                              className="h-7 text-sm flex-1" autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") { renameSubCategory(type, groupName, sub, subDraft); setEditingSub(null); }
+                                if (e.key === "Escape") setEditingSub(null);
+                              }}
+                            />
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { renameSubCategory(type, groupName, sub, subDraft); setEditingSub(null); }}>
+                              <Check className="h-3 w-3 text-green-600" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingSub(null)}>
+                              <X className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground">
+                                <GripVertical className="h-3 w-3" />
+                              </div>
+                              <Tag className="h-3 w-3" />
+                              {sub}
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                              <Button variant="ghost" size="icon"
+                                className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
+                                onClick={() => { setSubDraft(sub); setEditingSub(sub); }}>
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon"
+                                className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                                onClick={() => removeSubCategory(type, groupName, sub)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+
+                {addingTo?.type === type && addingTo?.group === groupName ? (
+                  <div className="flex items-center gap-1 px-2 py-1">
+                    <Input value={newSubName} onChange={(e) => setNewSubName(e.target.value)}
+                      placeholder="ชื่อหมวดหมู่ย่อย" className="h-8 text-sm flex-1" autoFocus
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") { renameSubCategory(type, groupName, sub, subDraft); setEditingSub(null); }
-                        if (e.key === "Escape") setEditingSub(null);
+                        if (e.key === "Enter") addSubCategory(type, groupName, newSubName);
+                        if (e.key === "Escape") { setAddingTo(null); setNewSubName(""); }
                       }}
                     />
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { renameSubCategory(type, groupName, sub, subDraft); setEditingSub(null); }}>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addSubCategory(type, groupName, newSubName)}>
                       <Check className="h-3 w-3 text-green-600" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingSub(null)}>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingTo(null); setNewSubName(""); }}>
                       <X className="h-3 w-3 text-destructive" />
                     </Button>
                   </div>
                 ) : (
-                  <>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Tag className="h-3 w-3" />
-                      {sub}
-                    </div>
-                    <div className="flex items-center gap-0.5">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
-                        onClick={() => { setSubDraft(sub); setEditingSub(sub); }}
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                        onClick={() => removeSubCategory(type, groupName, sub)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </>
+                  <button className="flex items-center gap-2 px-2 py-1 text-sm text-primary hover:text-primary/80 transition-colors"
+                    onClick={() => { setAddingTo({ type, group: groupName }); setNewSubName(""); }}>
+                    <Plus className="h-3 w-3" />
+                    เพิ่มหมวดหมู่ย่อย
+                  </button>
                 )}
               </div>
-            ))}
-
-            {addingTo?.type === type && addingTo?.group === groupName ? (
-              <div className="flex items-center gap-1 px-2 py-1">
-                <Input
-                  value={newSubName}
-                  onChange={(e) => setNewSubName(e.target.value)}
-                  placeholder="ชื่อหมวดหมู่ย่อย"
-                  className="h-8 text-sm flex-1"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") addSubCategory(type, groupName, newSubName);
-                    if (e.key === "Escape") { setAddingTo(null); setNewSubName(""); }
-                  }}
-                />
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addSubCategory(type, groupName, newSubName)}>
-                  <Check className="h-3 w-3 text-green-600" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingTo(null); setNewSubName(""); }}>
-                  <X className="h-3 w-3 text-destructive" />
-                </Button>
-              </div>
-            ) : (
-              <button
-                className="flex items-center gap-2 px-2 py-1 text-sm text-primary hover:text-primary/80 transition-colors"
-                onClick={() => { setAddingTo({ type, group: groupName }); setNewSubName(""); }}
-              >
-                <Plus className="h-3 w-3" />
-                เพิ่มหมวดหมู่ย่อย
-              </button>
             )}
-          </div>
+          </Droppable>
         </CollapsibleContent>
       </Collapsible>
     );
@@ -818,18 +851,30 @@ const CategorySettings = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1">
-                {Object.entries(expenseGroups).map(([group, subs]) => (
-                  <CategoryGroup key={`exp-${group}`} type="expense" groupName={group} subs={subs} />
-                ))}
+              <DragDropContext onDragEnd={handleDragEnd("expense")}>
+                <Droppable droppableId="expense-groups" type="group">
+                  {(provided) => (
+                    <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-1">
+                      {Object.entries(expenseGroups).map(([group, subs], idx) => (
+                        <Draggable key={`exp-${group}`} draggableId={`exp-${group}`} index={idx}>
+                          {(provided, snapshot) => (
+                            <div ref={provided.innerRef} {...provided.draggableProps}
+                              className={snapshot.isDragging ? "bg-muted rounded-md shadow-md" : ""}>
+                              <CategoryGroup type="expense" groupName={group} subs={subs} dragHandleProps={provided.dragHandleProps} />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
 
                 {addingGroupType === "expense" ? (
                   <div className="flex items-center gap-1 px-3 py-2">
-                    <Input
-                      value={newGroupName}
-                      onChange={(e) => setNewGroupName(e.target.value)}
-                      placeholder="ชื่อกลุ่มรายจ่าย"
-                      className="h-8 text-sm flex-1"
-                      autoFocus
+                    <Input value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)}
+                      placeholder="ชื่อกลุ่มรายจ่าย" className="h-8 text-sm flex-1" autoFocus
                       onKeyDown={(e) => {
                         if (e.key === "Enter") addGroup("expense", newGroupName);
                         if (e.key === "Escape") { setAddingGroupType(null); setNewGroupName(""); }
@@ -843,10 +888,8 @@ const CategorySettings = () => {
                     </Button>
                   </div>
                 ) : (
-                  <button
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:text-primary/80 transition-colors"
-                    onClick={() => { setAddingGroupType("expense"); setNewGroupName(""); }}
-                  >
+                  <button className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                    onClick={() => { setAddingGroupType("expense"); setNewGroupName(""); }}>
                     <Plus className="h-4 w-4" />
                     เพิ่มกลุ่มรายจ่าย
                   </button>
@@ -863,18 +906,30 @@ const CategorySettings = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1">
-                {Object.entries(incomeGroups).map(([group, subs]) => (
-                  <CategoryGroup key={`inc-${group}`} type="income" groupName={group} subs={subs} />
-                ))}
+              <DragDropContext onDragEnd={handleDragEnd("income")}>
+                <Droppable droppableId="income-groups" type="group">
+                  {(provided) => (
+                    <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-1">
+                      {Object.entries(incomeGroups).map(([group, subs], idx) => (
+                        <Draggable key={`inc-${group}`} draggableId={`inc-${group}`} index={idx}>
+                          {(provided, snapshot) => (
+                            <div ref={provided.innerRef} {...provided.draggableProps}
+                              className={snapshot.isDragging ? "bg-muted rounded-md shadow-md" : ""}>
+                              <CategoryGroup type="income" groupName={group} subs={subs} dragHandleProps={provided.dragHandleProps} />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
 
                 {addingGroupType === "income" ? (
                   <div className="flex items-center gap-1 px-3 py-2">
-                    <Input
-                      value={newGroupName}
-                      onChange={(e) => setNewGroupName(e.target.value)}
-                      placeholder="ชื่อกลุ่มรายรับ"
-                      className="h-8 text-sm flex-1"
-                      autoFocus
+                    <Input value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)}
+                      placeholder="ชื่อกลุ่มรายรับ" className="h-8 text-sm flex-1" autoFocus
                       onKeyDown={(e) => {
                         if (e.key === "Enter") addGroup("income", newGroupName);
                         if (e.key === "Escape") { setAddingGroupType(null); setNewGroupName(""); }
@@ -888,10 +943,8 @@ const CategorySettings = () => {
                     </Button>
                   </div>
                 ) : (
-                  <button
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:text-primary/80 transition-colors"
-                    onClick={() => { setAddingGroupType("income"); setNewGroupName(""); }}
-                  >
+                  <button className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                    onClick={() => { setAddingGroupType("income"); setNewGroupName(""); }}>
                     <Plus className="h-4 w-4" />
                     เพิ่มกลุ่มรายรับ
                   </button>
