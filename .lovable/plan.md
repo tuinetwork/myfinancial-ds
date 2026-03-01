@@ -1,21 +1,33 @@
 
 
-## Plan: ใช้ Custom Document ID แบบ sequential สำหรับ transactions
+## Plan: Refactor Category Settings to use `categories` collection
 
-### แนวทาง
-แทนที่จะใช้ `addDoc` (สร้าง ID อัตโนมัติ) → ใช้ `setDoc` กับ `doc()` ที่ระบุ ID เอง โดย query transactions ที่มี `month_year` ตรงกัน หา ID ล่าสุดแล้ว +1
+Currently, the Category Settings tab reads category data from the `budgets` collection (extracting keys from `income_estimates` and `expense_budgets`). The user wants it to read/write from the dedicated `categories` collection instead.
 
-### ขั้นตอน
+### Firestore Structure (from screenshot)
+```text
+users/{uid}/categories/
+  ├── expense    → { "กลุ่ม1": ["sub1","sub2"], ... }
+  ├── income     → { "กลุ่ม1": ["sub1","sub2"], ... }
+```
 
-1. **แก้ `AddTransactionFAB.tsx`** - เพิ่มฟังก์ชัน `getNextTransactionId`:
-   - Query transactions collection กรอง `month_year` ตรงกับเดือนที่เลือก
-   - หา document ID ที่ขึ้นต้นด้วย `YYYY-MM-tx-` แล้วดึงเลขลำดับสูงสุด
-   - สร้าง ID ถัดไป เช่น `2026-02-tx-085` (pad 3 หลัก)
+### Changes to `src/pages/Settings.tsx` — `CategorySettings` component
 
-2. **เปลี่ยน `addDoc` → `setDoc`** พร้อมใช้ `doc(collection, customId)`
-   - Import `setDoc`, `doc`, `query`, `where` เพิ่ม
-   - ใช้ ID ที่ generate ได้เป็น document ID
+1. **Remove period/month/year selection** — Categories are global, not per-month, so remove the month/year dropdowns and related state/logic.
 
-### รูปแบบ ID
-`{YYYY}-{MM}-tx-{NNN}` เช่น `2026-02-tx-085`, `2026-03-tx-001`
+2. **Change data fetching** — Instead of reading from `budgets/{period}`, read two documents:
+   - `users/{uid}/categories/expense` → groups with sub-category arrays
+   - `users/{uid}/categories/income` → groups with sub-category arrays
+
+3. **Change save logic** — Write directly to `categories/expense` and `categories/income` documents using `setDoc` (with merge) instead of updating budget documents.
+
+4. **Keep existing UI** — The two-column layout (expense left, income right) with collapsible groups, add/remove sub-categories, add/remove groups remains the same.
+
+5. **Fix existing bug** — The income group "เพิ่มกลุ่มรายจ่าย" button currently calls `addGroup("expense", ...)` instead of `addGroup("income", ...)`. This will be fixed.
+
+### Technical Details
+
+- Import `setDoc` from `firebase/firestore` (already have `updateDoc`, `getDoc`, `doc`)
+- Data shape from Firestore: each document field is a group name with value being an array of sub-category strings: `Record<string, string[]>`
+- On save: `setDoc(doc(firestore, "users", userId, "categories", "expense"), expenseGroups)` and same for income
 
