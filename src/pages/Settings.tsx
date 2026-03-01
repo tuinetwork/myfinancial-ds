@@ -79,21 +79,17 @@ const EditableAmount = ({
 
   return (
     <div className="flex items-center gap-1">
-      <div className="flex items-center border border-input rounded-md overflow-hidden w-36">
-        <span className="px-2 py-1 bg-muted text-muted-foreground text-xs border-r border-input">฿</span>
-        <Input
-          type="number"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          className="h-7 text-xs text-right border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
-          autoFocus
-          onKeyDown={(e) => {
-            if (e.key === "Enter") { onSave(Number(draft) || 0); setEditing(false); }
-            if (e.key === "Escape") setEditing(false);
-          }}
-        />
-        <span className="px-2 py-1 bg-muted text-muted-foreground text-xs border-l border-input">.00</span>
-      </div>
+      <Input
+        type="number"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        className="h-7 w-28 text-xs [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+        autoFocus
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { onSave(Number(draft) || 0); setEditing(false); }
+          if (e.key === "Escape") setEditing(false);
+        }}
+      />
       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { onSave(Number(draft) || 0); setEditing(false); }}>
         <Check className="h-3 w-3 text-green-600" />
       </Button>
@@ -217,16 +213,12 @@ const BudgetTable = ({
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="px-3 py-2.5 text-muted-foreground">{sub}</td>
                     <td className="px-3 py-2.5 text-right">
-                      <div className="flex items-center border border-input rounded-md overflow-hidden ml-auto w-36">
-                        <span className="px-2 py-1.5 bg-muted text-muted-foreground text-sm border-r border-input">฿</span>
-                        <Input
-                          type="number"
-                          value={amount}
-                          onChange={(e) => onAmountChange(selectedCategory, sub, Number(e.target.value) || 0)}
-                          className="h-8 text-sm text-right border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
-                        <span className="px-2 py-1.5 bg-muted text-muted-foreground text-sm border-l border-input">.00</span>
-                      </div>
+                      <Input
+                        type="number"
+                        value={amount}
+                        onChange={(e) => onAmountChange(selectedCategory, sub, Number(e.target.value) || 0)}
+                        className="h-8 w-28 text-sm text-right ml-auto [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      />
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       {actual > 0 ? fmt(actual) : "-"}
