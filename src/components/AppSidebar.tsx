@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { LayoutDashboard, Receipt, Wallet, Settings, ChevronDown, ChevronRight, CalendarDays, BarChart3, DollarSign, Tags, Target } from "lucide-react";
+import { LayoutDashboard, Receipt, Wallet, Settings, ChevronDown, ChevronRight, ChevronUp, CalendarDays, BarChart3, DollarSign, Tags, Target } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -215,8 +215,8 @@ export function AppSidebar() {
               </div>
               {!collapsed && (
                 settingsOpen
-                  ? <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/50" />
-                  : <ChevronRight className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+                  ? <ChevronUp className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+                  : <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/50" />
               )}
             </SidebarMenuButton>
           </CollapsibleTrigger>
