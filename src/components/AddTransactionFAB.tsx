@@ -100,6 +100,9 @@ const AddTransactionFAB = () => {
     return `${prefix}${String(maxNum + 1).padStart(3, "0")}`;
   };
 
+  const MAX_AMOUNT = 9_999_999.99;
+  const MAX_NOTE_LENGTH = 500;
+
   const handleSave = async () => {
     if (!userId) return;
     const numAmount = parseFloat(amount);
@@ -107,8 +110,32 @@ const AddTransactionFAB = () => {
       toast.error("กรุณากรอกจำนวนเงิน");
       return;
     }
+    if (numAmount > MAX_AMOUNT) {
+      toast.error(`จำนวนเงินต้องไม่เกิน ${MAX_AMOUNT.toLocaleString()} บาท`);
+      return;
+    }
     if (!subCategory) {
       toast.error("กรุณาเลือกหมวดหมู่");
+      return;
+    }
+    if (!mainCategory) {
+      toast.error("กรุณาเลือกกลุ่มหมวดหมู่");
+      return;
+    }
+    const trimmedNote = note.trim();
+    if (trimmedNote.length > MAX_NOTE_LENGTH) {
+      toast.error(`บันทึกต้องไม่เกิน ${MAX_NOTE_LENGTH} ตัวอักษร`);
+      return;
+    }
+    // Validate date range (not future, not older than 5 years)
+    const now = new Date();
+    const fiveYearsAgo = new Date(now.getFullYear() - 5, 0, 1);
+    if (date > now) {
+      toast.error("ไม่สามารถเลือกวันที่ในอนาคตได้");
+      return;
+    }
+    if (date < fiveYearsAgo) {
+      toast.error("วันที่ย้อนหลังได้ไม่เกิน 5 ปี");
       return;
     }
 
@@ -125,7 +152,7 @@ const AddTransactionFAB = () => {
         month_year: monthYear,
         main_category: mainCategory,
         sub_category: subCategory,
-        note: note.trim(),
+        note: trimmedNote,
         created_at: Date.now(),
       });
 
@@ -293,12 +320,18 @@ const AddTransactionFAB = () => {
             )}
 
             {/* Note */}
-            <Textarea
-              placeholder="บันทึกเพิ่มเติม..."
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="resize-none border-border min-h-[72px]"
-            />
+            <div className="relative">
+              <Textarea
+                placeholder="บันทึกเพิ่มเติม..."
+                value={note}
+                onChange={(e) => setNote(e.target.value.slice(0, MAX_NOTE_LENGTH))}
+                className="resize-none border-border min-h-[72px]"
+                maxLength={MAX_NOTE_LENGTH}
+              />
+              <span className="absolute bottom-1 right-2 text-[10px] text-muted-foreground">
+                {note.length}/{MAX_NOTE_LENGTH}
+              </span>
+            </div>
 
             {/* Submit */}
             <Button

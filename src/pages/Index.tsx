@@ -40,9 +40,10 @@ const Index = () => {
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | undefined>(undefined);
 
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzMCHgFjgZWUeofgJtHrXYw_CCqXwwaqlETICZERyqGt9Kg-L7wfx2q8g4hNOaQl6Mu/exec";
+  const APPS_SCRIPT_URL = import.meta.env.VITE_APPS_SCRIPT_URL || "";
 
   const sendMonthToSheet = (month: string) => {
+    if (!APPS_SCRIPT_URL) return;
     fetch(APPS_SCRIPT_URL, {
       method: "POST",
       mode: "no-cors",

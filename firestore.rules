@@ -20,8 +20,24 @@ service cloud.firestore {
       // อนุญาตให้อ่านและเขียน Document Profile ของตัวเองได้
       allow read, write: if isOwner(userId);
 
-      // กฎสำหรับ Subcollection ทั้งหมด (categories, budgets, transactions)
-      // ที่อยู่ภายใต้ userId นี้
+      // กฎสำหรับ transactions - เพิ่ม input validation ฝั่ง server
+      match /transactions/{txId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.amount is number
+          && request.resource.data.amount > 0
+          && request.resource.data.amount < 10000000
+          && request.resource.data.note is string
+          && request.resource.data.note.size() <= 500
+          && request.resource.data.date is string
+          && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && request.resource.data.type in ['expense', 'income']
+          && request.resource.data.main_category is string
+          && request.resource.data.sub_category is string;
+        allow update, delete: if isOwner(userId);
+      }
+
+      // กฎสำหรับ Subcollection อื่นๆ (categories, budgets)
       match /{document=**} {
         allow read, write: if isOwner(userId);
       }
