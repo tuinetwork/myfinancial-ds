@@ -199,31 +199,8 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-3 border-t border-sidebar-border">
-        <div className="flex items-center gap-2">
-          <Avatar className="h-8 w-8 shrink-0">
-            <AvatarImage src={photoURL} alt={displayName} />
-            <AvatarFallback className="text-xs bg-primary/10 text-primary">{initials}</AvatarFallback>
-          </Avatar>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-sidebar-foreground truncate">{displayName}</p>
-              <p className="text-[10px] text-muted-foreground truncate">{email}</p>
-            </div>
-          )}
-          {!collapsed && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-              onClick={signOut}
-              title="ออกจากระบบ"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-            </Button>
-          )}
-        </div>
-      </SidebarFooter>
+
+
     </Sidebar>
   );
 }
