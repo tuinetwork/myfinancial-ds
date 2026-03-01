@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { LayoutDashboard, Receipt, Wallet, Settings, ChevronDown, ChevronRight, ChevronUp, CalendarDays, BarChart3, DollarSign, Tags, Target } from "lucide-react";
+import { LayoutDashboard, Receipt, Wallet, Settings, ChevronDown, ChevronRight, ChevronUp, CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -36,6 +36,7 @@ const mainMenuItems: MenuItem[] = [
     children: [
       { title: "รายเดือน", url: "/?view=monthly", icon: CalendarDays },
       { title: "รายปี", url: "/?view=yearly", icon: BarChart3 },
+      { title: "วิเคราะห์", url: "/analysis", icon: PieChart },
     ],
   },
   { title: "รายการธุรกรรม", url: "/transactions", icon: Receipt },
@@ -53,7 +54,7 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isDashboardActive = location.pathname === "/";
+  const isDashboardActive = location.pathname === "/" || location.pathname === "/analysis";
   const isSettingsActive = location.pathname.startsWith("/settings");
   const [dashboardOpen, setDashboardOpen] = useState(isDashboardActive);
   const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
