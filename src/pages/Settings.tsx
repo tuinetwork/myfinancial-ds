@@ -614,6 +614,26 @@ const CategorySettings = () => {
     }
   };
 
+  const renameGroup = (type: "income" | "expense", oldName: string, newName: string) => {
+    if (!newName.trim() || newName.trim() === oldName) return;
+    const setter = type === "income" ? setIncomeGroups : setExpenseGroups;
+    setter((prev) => {
+      const entries = Object.entries(prev).map(([k, v]) =>
+        k === oldName ? [newName.trim(), v] : [k, v]
+      );
+      return Object.fromEntries(entries);
+    });
+  };
+
+  const renameSubCategory = (type: "income" | "expense", group: string, oldSub: string, newSub: string) => {
+    if (!newSub.trim() || newSub.trim() === oldSub) return;
+    const setter = type === "income" ? setIncomeGroups : setExpenseGroups;
+    setter((prev) => ({
+      ...prev,
+      [group]: prev[group].map((s) => (s === oldSub ? newSub.trim() : s)),
+    }));
+  };
+
   const CategoryGroup = ({
     type,
     groupName,
@@ -624,15 +644,51 @@ const CategorySettings = () => {
     subs: string[];
   }) => {
     const [open, setOpen] = useState(true);
+    const [editingGroup, setEditingGroup] = useState(false);
+    const [groupDraft, setGroupDraft] = useState(groupName);
+    const [editingSub, setEditingSub] = useState<string | null>(null);
+    const [subDraft, setSubDraft] = useState("");
+
     return (
       <Collapsible open={open} onOpenChange={setOpen}>
         <div className="flex items-center gap-1">
-          <CollapsibleTrigger className="flex items-center gap-2 flex-1 px-3 py-2 rounded-md hover:bg-muted/50 transition-colors text-sm font-medium">
-            {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-            <FolderTree className="h-4 w-4 text-primary" />
-            <span>{groupName}</span>
-            <span className="text-sm text-muted-foreground ml-auto mr-2">{subs.length} รายการ</span>
-          </CollapsibleTrigger>
+          {editingGroup ? (
+            <div className="flex items-center gap-1 flex-1 px-3 py-1">
+              <Input
+                value={groupDraft}
+                onChange={(e) => setGroupDraft(e.target.value)}
+                className="h-8 text-sm flex-1"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { renameGroup(type, groupName, groupDraft); setEditingGroup(false); }
+                  if (e.key === "Escape") { setEditingGroup(false); setGroupDraft(groupName); }
+                }}
+              />
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { renameGroup(type, groupName, groupDraft); setEditingGroup(false); }}>
+                <Check className="h-3 w-3 text-green-600" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditingGroup(false); setGroupDraft(groupName); }}>
+                <X className="h-3 w-3 text-destructive" />
+              </Button>
+            </div>
+          ) : (
+            <CollapsibleTrigger className="flex items-center gap-2 flex-1 px-3 py-2 rounded-md hover:bg-muted/50 transition-colors text-sm font-medium">
+              {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+              <FolderTree className="h-4 w-4 text-primary" />
+              <span>{groupName}</span>
+              <span className="text-sm text-muted-foreground ml-auto mr-2">{subs.length} รายการ</span>
+            </CollapsibleTrigger>
+          )}
+          {!editingGroup && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-primary shrink-0"
+              onClick={() => { setGroupDraft(groupName); setEditingGroup(true); }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -646,18 +702,51 @@ const CategorySettings = () => {
           <div className="ml-10 border-l border-border pl-3 space-y-1 py-1">
             {subs.map((sub) => (
               <div key={sub} className="flex items-center justify-between py-1 px-2 rounded hover:bg-muted/30 transition-colors group">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Tag className="h-3 w-3" />
-                  {sub}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                  onClick={() => removeSubCategory(type, groupName, sub)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                {editingSub === sub ? (
+                  <div className="flex items-center gap-1 flex-1">
+                    <Input
+                      value={subDraft}
+                      onChange={(e) => setSubDraft(e.target.value)}
+                      className="h-7 text-sm flex-1"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { renameSubCategory(type, groupName, sub, subDraft); setEditingSub(null); }
+                        if (e.key === "Escape") setEditingSub(null);
+                      }}
+                    />
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { renameSubCategory(type, groupName, sub, subDraft); setEditingSub(null); }}>
+                      <Check className="h-3 w-3 text-green-600" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingSub(null)}>
+                      <X className="h-3 w-3 text-destructive" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Tag className="h-3 w-3" />
+                      {sub}
+                    </div>
+                    <div className="flex items-center gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
+                        onClick={() => { setSubDraft(sub); setEditingSub(sub); }}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeSubCategory(type, groupName, sub)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
 
