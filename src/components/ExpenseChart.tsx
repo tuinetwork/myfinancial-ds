@@ -79,7 +79,14 @@ export function ExpenseChart({ data }: Props) {
                 }}
                 labelStyle={{ fontWeight: 600 }}
               />
-              <Legend wrapperStyle={{ fontSize: "11px" }} />
+              <Legend
+                wrapperStyle={{ fontSize: "11px" }}
+                payload={[
+                  { value: "งบประมาณ", type: "square", color: "hsl(199 89% 48%)" },
+                  { value: "ใช้จริง", type: "square", color: "hsl(166 72% 56%)" },
+                  { value: "เกินงบ", type: "square", color: "hsl(0 72% 51%)" },
+                ]}
+              />
               <Bar dataKey="งบประมาณ" fill="hsl(199 89% 48%)" radius={[0, 4, 4, 0]} barSize={14}>
                 <LabelList
                   dataKey="งบประมาณ"
