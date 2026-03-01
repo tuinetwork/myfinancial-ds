@@ -119,6 +119,13 @@ export function AppSidebar() {
                             className={`w-full justify-between hover:bg-sidebar-accent/50 ${
                               isParentActive ? "bg-sidebar-accent text-sidebar-primary font-medium" : ""
                             }`}
+                            onClick={(e) => {
+                              if (item.url === "/" && item.children?.[0]) {
+                                e.preventDefault();
+                                navigate(item.children[0].url);
+                                setOpen(true);
+                              }
+                            }}
                           >
                             <div className="flex items-center gap-2">
                               <item.icon className="h-4 w-4" />
