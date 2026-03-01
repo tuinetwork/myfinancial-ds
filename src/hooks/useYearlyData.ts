@@ -32,7 +32,7 @@ const THAI_MONTHS = [
   "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
 ];
 
-function mapTransaction(docData: Record<string, unknown>): Transaction {
+function mapTransaction(docId: string, docData: Record<string, unknown>): Transaction {
   const type = docData.type as string;
   const mainCategory = (docData.main_category as string) ?? "";
   let mappedType: string;
@@ -42,6 +42,7 @@ function mapTransaction(docData: Record<string, unknown>): Transaction {
     mappedType = MAIN_CATEGORY_TYPE_MAP[mainCategory] ?? "ค่าใช้จ่าย";
   }
   return {
+    id: docId,
     date: (docData.date as string) ?? "",
     amount: (docData.amount as number) ?? 0,
     type: mappedType,
@@ -125,7 +126,7 @@ export function useYearlyData(year?: string) {
         const monthYear = (data.month_year as string) ?? "";
         if (monthYear.startsWith(year!)) {
           if (!txByMonth[monthYear]) txByMonth[monthYear] = [];
-          txByMonth[monthYear].push(mapTransaction(data as Record<string, unknown>));
+          txByMonth[monthYear].push(mapTransaction(d.id, data as Record<string, unknown>));
         }
       });
 
