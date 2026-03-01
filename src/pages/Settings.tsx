@@ -665,18 +665,38 @@ const CategorySettings = () => {
     });
   }, []);
 
+  const moveSubCrossGroup = useCallback((type: "income" | "expense", fromGroup: string, toGroup: string, fromIndex: number, toIndex: number) => {
+    const setter = type === "income" ? setIncomeGroups : setExpenseGroups;
+    setter((prev) => {
+      const srcSubs = [...prev[fromGroup]];
+      const dstSubs = [...prev[toGroup]];
+      const [moved] = srcSubs.splice(fromIndex, 1);
+      dstSubs.splice(toIndex, 0, moved);
+      return { ...prev, [fromGroup]: srcSubs, [toGroup]: dstSubs };
+    });
+  }, []);
+
   const handleDragEnd = useCallback((type: "income" | "expense") => (result: DropResult) => {
     if (!result.destination) return;
     const { source, destination, type: dragType } = result;
-    if (source.index === destination.index) return;
     if (dragType === "group") {
-      reorderGroups(type, source.index, destination.index);
+      if (source.index !== destination.index) {
+        reorderGroups(type, source.index, destination.index);
+      }
     } else {
-      // dragType is like "subs-groupName"
-      const group = dragType.replace("subs-", "");
-      reorderSubs(type, group, source.index, destination.index);
+      // droppableId is like "subs-expense-groupName"
+      const prefix = `subs-${type}-`;
+      const fromGroup = source.droppableId.replace(prefix, "");
+      const toGroup = destination.droppableId.replace(prefix, "");
+      if (fromGroup === toGroup) {
+        if (source.index !== destination.index) {
+          reorderSubs(type, fromGroup, source.index, destination.index);
+        }
+      } else {
+        moveSubCrossGroup(type, fromGroup, toGroup, source.index, destination.index);
+      }
     }
-  }, [reorderGroups, reorderSubs]);
+  }, [reorderGroups, reorderSubs, moveSubCrossGroup]);
 
   const CategoryGroup = ({
     type,
@@ -740,7 +760,7 @@ const CategorySettings = () => {
           </Button>
         </div>
         <CollapsibleContent>
-          <Droppable droppableId={`subs-${type}-${groupName}`} type={`subs-${groupName}`}>
+          <Droppable droppableId={`subs-${type}-${groupName}`} type="subs">
             {(provided) => (
               <div ref={provided.innerRef} {...provided.droppableProps} className="ml-10 border-l border-border pl-3 space-y-1 py-1">
                 {subs.map((sub, subIdx) => (
