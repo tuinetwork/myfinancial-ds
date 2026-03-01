@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, X, CalendarIcon } from "lucide-react";
-import { collection, doc, getDocs, setDoc, query, where } from "firebase/firestore";
+import { collection, doc, getDocs, setDoc, query, where, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -43,19 +43,18 @@ const AddTransactionFAB = () => {
 
   const [categories, setCategories] = useState<Record<string, CategoryData>>({});
 
-  // Fetch categories
+  // Real-time categories listener
   useEffect(() => {
     if (!userId) return;
-    const fetchCategories = async () => {
-      const catCol = collection(firestore, "users", userId, "categories");
-      const snap = await getDocs(catCol);
+    const catCol = collection(firestore, "users", userId, "categories");
+    const unsubscribe = onSnapshot(catCol, (snap) => {
       const cats: Record<string, CategoryData> = {};
       snap.forEach((d) => {
         cats[d.id] = d.data() as CategoryData;
       });
       setCategories(cats);
-    };
-    fetchCategories();
+    });
+    return () => unsubscribe();
   }, [userId]);
 
   const currentCat = categories[type];
