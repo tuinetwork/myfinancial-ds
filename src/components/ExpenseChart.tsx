@@ -26,7 +26,6 @@ interface Props {
 }
 
 const CATEGORY_MAP: Record<string, { label: string; key: keyof BudgetData["expenses"] }> = {
-  all: { label: "ทั้งหมด", key: "general" },
   general: { label: "ค่าใช้จ่าย", key: "general" },
   bills: { label: "บิล/สาธารณูปโภค", key: "bills" },
   debts: { label: "หนี้สิน", key: "debts" },
@@ -35,7 +34,7 @@ const CATEGORY_MAP: Record<string, { label: string; key: keyof BudgetData["expen
 };
 
 export function ExpenseChart({ data }: Props) {
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("general");
 
   const chartData = useMemo(() => {
     const actualByCategory: Record<string, number> = {};
@@ -45,22 +44,8 @@ export function ExpenseChart({ data }: Props) {
         actualByCategory[t.category] = (actualByCategory[t.category] || 0) + t.amount;
       });
 
-    let budgetItems: { label: string; budget: number }[] = [];
-
-    if (selectedCategory === "all") {
-      budgetItems = [
-        ...data.expenses.general,
-        ...data.expenses.bills,
-        ...data.expenses.debts,
-        ...data.expenses.subscriptions,
-        ...data.expenses.savings,
-      ];
-    } else {
-      const cat = CATEGORY_MAP[selectedCategory];
-      if (cat) {
-        budgetItems = data.expenses[cat.key];
-      }
-    }
+    const cat = CATEGORY_MAP[selectedCategory];
+    const budgetItems = cat ? data.expenses[cat.key] : [];
 
     return budgetItems
       .filter((item) => item.budget > 0 || (actualByCategory[item.label] || 0) > 0)
