@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { collection, doc, getDoc, getDocs, updateDoc, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, updateDoc, setDoc, query, where } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAvailableMonths, createBudgetFromLatest } from "@/hooks/useBudgetData";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -507,9 +507,6 @@ const UserSettings = () => {
 // ─── Category Settings Tab ───
 const CategorySettings = () => {
   const { userId } = useAuth();
-  const { data: months } = useAvailableMonths();
-  const [selectedYear, setSelectedYear] = useState<string>();
-  const [selectedMonth, setSelectedMonth] = useState<string>();
   const [incomeGroups, setIncomeGroups] = useState<Record<string, string[]>>({});
   const [expenseGroups, setExpenseGroups] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(false);
@@ -519,93 +516,35 @@ const CategorySettings = () => {
   const [newGroupName, setNewGroupName] = useState("");
   const [addingGroupType, setAddingGroupType] = useState<"income" | "expense" | null>(null);
 
-  const years = useMemo(() => {
-    if (!months) return [];
-    return Array.from(new Set(months.map((m) => m.year))).sort().reverse();
-  }, [months]);
-
-  const monthsForYear = useMemo(() => {
-    if (!months || !selectedYear) return [];
-    return months.filter((m) => m.year === selectedYear);
-  }, [months, selectedYear]);
-
+  // Fetch from categories collection
   useEffect(() => {
-    if (years.length > 0 && !selectedYear) setSelectedYear(years[0]);
-  }, [years, selectedYear]);
-
-  useEffect(() => {
-    if (monthsForYear.length > 0) setSelectedMonth(monthsForYear[0].month);
-  }, [monthsForYear]);
-
-  const period = useMemo(() => {
-    if (!selectedYear || !selectedMonth) return undefined;
-    return `${selectedYear}-${selectedMonth}`;
-  }, [selectedYear, selectedMonth]);
-
-  useEffect(() => {
-    if (!userId || !period) return;
+    if (!userId) return;
     setLoading(true);
-    const docRef = doc(firestore, "users", userId, "budgets", period);
-    getDoc(docRef).then(async (snap) => {
-      if (!snap.exists()) {
-        const created = await createBudgetFromLatest(userId, period);
-        if (created) {
-          const newSnap = await getDoc(docRef);
-          if (newSnap.exists()) {
-            snap = newSnap;
-          } else {
-            setLoading(false);
-            return;
-          }
-        } else {
-          setLoading(false);
-          return;
-        }
+    Promise.all([
+      getDoc(doc(firestore, "users", userId, "categories", "expense")),
+      getDoc(doc(firestore, "users", userId, "categories", "income")),
+    ]).then(([expSnap, incSnap]) => {
+      if (expSnap.exists()) {
+        const data = expSnap.data() as Record<string, string[]>;
+        setExpenseGroups(data);
       }
-      const d = snap.data()!;
-      const inc = (d.income_estimates ?? {}) as Record<string, Record<string, number>>;
-      const exp = (d.expense_budgets ?? {}) as Record<string, Record<string, number>>;
-      setIncomeGroups(
-        Object.fromEntries(Object.entries(inc).map(([k, v]) => [k, Object.keys(v)]))
-      );
-      setExpenseGroups(
-        Object.fromEntries(Object.entries(exp).map(([k, v]) => [k, Object.keys(v)]))
-      );
+      if (incSnap.exists()) {
+        const data = incSnap.data() as Record<string, string[]>;
+        setIncomeGroups(data);
+      }
       setLoading(false);
     });
-  }, [userId, period]);
+  }, [userId]);
 
   const handleSave = async () => {
-    if (!userId || !period) return;
+    if (!userId) return;
     setSaving(true);
     try {
-      const docRef = doc(firestore, "users", userId, "budgets", period);
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) throw new Error("ไม่พบเอกสาร");
-      const d = snap.data();
-      const oldInc = (d.income_estimates ?? {}) as Record<string, Record<string, number>>;
-      const oldExp = (d.expense_budgets ?? {}) as Record<string, Record<string, number>>;
-
-      // Rebuild income_estimates preserving existing values
-      const newInc: Record<string, Record<string, number>> = {};
-      for (const [group, subs] of Object.entries(incomeGroups)) {
-        newInc[group] = {};
-        for (const sub of subs) {
-          newInc[group][sub] = oldInc[group]?.[sub] ?? 0;
-        }
-      }
-
-      // Rebuild expense_budgets preserving existing values
-      const newExp: Record<string, Record<string, number>> = {};
-      for (const [group, subs] of Object.entries(expenseGroups)) {
-        newExp[group] = {};
-        for (const sub of subs) {
-          newExp[group][sub] = oldExp[group]?.[sub] ?? 0;
-        }
-      }
-
-      await updateDoc(docRef, { income_estimates: newInc, expense_budgets: newExp });
-      toast({ title: "บันทึกสำเร็จ", description: `อัปเดตหมวดหมู่ ${period}` });
+      await Promise.all([
+        setDoc(doc(firestore, "users", userId, "categories", "expense"), expenseGroups),
+        setDoc(doc(firestore, "users", userId, "categories", "income"), incomeGroups),
+      ]);
+      toast({ title: "บันทึกสำเร็จ", description: "อัปเดตหมวดหมู่เรียบร้อย" });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
     }
@@ -834,11 +773,11 @@ const CategorySettings = () => {
                       className="h-8 text-sm flex-1"
                       autoFocus
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") addGroup("expense", newGroupName);
+                        if (e.key === "Enter") addGroup("income", newGroupName);
                         if (e.key === "Escape") { setAddingGroupType(null); setNewGroupName(""); }
                       }}
                     />
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addGroup("expense", newGroupName)}>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addGroup("income", newGroupName)}>
                       <Check className="h-3 w-3 text-green-600" />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingGroupType(null); setNewGroupName(""); }}>
@@ -848,10 +787,10 @@ const CategorySettings = () => {
                 ) : (
                   <button
                     className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:text-primary/80 transition-colors"
-                    onClick={() => { setAddingGroupType("expense"); setNewGroupName(""); }}
+                    onClick={() => { setAddingGroupType("income"); setNewGroupName(""); }}
                   >
                     <Plus className="h-4 w-4" />
-                    เพิ่มกลุ่มรายจ่าย
+                    เพิ่มกลุ่มรายรับ
                   </button>
                 )}
               </CardContent>
