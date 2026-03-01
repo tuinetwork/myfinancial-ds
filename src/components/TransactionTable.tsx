@@ -19,11 +19,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
 
 interface Props {
@@ -254,19 +249,10 @@ export function TransactionTable({ data }: Props) {
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-8 w-28 sm:w-48 text-xs"
               />
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0">
-                    <Download className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Export</span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-40 p-2" align="end">
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-xs" onClick={exportCSV}>
-                    📄 CSV
-                  </Button>
-                </PopoverContent>
-              </Popover>
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0" onClick={exportCSV}>
+                <Download className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Export CSV</span>
+              </Button>
             </div>
           </div>
         </div>
