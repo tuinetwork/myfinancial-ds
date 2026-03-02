@@ -1,7 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { format, isWithinInterval, parseISO, startOfMonth, endOfMonth } from "date-fns";
-import { th } from "date-fns/locale";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -34,20 +32,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
   AreaChart, Area, LineChart, Line, ReferenceLine,
 } from "recharts";
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, PieChart as PieIcon, Download, Image, FileText, CalendarIcon, X } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, PieChart as PieIcon, Download, Image, FileText } from "lucide-react";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,9 +68,6 @@ const Analysis = () => {
   const { data: months, isLoading: monthsLoading } = useAvailableMonths();
   const [selectedYear, setSelectedYear] = useState<string | undefined>();
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | undefined>();
-  const [dateFrom, setDateFrom] = useState<Date | undefined>();
-  const [dateTo, setDateTo] = useState<Date | undefined>();
-  const hasDateFilter = !!dateFrom || !!dateTo;
 
   const years = useMemo(() => {
     if (!months) return [];
@@ -135,19 +123,8 @@ const Analysis = () => {
   const analytics = useMemo(() => {
     if (!data) return null;
 
-    // Filter transactions by date range if set
-    const filteredTransactions = data.transactions.filter((t) => {
-      if (!hasDateFilter) return true;
-      try {
-        const txDate = parseISO(t.date);
-        if (dateFrom && txDate < dateFrom) return false;
-        if (dateTo && txDate > dateTo) return false;
-        return true;
-      } catch { return true; }
-    });
-
-    const incomeTransactions = filteredTransactions.filter((t) => t.type === "รายรับ");
-    const expenseTransactions = filteredTransactions.filter((t) => t.type !== "รายรับ");
+    const incomeTransactions = data.transactions.filter((t) => t.type === "รายรับ");
+    const expenseTransactions = data.transactions.filter((t) => t.type !== "รายรับ");
 
     const totalIncome = incomeTransactions.reduce((s, t) => s + t.amount, 0);
     const totalExpense = expenseTransactions.reduce((s, t) => s + t.amount, 0);
@@ -191,7 +168,7 @@ const Analysis = () => {
     // Daily spending trend
     const dailySpend: Record<string, number> = {};
     const dailyIncome: Record<string, number> = {};
-    filteredTransactions.forEach((t) => {
+    data.transactions.forEach((t) => {
       if (t.type === "รายรับ") {
         dailyIncome[t.date] = (dailyIncome[t.date] || 0) + t.amount;
       } else {
@@ -240,9 +217,9 @@ const Analysis = () => {
       overBudgetCount,
       warningCount,
       savingsRate,
-      transactionCount: filteredTransactions.length,
+      transactionCount: data.transactions.length,
     };
-  }, [data, dateFrom, dateTo, hasDateFilter]);
+  }, [data]);
 
   const [exporting, setExporting] = useState(false);
 
@@ -324,67 +301,6 @@ const Analysis = () => {
                     </SelectContent>
                   </Select>
                 )}
-
-                {/* Date Range Filter */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={cn(
-                        "text-xs gap-1.5",
-                        hasDateFilter && "border-primary text-primary"
-                      )}
-                    >
-                      <CalendarIcon className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">
-                        {hasDateFilter
-                          ? `${dateFrom ? format(dateFrom, "d MMM", { locale: th }) : "..."} - ${dateTo ? format(dateTo, "d MMM", { locale: th }) : "..."}`
-                          : "ช่วงวันที่"}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <div className="p-3 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium">เลือกช่วงวันที่</p>
-                        {hasDateFilter && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2 text-xs text-muted-foreground"
-                            onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}
-                          >
-                            <X className="h-3 w-3 mr-1" /> ล้าง
-                          </Button>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <p className="text-xs text-muted-foreground">จากวันที่</p>
-                          <Calendar
-                            mode="single"
-                            selected={dateFrom}
-                            onSelect={setDateFrom}
-                            className={cn("p-2 pointer-events-auto border rounded-md")}
-                            disabled={(date) => dateTo ? date > dateTo : false}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <p className="text-xs text-muted-foreground">ถึงวันที่</p>
-                          <Calendar
-                            mode="single"
-                            selected={dateTo}
-                            onSelect={setDateTo}
-                            className={cn("p-2 pointer-events-auto border rounded-md")}
-                            disabled={(date) => dateFrom ? date < dateFrom : false}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="text-xs gap-1.5" disabled={exporting}>
