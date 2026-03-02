@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -36,17 +36,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
   AreaChart, Area, LineChart, Line, ReferenceLine,
 } from "recharts";
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, PieChart as PieIcon, Download, Image, FileText } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, PieChart as PieIcon } from "lucide-react";
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
 
 const COLORS = [
   "hsl(199 89% 48%)", "hsl(166 72% 56%)", "hsl(280 65% 60%)",
@@ -64,7 +55,6 @@ const EXPENSE_TYPE_MAP: Record<string, string> = {
 };
 
 const Analysis = () => {
-  const contentRef = useRef<HTMLDivElement>(null);
   const { data: months, isLoading: monthsLoading } = useAvailableMonths();
   const [selectedYear, setSelectedYear] = useState<string | undefined>();
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | undefined>();
@@ -221,34 +211,6 @@ const Analysis = () => {
     };
   }, [data]);
 
-  const [exporting, setExporting] = useState(false);
-
-  const exportAsImage = useCallback(async () => {
-    if (!contentRef.current) return;
-    setExporting(true);
-    try {
-      const canvas = await html2canvas(contentRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-      const link = document.createElement("a");
-      link.download = `analysis-${selectedPeriod || "report"}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-    } catch (e) { console.error(e); }
-    setExporting(false);
-  }, [selectedPeriod]);
-
-  const exportAsPDF = useCallback(async () => {
-    if (!contentRef.current) return;
-    setExporting(true);
-    try {
-      const canvas = await html2canvas(contentRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [canvas.width, canvas.height] });
-      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-      pdf.save(`analysis-${selectedPeriod || "report"}.pdf`);
-    } catch (e) { console.error(e); }
-    setExporting(false);
-  }, [selectedPeriod]);
-
   return (
     <>
       <AppSidebar />
@@ -301,22 +263,6 @@ const Analysis = () => {
                     </SelectContent>
                   </Select>
                 )}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-xs gap-1.5" disabled={exporting}>
-                      <Download className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">ส่งออก</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={exportAsPDF} className="gap-2 text-xs">
-                      <FileText className="h-3.5 w-3.5" /> ส่งออก PDF
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={exportAsImage} className="gap-2 text-xs">
-                      <Image className="h-3.5 w-3.5" /> ส่งออกรูปภาพ
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
             </div>
 
@@ -334,7 +280,7 @@ const Analysis = () => {
                 <p className="text-destructive">ไม่สามารถโหลดข้อมูลได้</p>
               </div>
             ) : (
-              <div ref={contentRef}>
+              <>
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <Card className="border-none shadow-sm animate-fade-in">
@@ -641,7 +587,7 @@ const Analysis = () => {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
+              </>
             )}
           </div>
         </main>
