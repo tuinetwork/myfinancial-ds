@@ -449,6 +449,57 @@ const Analysis = () => {
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
+
+                      {/* Monthly Comparison Summary Table */}
+                      <div className="overflow-x-auto mt-4">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="border-border/50">
+                              <TableHead className="text-xs">เดือน</TableHead>
+                              <TableHead className="text-xs text-right">รายรับ</TableHead>
+                              <TableHead className="text-xs text-right">รายจ่าย</TableHead>
+                              <TableHead className="text-xs text-right">คงเหลือ</TableHead>
+                              <TableHead className="text-xs text-right">อัตราออม</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {monthlyComparison.map((m) => (
+                              <TableRow key={m.name} className="border-border/30">
+                                <TableCell className="text-xs font-medium py-2">{m.name}</TableCell>
+                                <TableCell className="text-xs text-right py-2 text-income">{formatCurrency(m.รายรับ)}</TableCell>
+                                <TableCell className="text-xs text-right py-2 text-expense">{formatCurrency(m.รายจ่าย)}</TableCell>
+                                <TableCell className={`text-xs text-right py-2 font-semibold ${m.คงเหลือ >= 0 ? "text-income" : "text-expense"}`}>
+                                  {formatCurrency(m.คงเหลือ)}
+                                </TableCell>
+                                <TableCell className={`text-xs text-right py-2 ${m.อัตราการออม >= 0 ? "text-income" : "text-expense"}`}>
+                                  {m.อัตราการออม.toFixed(1)}%
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            {/* Total row */}
+                            <TableRow className="border-t-2 border-border bg-muted/30 font-semibold">
+                              <TableCell className="text-xs py-2">รวมทั้งปี</TableCell>
+                              <TableCell className="text-xs text-right py-2 text-income">
+                                {formatCurrency(monthlyComparison.reduce((s, m) => s + m.รายรับ, 0))}
+                              </TableCell>
+                              <TableCell className="text-xs text-right py-2 text-expense">
+                                {formatCurrency(monthlyComparison.reduce((s, m) => s + m.รายจ่าย, 0))}
+                              </TableCell>
+                              <TableCell className={`text-xs text-right py-2 font-bold ${monthlyComparison.reduce((s, m) => s + m.คงเหลือ, 0) >= 0 ? "text-income" : "text-expense"}`}>
+                                {formatCurrency(monthlyComparison.reduce((s, m) => s + m.คงเหลือ, 0))}
+                              </TableCell>
+                              <TableCell className="text-xs text-right py-2">
+                                {(() => {
+                                  const totalIncome = monthlyComparison.reduce((s, m) => s + m.รายรับ, 0);
+                                  const totalExpense = monthlyComparison.reduce((s, m) => s + m.รายจ่าย, 0);
+                                  const rate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
+                                  return <span className={rate >= 0 ? "text-income" : "text-expense"}>{rate.toFixed(1)}%</span>;
+                                })()}
+                              </TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
