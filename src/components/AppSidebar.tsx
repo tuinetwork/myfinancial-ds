@@ -36,9 +36,9 @@ const mainMenuItems: MenuItem[] = [
     children: [
       { title: "รายเดือน", url: "/?view=monthly", icon: CalendarDays },
       { title: "รายปี", url: "/?view=yearly", icon: BarChart3 },
-      { title: "วิเคราะห์", url: "/analysis", icon: PieChart },
     ],
   },
+  { title: "วิเคราะห์", url: "/analysis", icon: PieChart },
   { title: "รายการธุรกรรม", url: "/transactions", icon: Receipt },
 ];
 
@@ -54,7 +54,7 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isDashboardActive = location.pathname === "/" || location.pathname === "/analysis";
+  const isDashboardActive = location.pathname === "/";
   const isSettingsActive = location.pathname.startsWith("/settings");
   const [dashboardOpen, setDashboardOpen] = useState(isDashboardActive);
   const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
