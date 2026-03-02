@@ -434,7 +434,7 @@ const Analysis = () => {
                     <CardContent className="px-2 sm:px-6">
                       <div className="h-72">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={monthlyComparison} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                          <BarChart data={monthlyComparison} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 90%)" />
                             <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                             <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
