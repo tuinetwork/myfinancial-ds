@@ -89,9 +89,12 @@ export function AppSidebar() {
           <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
             <Wallet className="h-5 w-5" />
           </div>
-          {!collapsed && (
-            <span className="font-bold text-sm font-display">การเงินของ {user?.displayName || "ฉัน"}</span>
-          )}
+          {!collapsed && (
+            <div className="flex flex-col leading-tight">
+              <span className="font-bold text-sm font-display">บันทึกการเงิน</span>
+              <span className="text-xs text-sidebar-foreground/70">{user?.displayName || "ฉัน"}</span>
+            </div>
+          )}
         </div>
       </SidebarHeader>
 
