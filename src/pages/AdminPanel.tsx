@@ -41,21 +41,23 @@ async function initializeNewUser(userId: string) {
       const sourceDoc = await getDoc(doc(firestore, "users", SOURCE_USER_UID, "categories", catType));
       if (sourceDoc.exists()) {
         await setDoc(doc(firestore, "users", userId, "categories", catType), sourceDoc.data());
+        console.log(`[Init] Copied categories/${catType} for user ${userId}`);
       }
     }
 
-    // Copy current month's budget structure with all values reset to 0
+    // Copy current month's budget structure with ALL values reset to 0
     const currentPeriod = format(new Date(), "yyyy-MM");
     const budgetDoc = await getDoc(doc(firestore, "users", SOURCE_USER_UID, "budgets", currentPeriod));
     if (budgetDoc.exists()) {
       const sourceData = budgetDoc.data();
       const newBudgetData: Record<string, any> = {
         carry_over: 0,
+        period: currentPeriod,
       };
 
       // Reset all budget maps (expense_budgets, income_estimates, etc.)
       for (const fieldKey of Object.keys(sourceData)) {
-        if (fieldKey === "carry_over") continue;
+        if (fieldKey === "carry_over" || fieldKey === "period") continue;
 
         const fieldValue = sourceData[fieldKey];
         if (fieldValue && typeof fieldValue === "object") {
@@ -80,12 +82,18 @@ async function initializeNewUser(userId: string) {
         }
       }
 
+      console.log("[Init] Budget data to write:", JSON.stringify(newBudgetData, null, 2));
       await setDoc(doc(firestore, "users", userId, "budgets", currentPeriod), newBudgetData);
+      console.log(`[Init] Budget ${currentPeriod} created for user ${userId} with all values reset to 0`);
+    } else {
+      console.log(`[Init] No source budget found for period ${currentPeriod}`);
     }
   } catch (error) {
     console.error("Error initializing new user:", error);
   }
 }
+
+
 
 interface Requester {
   id: string;
