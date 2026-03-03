@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { LayoutDashboard, Receipt, Wallet, Settings, ChevronDown, ChevronRight, ChevronUp, CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart } from "lucide-react";
+import { LayoutDashboard, Receipt, Wallet, Settings, ChevronDown, ChevronRight, ChevronUp, CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart, ShieldCheck } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Sidebar,
   SidebarContent,
@@ -47,10 +48,12 @@ const settingsChildren = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
-  const location = useLocation();
-  const navigate = useNavigate();
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { userRole } = useAuth();
+  const isAdminUser = userRole === "dev" || userRole === "admin";
 
   const isDashboardActive = location.pathname === "/";
   const isSettingsActive = location.pathname.startsWith("/settings");
@@ -177,7 +180,24 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-3 border-t border-sidebar-border">
+      <SidebarFooter className="p-3 border-t border-sidebar-border">
+        {isAdminUser && (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <NavLink
+                  to="/admin"
+                  end
+                  className="hover:bg-sidebar-accent/50"
+                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  {!collapsed && <span>Admin Panel</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        )}
         <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
           {!collapsed && (
             <CollapsibleContent>

@@ -12,6 +12,7 @@ const SOURCE_USER_UID = "xgkdmyxxeJVlNiqoahNJWBekqmh2";
 interface AuthContextType {
   user: User | null;
   userId: string | null;
+  userRole: string | null;
   loading: boolean;
   pendingApproval: boolean;
   signInWithGoogle: () => Promise<{ success: boolean; error?: string }>;
@@ -52,6 +53,7 @@ async function initializeNewUser(userId: string) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingApproval, setPendingApproval] = useState(false);
 
@@ -61,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userDoc = await getDoc(doc(firestore, "users", firebaseUser.uid));
         if (userDoc.exists()) {
           setUser(firebaseUser);
+          setUserRole(userDoc.data()?.role || "user");
           setPendingApproval(false);
 
           // Check if new user needs initialization (no categories yet)
@@ -77,11 +80,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else {
             await firebaseSignOut(auth);
             setUser(null);
+            setUserRole(null);
             setPendingApproval(false);
           }
         }
       } else {
         setUser(null);
+        setUserRole(null);
         setPendingApproval(false);
       }
       setLoading(false);
@@ -106,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: true };
       }
       setUser(result.user);
+      setUserRole(userDoc.data()?.role || "user");
       setPendingApproval(false);
 
       // Initialize if needed
@@ -123,11 +129,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await firebaseSignOut(auth);
     setUser(null);
+    setUserRole(null);
     setPendingApproval(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, userId: user?.uid ?? null, loading, pendingApproval, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, userId: user?.uid ?? null, userRole, loading, pendingApproval, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

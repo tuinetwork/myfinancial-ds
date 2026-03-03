@@ -14,11 +14,23 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // ฟังก์ชันตรวจสอบว่าผู้ใช้มี role เป็น admin หรือ dev
+    function isAdminOrDev() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['dev', 'admin'];
+    }
+
     // กฎสำหรับ requester collection - ผู้ใช้ใหม่ที่รอการอนุมัติ
     match /requester/{userId} {
       allow create: if isOwner(userId);
-      allow read: if isOwner(userId);
-      allow update, delete: if false;
+      allow read: if isOwner(userId) || isAdminOrDev();
+      allow delete: if isAdminOrDev();
+      allow update: if false;
+    }
+
+    // อนุญาตให้ admin/dev สร้าง user document ได้ (สำหรับ approve flow)
+    match /users/{userId} {
+      allow create: if isAdminOrDev();
     }
 
     // กฎสำหรับ Collection หลัก (users) และ Subcollection ทั้งหมดที่อยู่ข้างใน
