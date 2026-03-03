@@ -48,19 +48,39 @@ async function initializeNewUser(userId: string) {
     const currentPeriod = format(new Date(), "yyyy-MM");
     const budgetDoc = await getDoc(doc(firestore, "users", SOURCE_USER_UID, "budgets", currentPeriod));
     if (budgetDoc.exists()) {
-      const budgetData = { ...budgetDoc.data() };
-      if (budgetData.categories && typeof budgetData.categories === "object") {
-        for (const key of Object.keys(budgetData.categories)) {
-          if (budgetData.categories[key] && typeof budgetData.categories[key] === "object") {
-            budgetData.categories[key] = {
-              ...budgetData.categories[key],
-              budget: 0,
-              carry_over: 0,
-            };
+      const sourceData = budgetDoc.data();
+      const newBudgetData: Record<string, any> = {
+        carry_over: 0,
+      };
+
+      // Reset all budget maps (expense_budgets, income_budgets, etc.)
+      for (const fieldKey of Object.keys(sourceData)) {
+        if (fieldKey === "carry_over") continue;
+
+        const fieldValue = sourceData[fieldKey];
+        if (fieldValue && typeof fieldValue === "object") {
+          // This is a budget group map (e.g. expense_budgets)
+          const resetGroup: Record<string, any> = {};
+          for (const groupKey of Object.keys(fieldValue)) {
+            const groupValue = fieldValue[groupKey];
+            if (groupValue && typeof groupValue === "object") {
+              // Nested map: group → subcategories with number values
+              const resetSubcats: Record<string, number> = {};
+              for (const subKey of Object.keys(groupValue)) {
+                resetSubcats[subKey] = 0;
+              }
+              resetGroup[groupKey] = resetSubcats;
+            } else {
+              resetGroup[groupKey] = 0;
+            }
           }
+          newBudgetData[fieldKey] = resetGroup;
+        } else {
+          newBudgetData[fieldKey] = 0;
         }
       }
-      await setDoc(doc(firestore, "users", userId, "budgets", currentPeriod), budgetData);
+
+      await setDoc(doc(firestore, "users", userId, "budgets", currentPeriod), newBudgetData);
     }
   } catch (error) {
     console.error("Error initializing new user:", error);
