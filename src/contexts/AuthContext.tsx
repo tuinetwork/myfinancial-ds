@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { getAuth, onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, GoogleAuthProvider, User } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 
 const auth = getAuth();
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userDoc = await getDoc(doc(firestore, "users", result.user.uid));
       if (!userDoc.exists()) {
         await setDoc(doc(firestore, "requester", result.user.uid), {
-          created_at: serverTimestamp(),
+          created_at: Date.now(),
           display_name: result.user.displayName || "",
           email: result.user.email || "",
           role: "pending",
