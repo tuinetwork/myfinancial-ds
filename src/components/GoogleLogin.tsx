@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2 } from "lucide-react";
+import { Loader2, Clock, LogOut } from "lucide-react";
 
 const GoogleLogin = () => {
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, signOut, pendingApproval, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -18,6 +18,56 @@ const GoogleLogin = () => {
     }
     setLoading(false);
   };
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
+  // Pending approval UI
+  if (pendingApproval && user) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[hsl(210,30%,96%)] overflow-hidden">
+        <div className="absolute top-[-8%] right-[20%] w-[420px] h-[420px] rounded-full bg-[hsl(45,80%,55%)] opacity-90" />
+        <div className="absolute bottom-[-12%] left-[5%] w-[480px] h-[480px] rounded-full bg-[hsl(207,70%,52%)] opacity-90" />
+
+        <div className="relative z-10 w-full max-w-sm bg-white rounded-xl shadow-lg px-8 py-10 flex flex-col items-center gap-6">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">
+              F
+            </div>
+            <span className="text-lg font-semibold text-foreground">ระบบจัดการการเงิน</span>
+          </div>
+
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[hsl(45,80%,92%)]">
+              <Clock className="h-7 w-7 text-[hsl(45,80%,40%)]" />
+            </div>
+            <h1 className="text-xl font-bold text-foreground">รอการพิจารณาอนุมัติ</h1>
+            <p className="text-sm text-muted-foreground text-center">
+              คำขอเข้าใช้งานของคุณอยู่ระหว่างการพิจารณา<br />กรุณารอผู้ดูแลระบบอนุมัติ
+            </p>
+          </div>
+
+          <div className="w-full rounded-lg bg-muted/50 p-4 space-y-2">
+            <div className="flex items-center gap-3">
+              {user.photoURL && (
+                <img src={user.photoURL} alt="" className="h-10 w-10 rounded-full" />
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">{user.displayName}</p>
+                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              </div>
+            </div>
+          </div>
+
+          <Button onClick={handleSignOut} variant="outline" className="w-full gap-2">
+            <LogOut className="h-4 w-4" />
+            ออกจากระบบ
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[hsl(210,30%,96%)] overflow-hidden">

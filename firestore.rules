@@ -14,6 +14,13 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // กฎสำหรับ requester collection - ผู้ใช้ใหม่ที่รอการอนุมัติ
+    match /requester/{userId} {
+      allow create: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow update, delete: if false;
+    }
+
     // กฎสำหรับ Collection หลัก (users) และ Subcollection ทั้งหมดที่อยู่ข้างใน
     match /users/{userId} {
 
