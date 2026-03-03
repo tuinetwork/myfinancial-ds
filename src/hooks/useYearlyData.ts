@@ -1,11 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   collection,
   getDocs,
-  query,
-  where,
-  doc,
-  getDoc,
+  onSnapshot,
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { BudgetData, BudgetItem, Transaction } from "./useBudgetData";
@@ -57,6 +55,46 @@ export interface YearlyData {
   aggregated: BudgetData;
 }
 
+function parseBudgetDocForYear(budgetDoc: any, period: string, transactions: Transaction[]): BudgetData {
+  const data = budgetDoc;
+  const [, monthNum] = period.split("-");
+  const monthIdx = parseInt(monthNum, 10) - 1;
+  const monthName = THAI_MONTHS[monthIdx] ?? period;
+
+  const incomeEstimates = (data.income_estimates ?? {}) as Record<string, Record<string, number> | number>;
+  const income: BudgetItem[] = [];
+  for (const [key, val] of Object.entries(incomeEstimates)) {
+    if (typeof val === "number") {
+      income.push({ label: key, budget: val });
+    } else if (typeof val === "object") {
+      for (const [subLabel, subVal] of Object.entries(val)) {
+        income.push({ label: subLabel, budget: subVal });
+      }
+    }
+  }
+
+  const expenseBudgets = (data.expense_budgets ?? {}) as Record<string, Record<string, number>>;
+  const expenses: BudgetData["expenses"] = {
+    general: [], bills: [], debts: [], subscriptions: [], savings: [],
+  };
+  for (const [mainCat, subs] of Object.entries(expenseBudgets)) {
+    const key = EXPENSE_CATEGORY_MAP[mainCat];
+    if (key && subs && typeof subs === "object") {
+      expenses[key] = Object.entries(subs).map(([label, budget]) => ({ label, budget }));
+    }
+  }
+
+  return {
+    status: "ok",
+    month: monthName,
+    timestamp: new Date().toISOString(),
+    income,
+    expenses,
+    transactions,
+    carryOver: (data.carry_over as number) ?? 0,
+  };
+}
+
 function mergeMonths(year: string, monthsData: { month: string; data: BudgetData }[]): YearlyData {
   const allTransactions: Transaction[] = [];
   const incomeMap: Record<string, number> = {};
@@ -103,6 +141,64 @@ function mergeMonths(year: string, monthsData: { month: string; data: BudgetData
 
 export function useYearlyData(year?: string) {
   const { userId } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Real-time listener for yearly data
+  useEffect(() => {
+    if (!year || !userId) return;
+
+    const budgetsCol = collection(firestore, "users", userId, "budgets");
+    const txCol = collection(firestore, "users", userId, "transactions");
+
+    const buildYearlyData = async (budgetSnap: any, txSnap: any) => {
+      const yearBudgets = budgetSnap.docs.filter((d: any) => {
+        const period = (d.data().period as string) ?? d.id;
+        return period.startsWith(year);
+      });
+
+      if (yearBudgets.length === 0) return;
+
+      const txByMonth: Record<string, Transaction[]> = {};
+      txSnap.docs.forEach((d: any) => {
+        const data = d.data();
+        const monthYear = (data.month_year as string) ?? "";
+        if (monthYear.startsWith(year)) {
+          if (!txByMonth[monthYear]) txByMonth[monthYear] = [];
+          txByMonth[monthYear].push(mapTransaction(d.id, data as Record<string, unknown>));
+        }
+      });
+
+      const monthsData = yearBudgets.map((budgetDoc: any) => {
+        const data = budgetDoc.data();
+        const period = (data.period as string) ?? budgetDoc.id;
+        return {
+          month: period,
+          data: parseBudgetDocForYear(data, period, txByMonth[period] ?? []),
+        };
+      });
+
+      monthsData.sort((a: any, b: any) => a.month.localeCompare(b.month));
+      queryClient.setQueryData(["yearly-data", year, userId], mergeMonths(year, monthsData));
+    };
+
+    let latestBudgetSnap: any = null;
+    let latestTxSnap: any = null;
+
+    const unsubBudgets = onSnapshot(budgetsCol, (snap) => {
+      latestBudgetSnap = snap;
+      if (latestTxSnap) buildYearlyData(snap, latestTxSnap);
+    });
+
+    const unsubTx = onSnapshot(txCol, (snap) => {
+      latestTxSnap = snap;
+      if (latestBudgetSnap) buildYearlyData(latestBudgetSnap, snap);
+    });
+
+    return () => {
+      unsubBudgets();
+      unsubTx();
+    };
+  }, [year, userId, queryClient]);
 
   return useQuery<YearlyData>({
     queryKey: ["yearly-data", year, userId],
@@ -133,50 +229,16 @@ export function useYearlyData(year?: string) {
       const monthsData = yearBudgets.map((budgetDoc) => {
         const data = budgetDoc.data();
         const period = (data.period as string) ?? budgetDoc.id;
-        const [, monthNum] = period.split("-");
-        const monthIdx = parseInt(monthNum, 10) - 1;
-        const monthName = THAI_MONTHS[monthIdx] ?? period;
-
-        const incomeEstimates = (data.income_estimates ?? {}) as Record<string, Record<string, number> | number>;
-        const income: BudgetItem[] = [];
-        for (const [key, val] of Object.entries(incomeEstimates)) {
-          if (typeof val === "number") {
-            income.push({ label: key, budget: val });
-          } else if (typeof val === "object") {
-            for (const [subLabel, subVal] of Object.entries(val)) {
-              income.push({ label: subLabel, budget: subVal });
-            }
-          }
-        }
-
-        const expenseBudgets = (data.expense_budgets ?? {}) as Record<string, Record<string, number>>;
-        const expenses: BudgetData["expenses"] = {
-          general: [], bills: [], debts: [], subscriptions: [], savings: [],
+        return {
+          month: period,
+          data: parseBudgetDocForYear(data, period, txByMonth[period] ?? []),
         };
-        for (const [mainCat, subs] of Object.entries(expenseBudgets)) {
-          const key = EXPENSE_CATEGORY_MAP[mainCat];
-          if (key && subs && typeof subs === "object") {
-            expenses[key] = Object.entries(subs).map(([label, budget]) => ({ label, budget }));
-          }
-        }
-
-        const budgetData: BudgetData = {
-          status: "ok",
-          month: monthName,
-          timestamp: new Date().toISOString(),
-          income,
-          expenses,
-          transactions: txByMonth[period] ?? [],
-          carryOver: (data.carry_over as number) ?? 0,
-        };
-
-        return { month: period, data: budgetData };
       });
 
       monthsData.sort((a, b) => a.month.localeCompare(b.month));
       return mergeMonths(year!, monthsData);
     },
     enabled: !!year && !!userId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: Infinity,
   });
 }

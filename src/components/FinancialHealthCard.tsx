@@ -51,8 +51,8 @@ export function FinancialHealthCard({ data, carryOver = 0 }: Props) {
         label: "ใช้งบไปแล้ว",
         value: `${Math.min(budgetUsage, 999).toFixed(1)}%`,
         icon: Percent,
-        color: budgetUsage <= 80 ? "text-income" : budgetUsage <= 100 ? "text-amber-500" : "text-expense",
-        desc: budgetUsage <= 80 ? "อยู่ในเกณฑ์" : budgetUsage <= 100 ? "ใกล้เต็มงบ" : "เกินงบ",
+        color: budgetUsage <= 80 ? "text-income" : budgetUsage < 100 ? "text-amber-500" : budgetUsage === 100 ? "text-amber-600" : "text-expense",
+        desc: budgetUsage <= 80 ? "อยู่ในเกณฑ์" : budgetUsage < 100 ? "ใกล้เต็มงบ" : budgetUsage === 100 ? "เต็มแล้ว" : "เกินงบ",
       },
       {
         label: "ค่าใช้จ่ายเฉลี่ย/วัน",
