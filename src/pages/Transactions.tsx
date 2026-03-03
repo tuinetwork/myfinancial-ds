@@ -15,7 +15,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Home } from "lucide-react";
+import { Home, Receipt } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -62,8 +62,17 @@ const Transactions = () => {
 
       <div className="flex-1 flex flex-col min-h-screen">
         <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
-          <SidebarTrigger />
-          <NotificationBell />
+          <div className="flex items-center gap-4">
+            <SidebarTrigger />
+            <div className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-primary" />
+              <h1 className="text-lg font-semibold">รายการธุรกรรม</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <UserProfilePopover />
+          </div>
         </header>
 
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">

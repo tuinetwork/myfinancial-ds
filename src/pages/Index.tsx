@@ -24,7 +24,7 @@ import {
   BreadcrumbItem,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { Home } from "lucide-react";
+import { Home, LayoutDashboard } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -100,9 +100,15 @@ const Index = () => {
       <AppSidebar />
 
       <div className="flex-1 flex flex-col min-h-screen">
-        {/* Header - only sidebar trigger */}
+        {/* Header */}
         <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
-          <SidebarTrigger />
+          <div className="flex items-center gap-4">
+            <SidebarTrigger />
+            <div className="flex items-center gap-2">
+              <LayoutDashboard className="h-5 w-5 text-primary" />
+              <h1 className="text-lg font-semibold">แดชบอร์ด</h1>
+            </div>
+          </div>
           <div className="flex items-center gap-1">
             <NotificationBell />
             <UserProfilePopover />
