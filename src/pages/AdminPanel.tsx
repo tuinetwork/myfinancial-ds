@@ -44,15 +44,19 @@ async function initializeNewUser(userId: string) {
       }
     }
 
-    // Copy current month's budget with carry_over reset to 0
+    // Copy current month's budget structure with all values reset to 0
     const currentPeriod = format(new Date(), "yyyy-MM");
     const budgetDoc = await getDoc(doc(firestore, "users", SOURCE_USER_UID, "budgets", currentPeriod));
     if (budgetDoc.exists()) {
       const budgetData = { ...budgetDoc.data() };
       if (budgetData.categories && typeof budgetData.categories === "object") {
         for (const key of Object.keys(budgetData.categories)) {
-          if (budgetData.categories[key]?.carry_over !== undefined) {
-            budgetData.categories[key].carry_over = 0;
+          if (budgetData.categories[key] && typeof budgetData.categories[key] === "object") {
+            budgetData.categories[key] = {
+              ...budgetData.categories[key],
+              budget: 0,
+              carry_over: 0,
+            };
           }
         }
       }
