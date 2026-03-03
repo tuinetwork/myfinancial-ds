@@ -151,7 +151,6 @@ export default function AdminPanel() {
       await initializeNewUser(req.id);
       await deleteDoc(doc(firestore, "requester", req.id));
       toast({ title: "อนุมัติสำเร็จ", description: `${req.display_name} ได้รับการอนุมัติแล้ว` });
-      fetchUsers(); // refresh user list after approve
     } catch {
       toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถอนุมัติผู้ใช้ได้", variant: "destructive" });
     } finally {
@@ -171,21 +170,23 @@ export default function AdminPanel() {
     }
   };
 
-  // ===== User Management functions =====
-  const fetchUsers = async () => {
+  // ===== Realtime User listener =====
+  useEffect(() => {
+    if (!isAdmin) return;
     setUsersLoading(true);
-    try {
-      const snapshot = await getDocs(collection(firestore, "users"));
+    const unsub = onSnapshot(collection(firestore, "users"), (snapshot) => {
       const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as UserInfo));
       const roleOrder: Record<string, number> = { dev: 0, admin: 1, user: 2 };
       data.sort((a, b) => (roleOrder[a.role] ?? 3) - (roleOrder[b.role] ?? 3));
       setUsers(data);
-    } catch {
-      toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถโหลดรายการผู้ใช้ได้", variant: "destructive" });
-    } finally {
       setUsersLoading(false);
-    }
-  };
+    }, (error) => {
+      console.error("Error listening to users:", error);
+      toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถโหลดรายการผู้ใช้ได้", variant: "destructive" });
+      setUsersLoading(false);
+    });
+    return () => unsub();
+  }, [isAdmin]);
 
   const canManage = (targetUser: UserInfo) => {
     if (targetUser.id === userId) return false;
@@ -257,10 +258,6 @@ export default function AdminPanel() {
     }
   };
 
-  // ===== Load users on mount =====
-  useEffect(() => {
-    if (isAdmin) fetchUsers();
-  }, [isAdmin]);
 
   const formatDate = (val: any) => {
     if (val?.toDate) return format(val.toDate(), "d MMM yyyy HH:mm", { locale: th });
@@ -380,9 +377,10 @@ export default function AdminPanel() {
                   <CardTitle className="text-base">จัดการผู้ใช้</CardTitle>
                   <Badge variant="secondary">{users.length}</Badge>
                 </div>
-                <Button variant="outline" size="sm" onClick={fetchUsers} disabled={usersLoading}>
-                  {usersLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "รีเฟรช"}
-                </Button>
+                <Badge variant="outline" className="text-xs gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                  Realtime
+                </Badge>
               </div>
             </CardHeader>
             <CardContent>
