@@ -10,7 +10,6 @@ import Transactions from "./pages/Transactions";
 import Analysis from "./pages/Analysis";
 import Settings from "./pages/Settings";
 import AdminPanel from "./pages/AdminPanel";
-import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 import GoogleLogin from "./components/GoogleLogin";
 import AddTransactionFAB from "./components/AddTransactionFAB";
@@ -43,7 +42,6 @@ const AppContent = () => {
             <Route path="/analysis" element={<Analysis />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<AdminPanel />} />
-            <Route path="/admin/users" element={<UserManagement />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <AddTransactionFAB />
