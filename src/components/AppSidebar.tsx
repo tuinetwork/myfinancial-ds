@@ -90,7 +90,7 @@ export function AppSidebar() {
             <Wallet className="h-5 w-5" />
           </div>
           {!collapsed && (
-            <span className="font-bold text-sm font-display">การเงินของฉัน</span>
+            <span className="font-bold text-sm font-display">การเงินของ {user?.displayName || "ฉัน"}</span>
           )}
         </div>
       </SidebarHeader>
