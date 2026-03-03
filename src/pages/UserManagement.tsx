@@ -61,7 +61,17 @@ export default function UserManagement() {
     user: UserInfo | null;
   }>({ open: false, type: "delete", user: null });
 
+  const isDev = userRole === "dev";
   const isAdmin = userRole === "dev" || userRole === "admin";
+
+  // ตรวจสอบสิทธิ์: dev สามารถจัดการทุกคนยกเว้น dev ด้วยกัน, admin จัดการได้เฉพาะ user
+  const canManage = (targetUser: UserInfo) => {
+    if (targetUser.id === userId) return false; // ห้ามจัดการตัวเอง
+    if (targetUser.role === "dev") return false; // ห้ามจัดการ dev
+    if (isDev) return true; // dev จัดการ admin, user ได้
+    if (userRole === "admin" && targetUser.role === "user") return true; // admin จัดการ user ได้
+    return false;
+  };
 
   useEffect(() => {
     if (!authLoading && !isAdmin) {
@@ -237,6 +247,7 @@ export default function UserManagement() {
                 <TableBody>
                   {users.map((user) => {
                     const isSelf = user.id === userId;
+                    const manageable = canManage(user);
                     return (
                       <TableRow key={user.id} className={user.banned ? "opacity-50" : ""}>
                         <TableCell className="font-medium">{user.display_name || "-"}</TableCell>
@@ -251,7 +262,7 @@ export default function UserManagement() {
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8"
-                              disabled={actionLoading === user.id}
+                              disabled={actionLoading === user.id || !manageable}
                               onClick={() => handleEdit(user)}
                               title="แก้ไข"
                             >
@@ -261,7 +272,7 @@ export default function UserManagement() {
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8"
-                              disabled={actionLoading === user.id || isSelf}
+                              disabled={actionLoading === user.id || !manageable}
                               onClick={() =>
                                 setConfirmDialog({
                                   open: true,
@@ -277,7 +288,7 @@ export default function UserManagement() {
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8 text-destructive hover:text-destructive"
-                              disabled={actionLoading === user.id || isSelf}
+                              disabled={actionLoading === user.id || !manageable}
                               onClick={() =>
                                 setConfirmDialog({ open: true, type: "delete", user })
                               }
@@ -316,8 +327,8 @@ export default function UserManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="dev">Dev</SelectItem>
+                  {isDev && <SelectItem value="admin">Admin</SelectItem>}
+                  {/* dev role ไม่สามารถกำหนดให้ใครได้ */}
                 </SelectContent>
               </Select>
             </div>
