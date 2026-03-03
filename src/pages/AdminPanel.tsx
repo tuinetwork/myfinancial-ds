@@ -118,6 +118,7 @@ export default function AdminPanel() {
   const [userConfirm, setUserConfirm] = useState<{
     open: boolean; type: "delete" | "ban" | "unban"; user: UserInfo | null;
   }>({ open: false, type: "delete", user: null });
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   useEffect(() => {
     if (!authLoading && !isAdmin) navigate("/");
@@ -508,36 +509,75 @@ export default function AdminPanel() {
         </DialogContent>
       </Dialog>
 
-      {/* User Action Confirm Dialog */}
-      <AlertDialog open={userConfirm.open} onOpenChange={(open) => !open && setUserConfirm({ open: false, type: "delete", user: null })}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {userConfirm.type === "delete" ? "ยืนยันการลบ" : userConfirm.type === "ban" ? "ยืนยันการแบน" : "ยืนยันการปลดแบน"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {userConfirm.type === "delete"
-                ? `คุณต้องการลบ ${userConfirm.user?.display_name} (${userConfirm.user?.email}) ออกจากระบบหรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้`
-                : userConfirm.type === "ban"
+      {/* User Action Confirm Dialog - Delete with name typing */}
+      {userConfirm.type === "delete" ? (
+        <Dialog open={userConfirm.open} onOpenChange={(open) => {
+          if (!open) { setUserConfirm({ open: false, type: "delete", user: null }); setDeleteConfirmText(""); }
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-destructive">ยืนยันการลบผู้ใช้</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-muted-foreground">
+                การลบ <span className="font-semibold text-foreground">{userConfirm.user?.display_name}</span> ({userConfirm.user?.email}) จะลบข้อมูลทั้งหมดรวมถึงธุรกรรม งบประมาณ และหมวดหมู่ การกระทำนี้ไม่สามารถย้อนกลับได้
+              </p>
+              <div className="space-y-2">
+                <Label>พิมพ์ชื่อ <span className="font-semibold">{userConfirm.user?.display_name}</span> เพื่อยืนยัน</Label>
+                <Input
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder={userConfirm.user?.display_name || ""}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setUserConfirm({ open: false, type: "delete", user: null }); setDeleteConfirmText(""); }}>ยกเลิก</Button>
+              <Button
+                variant="destructive"
+                disabled={deleteConfirmText !== userConfirm.user?.display_name || userActionLoading === userConfirm.user?.id}
+                onClick={() => {
+                  if (!userConfirm.user) return;
+                  handleDeleteUser(userConfirm.user);
+                  setUserConfirm({ open: false, type: "delete", user: null });
+                  setDeleteConfirmText("");
+                }}
+              >
+                {userActionLoading === userConfirm.user?.id && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+                ลบผู้ใช้
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <AlertDialog open={userConfirm.open} onOpenChange={(open) => !open && setUserConfirm({ open: false, type: "delete", user: null })}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {userConfirm.type === "ban" ? "ยืนยันการแบน" : "ยืนยันการปลดแบน"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {userConfirm.type === "ban"
                   ? `คุณต้องการแบน ${userConfirm.user?.display_name} (${userConfirm.user?.email}) หรือไม่?`
                   : `คุณต้องการปลดแบน ${userConfirm.user?.display_name} (${userConfirm.user?.email}) หรือไม่?`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (!userConfirm.user) return;
-                userConfirm.type === "delete" ? handleDeleteUser(userConfirm.user) : handleBanToggle(userConfirm.user);
-                setUserConfirm({ open: false, type: "delete", user: null });
-              }}
-              className={userConfirm.type === "delete" || userConfirm.type === "ban" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
-            >
-              {userConfirm.type === "delete" ? "ลบ" : userConfirm.type === "ban" ? "แบน" : "ปลดแบน"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (!userConfirm.user) return;
+                  handleBanToggle(userConfirm.user);
+                  setUserConfirm({ open: false, type: "delete", user: null });
+                }}
+                className={userConfirm.type === "ban" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+              >
+                {userConfirm.type === "ban" ? "แบน" : "ปลดแบน"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   );
 }
