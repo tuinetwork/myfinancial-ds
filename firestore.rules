@@ -17,6 +17,11 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['dev', 'admin'];
     }
 
+    function isDev() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dev';
+    }
+
     // กฎสำหรับ requester collection - ผู้ใช้ใหม่ที่รอการอนุมัติ
     match /requester/{userId} {
       allow create: if isOwner(userId);
@@ -27,9 +32,16 @@ service cloud.firestore {
 
     // กฎสำหรับ Collection หลัก (users) และ Subcollection ทั้งหมด
     match /users/{userId} {
+      // เจ้าของ doc อ่าน/เขียนได้เอง
       allow read, write: if isOwner(userId);
-      allow read, create, update, delete: if isAdminOrDev();
+      // dev จัดการได้ทุกคน (ยกเว้นตัวเอง จัดการฝั่ง client)
+      allow read, create, update, delete: if isDev();
+      // admin อ่านได้ทุกคน, แก้ไข/ลบได้เฉพาะ user ที่ไม่ใช่ dev/admin
+      allow read: if isAdminOrDev();
+      allow update, delete: if isAdminOrDev()
+        && resource.data.role == 'user';
 
+      // subcollections (transactions, budgets, categories)
       match /{document=**} {
         allow read, write: if isOwner(userId);
         allow read, create, update, delete: if isAdminOrDev();
