@@ -52,7 +52,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
   const isAdminUser = userRole === "dev" || userRole === "admin";
 
   const isDashboardActive = location.pathname === "/";
