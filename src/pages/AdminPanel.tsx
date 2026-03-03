@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, doc, setDoc, getDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, getDoc, deleteDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -8,26 +8,27 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { NotificationBell } from "@/components/NotificationBell";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, Loader2, ShieldCheck, Users } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  CheckCircle, XCircle, Loader2, ShieldCheck, Users, UsersRound,
+  Pencil, Trash2, Ban,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -36,41 +37,27 @@ const SOURCE_USER_UID = "xgkdmyxxeJVlNiqoahNJWBekqmh2";
 
 async function initializeNewUser(userId: string) {
   try {
-    // Copy categories (expense & income)
     for (const catType of ["expense", "income"]) {
       const sourceDoc = await getDoc(doc(firestore, "users", SOURCE_USER_UID, "categories", catType));
       if (sourceDoc.exists()) {
         await setDoc(doc(firestore, "users", userId, "categories", catType), sourceDoc.data());
-        console.log(`[Init] Copied categories/${catType} for user ${userId}`);
       }
     }
-
-    // Copy current month's budget structure with ALL values reset to 0
     const currentPeriod = format(new Date(), "yyyy-MM");
     const budgetDoc = await getDoc(doc(firestore, "users", SOURCE_USER_UID, "budgets", currentPeriod));
     if (budgetDoc.exists()) {
       const sourceData = budgetDoc.data();
-      const newBudgetData: Record<string, any> = {
-        carry_over: 0,
-        period: currentPeriod,
-      };
-
-      // Reset all budget maps (expense_budgets, income_estimates, etc.)
+      const newBudgetData: Record<string, any> = { carry_over: 0, period: currentPeriod };
       for (const fieldKey of Object.keys(sourceData)) {
         if (fieldKey === "carry_over" || fieldKey === "period") continue;
-
         const fieldValue = sourceData[fieldKey];
         if (fieldValue && typeof fieldValue === "object") {
-          // Budget group map (e.g. expense_budgets, income_estimates)
           const resetGroup: Record<string, any> = {};
           for (const groupKey of Object.keys(fieldValue)) {
             const groupValue = fieldValue[groupKey];
             if (groupValue && typeof groupValue === "object") {
-              // Nested map: group → subcategories with number values
               const resetSubcats: Record<string, number> = {};
-              for (const subKey of Object.keys(groupValue)) {
-                resetSubcats[subKey] = 0;
-              }
+              for (const subKey of Object.keys(groupValue)) resetSubcats[subKey] = 0;
               resetGroup[groupKey] = resetSubcats;
             } else {
               resetGroup[groupKey] = 0;
@@ -81,19 +68,12 @@ async function initializeNewUser(userId: string) {
           newBudgetData[fieldKey] = 0;
         }
       }
-
-      console.log("[Init] Budget data to write:", JSON.stringify(newBudgetData, null, 2));
       await setDoc(doc(firestore, "users", userId, "budgets", currentPeriod), newBudgetData);
-      console.log(`[Init] Budget ${currentPeriod} created for user ${userId} with all values reset to 0`);
-    } else {
-      console.log(`[Init] No source budget found for period ${currentPeriod}`);
     }
   } catch (error) {
     console.error("Error initializing new user:", error);
   }
 }
-
-
 
 interface Requester {
   id: string;
@@ -103,104 +83,190 @@ interface Requester {
   created_at: any;
 }
 
+interface UserInfo {
+  id: string;
+  display_name: string;
+  email: string;
+  role: string;
+  created_at: any;
+  banned?: boolean;
+}
+
 export default function AdminPanel() {
-  const { userRole, loading: authLoading } = useAuth();
+  const { userRole, userId, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const isDev = userRole === "dev";
+  const isAdmin = userRole === "dev" || userRole === "admin";
+
+  // ===== Requester state =====
   const [requesters, setRequesters] = useState<Requester[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
-    type: "approve" | "reject";
-    requester: Requester | null;
+  const [reqLoading, setReqLoading] = useState(true);
+  const [reqActionLoading, setReqActionLoading] = useState<string | null>(null);
+  const [reqConfirm, setReqConfirm] = useState<{
+    open: boolean; type: "approve" | "reject"; requester: Requester | null;
   }>({ open: false, type: "approve", requester: null });
 
-  useEffect(() => {
-    if (!authLoading && userRole !== "dev" && userRole !== "admin") {
-      navigate("/");
-    }
-  }, [userRole, authLoading, navigate]);
+  // ===== User Management state =====
+  const [users, setUsers] = useState<UserInfo[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [userActionLoading, setUserActionLoading] = useState<string | null>(null);
+  const [editDialog, setEditDialog] = useState<{ open: boolean; user: UserInfo | null }>({ open: false, user: null });
+  const [editName, setEditName] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [userConfirm, setUserConfirm] = useState<{
+    open: boolean; type: "delete" | "ban" | "unban"; user: UserInfo | null;
+  }>({ open: false, type: "delete", user: null });
 
+  useEffect(() => {
+    if (!authLoading && !isAdmin) navigate("/");
+  }, [userRole, authLoading, navigate, isAdmin]);
+
+  // ===== Requester functions =====
   const fetchRequesters = async () => {
-    setLoading(true);
+    setReqLoading(true);
     try {
       const snapshot = await getDocs(collection(firestore, "requester"));
       const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Requester));
-      data.sort((a, b) => {
-        const ta = a.created_at?.toMillis?.() || 0;
-        const tb = b.created_at?.toMillis?.() || 0;
-        return tb - ta;
-      });
+      data.sort((a, b) => (b.created_at?.toMillis?.() || 0) - (a.created_at?.toMillis?.() || 0));
       setRequesters(data);
-    } catch (error) {
-      console.error("Error fetching requesters:", error);
+    } catch {
       toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถโหลดรายการ requester ได้", variant: "destructive" });
     } finally {
-      setLoading(false);
+      setReqLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (userRole === "dev" || userRole === "admin") {
-      fetchRequesters();
-    }
-  }, [userRole]);
-
   const handleApprove = async (req: Requester) => {
-    setActionLoading(req.id);
+    setReqActionLoading(req.id);
     try {
-      // 1. Create user document
       await setDoc(doc(firestore, "users", req.id), {
-        display_name: req.display_name,
-        email: req.email,
-        role: "user",
-        created_at: serverTimestamp(),
+        display_name: req.display_name, email: req.email, role: "user", created_at: serverTimestamp(),
       });
-
-      // 2. Initialize categories & budget for new user
       await initializeNewUser(req.id);
-
-      // 3. Remove from requester
       await deleteDoc(doc(firestore, "requester", req.id));
       setRequesters((prev) => prev.filter((r) => r.id !== req.id));
-      toast({ title: "อนุมัติสำเร็จ", description: `${req.display_name} ได้รับการอนุมัติและเริ่มต้นข้อมูลแล้ว` });
-    } catch (error) {
-      console.error("Approve error:", error);
+      toast({ title: "อนุมัติสำเร็จ", description: `${req.display_name} ได้รับการอนุมัติแล้ว` });
+    } catch {
       toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถอนุมัติผู้ใช้ได้", variant: "destructive" });
     } finally {
-      setActionLoading(null);
+      setReqActionLoading(null);
     }
   };
 
   const handleReject = async (req: Requester) => {
-    setActionLoading(req.id);
+    setReqActionLoading(req.id);
     try {
       await deleteDoc(doc(firestore, "requester", req.id));
       setRequesters((prev) => prev.filter((r) => r.id !== req.id));
       toast({ title: "ปฏิเสธสำเร็จ", description: `${req.display_name} ถูกปฏิเสธแล้ว` });
-    } catch (error) {
-      console.error("Reject error:", error);
+    } catch {
       toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถปฏิเสธผู้ใช้ได้", variant: "destructive" });
     } finally {
-      setActionLoading(null);
+      setReqActionLoading(null);
     }
   };
 
-  const onConfirm = () => {
-    if (!confirmDialog.requester) return;
-    if (confirmDialog.type === "approve") {
-      handleApprove(confirmDialog.requester);
-    } else {
-      handleReject(confirmDialog.requester);
+  // ===== User Management functions =====
+  const fetchUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const snapshot = await getDocs(collection(firestore, "users"));
+      const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as UserInfo));
+      const roleOrder: Record<string, number> = { dev: 0, admin: 1, user: 2 };
+      data.sort((a, b) => (roleOrder[a.role] ?? 3) - (roleOrder[b.role] ?? 3));
+      setUsers(data);
+    } catch {
+      toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถโหลดรายการผู้ใช้ได้", variant: "destructive" });
+    } finally {
+      setUsersLoading(false);
     }
-    setConfirmDialog({ open: false, type: "approve", requester: null });
   };
 
-  if (authLoading || (userRole !== "dev" && userRole !== "admin")) {
-    return null;
-  }
+  const canManage = (targetUser: UserInfo) => {
+    if (targetUser.id === userId) return false;
+    if (targetUser.role === "dev") return false;
+    if (isDev) return true;
+    if (userRole === "admin" && targetUser.role === "user") return true;
+    return false;
+  };
+
+  const handleEdit = (user: UserInfo) => {
+    setEditName(user.display_name);
+    setEditRole(user.role);
+    setEditDialog({ open: true, user });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editDialog.user) return;
+    setUserActionLoading(editDialog.user.id);
+    try {
+      await updateDoc(doc(firestore, "users", editDialog.user.id), { display_name: editName, role: editRole });
+      setUsers((prev) => prev.map((u) => u.id === editDialog.user!.id ? { ...u, display_name: editName, role: editRole } : u));
+      toast({ title: "บันทึกสำเร็จ", description: `อัปเดตข้อมูล ${editName} แล้ว` });
+      setEditDialog({ open: false, user: null });
+    } catch {
+      toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถแก้ไขผู้ใช้ได้", variant: "destructive" });
+    } finally {
+      setUserActionLoading(null);
+    }
+  };
+
+  const handleDeleteUser = async (user: UserInfo) => {
+    setUserActionLoading(user.id);
+    try {
+      await deleteDoc(doc(firestore, "users", user.id));
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      toast({ title: "ลบสำเร็จ", description: `${user.display_name} ถูกลบออกจากระบบแล้ว` });
+    } catch {
+      toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถลบผู้ใช้ได้", variant: "destructive" });
+    } finally {
+      setUserActionLoading(null);
+    }
+  };
+
+  const handleBanToggle = async (user: UserInfo) => {
+    setUserActionLoading(user.id);
+    const newBanned = !user.banned;
+    try {
+      await updateDoc(doc(firestore, "users", user.id), { banned: newBanned });
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, banned: newBanned } : u)));
+      toast({
+        title: newBanned ? "แบนสำเร็จ" : "ปลดแบนสำเร็จ",
+        description: `${user.display_name} ${newBanned ? "ถูกแบนแล้ว" : "ถูกปลดแบนแล้ว"}`,
+      });
+    } catch {
+      toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถดำเนินการได้", variant: "destructive" });
+    } finally {
+      setUserActionLoading(null);
+    }
+  };
+
+  // ===== Load data on mount =====
+  useEffect(() => {
+    if (isAdmin) {
+      fetchRequesters();
+      fetchUsers();
+    }
+  }, [isAdmin]);
+
+  const formatDate = (val: any) => {
+    if (val?.toDate) return format(val.toDate(), "d MMM yyyy HH:mm", { locale: th });
+    if (typeof val === "number") return format(new Date(val), "d MMM yyyy HH:mm", { locale: th });
+    return "-";
+  };
+
+  const roleBadge = (role: string, banned?: boolean) => {
+    if (banned) return <Badge variant="destructive">แบน</Badge>;
+    switch (role) {
+      case "dev": return <Badge className="bg-purple-600 text-white">Dev</Badge>;
+      case "admin": return <Badge className="bg-blue-600 text-white">Admin</Badge>;
+      default: return <Badge variant="secondary">User</Badge>;
+    }
+  };
+
+  if (authLoading || !isAdmin) return null;
 
   return (
     <>
@@ -218,114 +284,244 @@ export default function AdminPanel() {
           </div>
         </header>
 
-        <div className="flex-1 p-4 sm:p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-muted-foreground" />
-              <h2 className="text-base font-medium">รายการผู้ใช้ที่รออนุมัติ</h2>
-              <Badge variant="secondary">{requesters.length}</Badge>
-            </div>
-            <Button variant="outline" size="sm" onClick={fetchRequesters} disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "รีเฟรช"}
-            </Button>
-          </div>
+        <div className="flex-1 p-4 sm:p-6">
+          <Tabs defaultValue="approve" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="approve" className="gap-1.5">
+                <Users className="h-4 w-4" />
+                อนุมัติผู้ใช้
+                {requesters.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">{requesters.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="manage" className="gap-1.5">
+                <UsersRound className="h-4 w-4" />
+                จัดการผู้ใช้
+              </TabsTrigger>
+            </TabsList>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : requesters.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Users className="h-10 w-10 mx-auto mb-2 opacity-50" />
-              <p>ไม่มีผู้ใช้ที่รออนุมัติ</p>
-            </div>
-          ) : (
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ชื่อ</TableHead>
-                    <TableHead>อีเมล</TableHead>
-                    <TableHead>สถานะ</TableHead>
-                    <TableHead>วันที่สมัคร</TableHead>
-                    <TableHead className="text-right">จัดการ</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {requesters.map((req) => (
-                    <TableRow key={req.id}>
-                      <TableCell className="font-medium">{req.display_name || "-"}</TableCell>
-                      <TableCell>{req.email}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-yellow-600 border-yellow-300 bg-yellow-50">
-                          {req.role || "pending"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {req.created_at?.toDate
-                          ? format(req.created_at.toDate(), "d MMM yyyy HH:mm", { locale: th })
-                          : typeof req.created_at === "number"
-                            ? format(new Date(req.created_at), "d MMM yyyy HH:mm", { locale: th })
-                            : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="default"
-                            disabled={actionLoading === req.id}
-                            onClick={() => setConfirmDialog({ open: true, type: "approve", requester: req })}
-                          >
-                            {actionLoading === req.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                            )}
-                            อนุมัติ
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            disabled={actionLoading === req.id}
-                            onClick={() => setConfirmDialog({ open: true, type: "reject", requester: req })}
-                          >
-                            {actionLoading === req.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <XCircle className="h-3.5 w-3.5 mr-1" />
-                            )}
-                            ปฏิเสธ
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+            {/* ===== Tab: อนุมัติผู้ใช้ ===== */}
+            <TabsContent value="approve" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-medium">รายการผู้ใช้ที่รออนุมัติ</h2>
+                <Button variant="outline" size="sm" onClick={fetchRequesters} disabled={reqLoading}>
+                  {reqLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "รีเฟรช"}
+                </Button>
+              </div>
+
+              {reqLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : requesters.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Users className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>ไม่มีผู้ใช้ที่รออนุมัติ</p>
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ชื่อ</TableHead>
+                        <TableHead>อีเมล</TableHead>
+                        <TableHead>สถานะ</TableHead>
+                        <TableHead>วันที่สมัคร</TableHead>
+                        <TableHead className="text-right">จัดการ</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {requesters.map((req) => (
+                        <TableRow key={req.id}>
+                          <TableCell className="font-medium">{req.display_name || "-"}</TableCell>
+                          <TableCell>{req.email}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-yellow-600 border-yellow-300 bg-yellow-50">
+                              {req.role || "pending"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{formatDate(req.created_at)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button size="sm" variant="default" disabled={reqActionLoading === req.id}
+                                onClick={() => setReqConfirm({ open: true, type: "approve", requester: req })}>
+                                {reqActionLoading === req.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5 mr-1" />}
+                                อนุมัติ
+                              </Button>
+                              <Button size="sm" variant="destructive" disabled={reqActionLoading === req.id}
+                                onClick={() => setReqConfirm({ open: true, type: "reject", requester: req })}>
+                                {reqActionLoading === req.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5 mr-1" />}
+                                ปฏิเสธ
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* ===== Tab: จัดการผู้ใช้ ===== */}
+            <TabsContent value="manage" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-medium">ผู้ใช้ทั้งหมด</h2>
+                  <Badge variant="secondary">{users.length}</Badge>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchUsers} disabled={usersLoading}>
+                  {usersLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "รีเฟรช"}
+                </Button>
+              </div>
+
+              {usersLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : users.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <UsersRound className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>ไม่มีผู้ใช้ในระบบ</p>
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ชื่อ</TableHead>
+                        <TableHead>อีเมล</TableHead>
+                        <TableHead>สถานะ</TableHead>
+                        <TableHead>วันที่สร้าง</TableHead>
+                        <TableHead className="text-right">จัดการ</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((user) => {
+                        const manageable = canManage(user);
+                        return (
+                          <TableRow key={user.id} className={user.banned ? "opacity-50" : ""}>
+                            <TableCell className="font-medium">{user.display_name || "-"}</TableCell>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>{roleBadge(user.role, user.banned)}</TableCell>
+                            <TableCell className="text-muted-foreground text-sm">{formatDate(user.created_at)}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button size="icon" variant="ghost" className="h-8 w-8"
+                                  disabled={userActionLoading === user.id || !manageable}
+                                  onClick={() => handleEdit(user)} title="แก้ไข">
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-8 w-8"
+                                  disabled={userActionLoading === user.id || !manageable}
+                                  onClick={() => setUserConfirm({ open: true, type: user.banned ? "unban" : "ban", user })}
+                                  title={user.banned ? "ปลดแบน" : "แบน"}>
+                                  <Ban className={`h-3.5 w-3.5 ${user.banned ? "text-destructive" : ""}`} />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive"
+                                  disabled={userActionLoading === user.id || !manageable}
+                                  onClick={() => setUserConfirm({ open: true, type: "delete", user })}
+                                  title="ลบ">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
 
-      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => !open && setConfirmDialog({ open: false, type: "approve", requester: null })}>
+      {/* Requester Confirm Dialog */}
+      <AlertDialog open={reqConfirm.open} onOpenChange={(open) => !open && setReqConfirm({ open: false, type: "approve", requester: null })}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmDialog.type === "approve" ? "ยืนยันการอนุมัติ" : "ยืนยันการปฏิเสธ"}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{reqConfirm.type === "approve" ? "ยืนยันการอนุมัติ" : "ยืนยันการปฏิเสธ"}</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmDialog.type === "approve"
-                ? `คุณต้องการอนุมัติ ${confirmDialog.requester?.display_name} (${confirmDialog.requester?.email}) ให้เข้าใช้งานระบบหรือไม่?`
-                : `คุณต้องการปฏิเสธ ${confirmDialog.requester?.display_name} (${confirmDialog.requester?.email}) หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้`}
+              {reqConfirm.type === "approve"
+                ? `คุณต้องการอนุมัติ ${reqConfirm.requester?.display_name} (${reqConfirm.requester?.email}) ให้เข้าใช้งานระบบหรือไม่?`
+                : `คุณต้องการปฏิเสธ ${reqConfirm.requester?.display_name} (${reqConfirm.requester?.email}) หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
             <AlertDialogAction
-              onClick={onConfirm}
-              className={confirmDialog.type === "reject" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+              onClick={() => {
+                if (!reqConfirm.requester) return;
+                reqConfirm.type === "approve" ? handleApprove(reqConfirm.requester) : handleReject(reqConfirm.requester);
+                setReqConfirm({ open: false, type: "approve", requester: null });
+              }}
+              className={reqConfirm.type === "reject" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
             >
-              {confirmDialog.type === "approve" ? "อนุมัติ" : "ปฏิเสธ"}
+              {reqConfirm.type === "approve" ? "อนุมัติ" : "ปฏิเสธ"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={editDialog.open} onOpenChange={(open) => !open && setEditDialog({ open: false, user: null })}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>แก้ไขผู้ใช้</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>ชื่อ</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Select value={editRole} onValueChange={setEditRole}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">User</SelectItem>
+                  {isDev && <SelectItem value="admin">Admin</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">อีเมล: {editDialog.user?.email}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialog({ open: false, user: null })}>ยกเลิก</Button>
+            <Button onClick={handleSaveEdit} disabled={userActionLoading === editDialog.user?.id}>
+              {userActionLoading === editDialog.user?.id && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              บันทึก
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Action Confirm Dialog */}
+      <AlertDialog open={userConfirm.open} onOpenChange={(open) => !open && setUserConfirm({ open: false, type: "delete", user: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {userConfirm.type === "delete" ? "ยืนยันการลบ" : userConfirm.type === "ban" ? "ยืนยันการแบน" : "ยืนยันการปลดแบน"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {userConfirm.type === "delete"
+                ? `คุณต้องการลบ ${userConfirm.user?.display_name} (${userConfirm.user?.email}) ออกจากระบบหรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้`
+                : userConfirm.type === "ban"
+                  ? `คุณต้องการแบน ${userConfirm.user?.display_name} (${userConfirm.user?.email}) หรือไม่?`
+                  : `คุณต้องการปลดแบน ${userConfirm.user?.display_name} (${userConfirm.user?.email}) หรือไม่?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!userConfirm.user) return;
+                userConfirm.type === "delete" ? handleDeleteUser(userConfirm.user) : handleBanToggle(userConfirm.user);
+                setUserConfirm({ open: false, type: "delete", user: null });
+              }}
+              className={userConfirm.type === "delete" || userConfirm.type === "ban" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            >
+              {userConfirm.type === "delete" ? "ลบ" : userConfirm.type === "ban" ? "แบน" : "ปลดแบน"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
