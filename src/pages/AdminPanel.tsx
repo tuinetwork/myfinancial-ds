@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, getDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -31,6 +31,37 @@ import { CheckCircle, XCircle, Loader2, ShieldCheck, Users } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
+
+const SOURCE_USER_UID = "xgkdmyxxeJVlNiqoahNJWBekqmh2";
+
+async function initializeNewUser(userId: string) {
+  try {
+    // Copy categories (expense & income)
+    for (const catType of ["expense", "income"]) {
+      const sourceDoc = await getDoc(doc(firestore, "users", SOURCE_USER_UID, "categories", catType));
+      if (sourceDoc.exists()) {
+        await setDoc(doc(firestore, "users", userId, "categories", catType), sourceDoc.data());
+      }
+    }
+
+    // Copy current month's budget with carry_over reset to 0
+    const currentPeriod = format(new Date(), "yyyy-MM");
+    const budgetDoc = await getDoc(doc(firestore, "users", SOURCE_USER_UID, "budgets", currentPeriod));
+    if (budgetDoc.exists()) {
+      const budgetData = { ...budgetDoc.data() };
+      if (budgetData.categories && typeof budgetData.categories === "object") {
+        for (const key of Object.keys(budgetData.categories)) {
+          if (budgetData.categories[key]?.carry_over !== undefined) {
+            budgetData.categories[key].carry_over = 0;
+          }
+        }
+      }
+      await setDoc(doc(firestore, "users", userId, "budgets", currentPeriod), budgetData);
+    }
+  } catch (error) {
+    console.error("Error initializing new user:", error);
+  }
+}
 
 interface Requester {
   id: string;
@@ -88,15 +119,21 @@ export default function AdminPanel() {
   const handleApprove = async (req: Requester) => {
     setActionLoading(req.id);
     try {
+      // 1. Create user document
       await setDoc(doc(firestore, "users", req.id), {
         display_name: req.display_name,
         email: req.email,
         role: "user",
         created_at: serverTimestamp(),
       });
+
+      // 2. Initialize categories & budget for new user
+      await initializeNewUser(req.id);
+
+      // 3. Remove from requester
       await deleteDoc(doc(firestore, "requester", req.id));
       setRequesters((prev) => prev.filter((r) => r.id !== req.id));
-      toast({ title: "อนุมัติสำเร็จ", description: `${req.display_name} ได้รับการอนุมัติแล้ว` });
+      toast({ title: "อนุมัติสำเร็จ", description: `${req.display_name} ได้รับการอนุมัติและเริ่มต้นข้อมูลแล้ว` });
     } catch (error) {
       console.error("Approve error:", error);
       toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถอนุมัติผู้ใช้ได้", variant: "destructive" });
