@@ -3,6 +3,7 @@ import { collection, getDocs, doc, setDoc, getDoc, deleteDoc, updateDoc, serverT
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { AppFooter } from "@/components/AppFooter";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
@@ -445,6 +446,7 @@ export default function AdminPanel() {
             </CardContent>
           </Card>
         </div>
+        <AppFooter />
       </main>
 
       {/* Requester Confirm Dialog */}
