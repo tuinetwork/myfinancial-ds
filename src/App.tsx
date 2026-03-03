@@ -52,10 +52,10 @@ const AppContent = () => {
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <Toaster />
-      <Sonner />
       <TooltipProvider>
         <AuthProvider>
+          <Toaster />
+          <Sonner />
           <AppContent />
         </AuthProvider>
       </TooltipProvider>
