@@ -53,13 +53,13 @@ async function initializeNewUser(userId: string) {
         carry_over: 0,
       };
 
-      // Reset all budget maps (expense_budgets, income_budgets, etc.)
+      // Reset all budget maps (expense_budgets, income_estimates, etc.)
       for (const fieldKey of Object.keys(sourceData)) {
         if (fieldKey === "carry_over") continue;
 
         const fieldValue = sourceData[fieldKey];
         if (fieldValue && typeof fieldValue === "object") {
-          // This is a budget group map (e.g. expense_budgets)
+          // Budget group map (e.g. expense_budgets, income_estimates)
           const resetGroup: Record<string, any> = {};
           for (const groupKey of Object.keys(fieldValue)) {
             const groupValue = fieldValue[groupKey];
