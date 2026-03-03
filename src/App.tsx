@@ -17,7 +17,7 @@ import { Loader2 } from "lucide-react";
 const queryClient = new QueryClient();
 
 const AppContent = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, pendingApproval } = useAuth();
 
   if (loading) {
     return (
@@ -27,7 +27,7 @@ const AppContent = () => {
     );
   }
 
-  if (!user) {
+  if (!user || pendingApproval) {
     return <GoogleLogin />;
   }
 
