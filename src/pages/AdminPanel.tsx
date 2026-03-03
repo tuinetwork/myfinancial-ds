@@ -213,12 +213,24 @@ export default function AdminPanel() {
     }
   };
 
+  const deleteSubcollection = async (userId: string, subcol: string) => {
+    const snap = await getDocs(collection(firestore, "users", userId, subcol));
+    const deletes = snap.docs.map((d) => deleteDoc(d.ref));
+    await Promise.all(deletes);
+  };
+
   const handleDeleteUser = async (user: UserInfo) => {
     setUserActionLoading(user.id);
     try {
+      // ลบ subcollections ทั้งหมดก่อนลบ user document
+      await Promise.all([
+        deleteSubcollection(user.id, "transactions"),
+        deleteSubcollection(user.id, "budgets"),
+        deleteSubcollection(user.id, "categories"),
+      ]);
       await deleteDoc(doc(firestore, "users", user.id));
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
-      toast({ title: "ลบสำเร็จ", description: `${user.display_name} ถูกลบออกจากระบบแล้ว` });
+      toast({ title: "ลบสำเร็จ", description: `${user.display_name} และข้อมูลทั้งหมดถูกลบออกจากระบบแล้ว` });
     } catch {
       toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถลบผู้ใช้ได้", variant: "destructive" });
     } finally {
