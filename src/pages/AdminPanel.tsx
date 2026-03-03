@@ -232,7 +232,9 @@ export default function AdminPanel() {
                       <TableCell className="text-muted-foreground text-sm">
                         {req.created_at?.toDate
                           ? format(req.created_at.toDate(), "d MMM yyyy HH:mm", { locale: th })
-                          : "-"}
+                          : typeof req.created_at === "number"
+                            ? format(new Date(req.created_at), "d MMM yyyy HH:mm", { locale: th })
+                            : "-"}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
