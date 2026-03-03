@@ -4,17 +4,14 @@ service cloud.firestore {
 
   match /databases/{database}/documents {
 
-    // ฟังก์ชันช่วยตรวจสอบว่าผู้ใช้ล็อกอินอยู่หรือไม่
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // ฟังก์ชันช่วยตรวจสอบว่าผู้ใช้ที่กำลังใช้งาน เป็นเจ้าของข้อมูลนี้จริงๆ (เทียบ UID)
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // ฟังก์ชันตรวจสอบว่าผู้ใช้มี role เป็น admin หรือ dev
     function isAdminOrDev() {
       return isAuthenticated()
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['dev', 'admin'];
@@ -28,23 +25,17 @@ service cloud.firestore {
       allow update: if false;
     }
 
-    // กฎสำหรับ Collection หลัก (users) และ Subcollection ทั้งหมดที่อยู่ข้างใน
+    // กฎสำหรับ Collection หลัก (users) และ Subcollection ทั้งหมด
     match /users/{userId} {
-
-      // อนุญาตให้อ่านและเขียน Document Profile ของตัวเองได้
       allow read, write: if isOwner(userId);
-
-      // อนุญาตให้ admin/dev สร้าง user document ได้ (สำหรับ approve flow)
       allow create: if isAdminOrDev();
 
-      // กฎสำหรับ Subcollection ทั้งหมด (categories, budgets, transactions)
-      // ที่อยู่ภายใต้ userId นี้
       match /{document=**} {
         allow read, write: if isOwner(userId);
       }
     }
 
-    // ป้องกันการเข้าถึง Collection อื่นๆ ที่ไม่ได้ตั้งค่าไว้ (ปิดตายเพื่อความปลอดภัย)
+    // ป้องกันการเข้าถึง Collection อื่นๆ
     match /{path=**} {
       allow read, write: if false;
     }
