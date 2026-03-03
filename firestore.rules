@@ -28,11 +28,11 @@ service cloud.firestore {
     // กฎสำหรับ Collection หลัก (users) และ Subcollection ทั้งหมด
     match /users/{userId} {
       allow read, write: if isOwner(userId);
-      allow create: if isAdminOrDev();
+      allow read, create, update, delete: if isAdminOrDev();
 
       match /{document=**} {
         allow read, write: if isOwner(userId);
-        allow create, update: if isAdminOrDev();
+        allow read, create, update: if isAdminOrDev();
       }
     }
 
