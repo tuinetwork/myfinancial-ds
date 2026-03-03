@@ -1,72 +1,54 @@
 
 
-## Plan: ระบบ Requester สำหรับผู้ใช้ใหม่ที่ยังไม่ได้รับอนุญาต
+## Admin Panel Plan
 
-### สิ่งที่จะทำ
+### สิ่งที่ต้องทำ
 
-เมื่อผู้ใช้ที่ไม่มีข้อมูลใน `users` collection กด Login เข้ามา ระบบจะ:
-1. บันทึกข้อมูลลง Firestore collection `requester/{UID}` แทนที่จะแสดง error ทันที
-2. แสดงหน้า "รอการพิจารณาอนุมัติ" แทนข้อความ "ไม่พบข้อมูลผู้ใช้ในระบบ"
-3. เมื่อ admin อนุมัติผู้ใช้ใหม่ (เพิ่มใน `users` collection) → ระบบจะคัดลอก categories และ budgets เดือนปัจจุบันจาก `user_id_001` ให้ผู้ใช้ใหม่อัตโนมัติ
+**1. เพิ่ม `userRole` ใน AuthContext**
+- เมื่อผู้ใช้ login สำเร็จและพบใน `users` collection → อ่านฟิลด์ `role` จาก document `/users/{uid}`
+- เก็บค่า `userRole` (string เช่น "dev", "admin", "user") ใน context
+- Export `userRole` ผ่าน `useAuth()`
 
----
+**2. สร้างหน้า Admin Panel (`src/pages/AdminPanel.tsx`)**
+- ดึงข้อมูลจาก Firestore collection `requester` (ทุก document) แสดงเป็นตาราง
+- แต่ละแถวแสดง: display_name, email, created_at, role status
+- ปุ่ม **อนุมัติ (Approve)**: สร้าง document ใน `users/{uid}` → ลบออกจาก `requester/{uid}` → trigger initialization
+- ปุ่ม **ปฏิเสธ (Reject)**: ลบ document ออกจาก `requester/{uid}`
+- มี confirmation dialog ก่อนทำ approve/reject
 
-### การเปลี่ยนแปลงทางเทคนิค
+**3. เพิ่มเมนู Admin Panel ใน Sidebar Footer**
+- เพิ่มเมนู "Admin Panel" ใน `SidebarFooter` เหนือเมนูตั้งค่า พร้อมไอคอน `ShieldCheck`
+- แสดงเฉพาะเมื่อ `userRole === "dev" || userRole === "admin"`
+- Link ไปที่ `/admin`
 
-#### 1. แก้ไข `src/contexts/AuthContext.tsx`
-- เพิ่ม state `pendingApproval` (boolean) เพื่อแยกสถานะ "รอพิจารณา" จาก "ไม่ได้ login"
-- ใน `signInWithGoogle`: เมื่อไม่พบ user ใน `users` collection → เขียนข้อมูลลง `requester/{UID}`:
-  ```
-  { created_at, display_name, email, role: "pending" }
-  ```
-- ใน `onAuthStateChanged`: เมื่อไม่พบใน `users` → ตรวจ `requester/{UID}` ถ้ามีอยู่แล้วก็ set `pendingApproval = true` (ไม่ sign out)
-- เพิ่มฟังก์ชัน `initializeNewUser(userId)` ที่คัดลอก categories และ budgets เดือนปัจจุบันจาก hardcoded source user ID
-- เรียก `initializeNewUser` เมื่อผู้ใช้ login แล้วพบว่ามี doc ใน `users` แต่ยังไม่มี categories/budgets (user ใหม่ที่เพิ่งได้รับอนุมัติ)
+**4. เพิ่ม Route `/admin` ใน App.tsx**
+- เพิ่ม `<Route path="/admin" element={<AdminPanel />} />`
 
-#### 2. แก้ไข `src/components/GoogleLogin.tsx`
-- รับ `pendingApproval` จาก `useAuth()`
-- เมื่อ `pendingApproval === true` → แสดง UI "รอการพิจารณาอนุมัติ" พร้อมข้อมูลผู้ใช้ และปุ่มออกจากระบบ แทน error message สีแดง
+**5. อัปเดต Firestore Rules**
+- เพิ่ม rule ให้ผู้ใช้ที่มี role "dev"/"admin" สามารถ read/delete collection `requester` ทั้งหมดได้
+- ต้องใช้ custom claim หรือตรวจสอบ role จาก `users/{uid}` document ใน rules
 
-#### 3. แก้ไข `src/App.tsx`
-- เพิ่มเงื่อนไข: ถ้า `pendingApproval` → แสดง `GoogleLogin` ในโหมดรอพิจารณา
+### รายละเอียดทางเทคนิค
 
-#### 4. แก้ไข `firestore.rules`
-- เพิ่ม rule สำหรับ `requester/{userId}`:
-  - `allow create`: ถ้า `auth.uid == userId` (ผู้ใช้สร้างเฉพาะ doc ของตัวเอง)
-  - `allow read`: ถ้า `auth.uid == userId`
-  - `allow update, delete`: `false` (admin จัดการผ่าน Firebase Console)
-
-#### 5. ฟังก์ชันคัดลอกข้อมูลจาก source user
-
-สร้างฟังก์ชันใน AuthContext ที่:
-- อ่าน `users/{SOURCE_UID}/categories/expense` และ `income` → เขียนลง `users/{newUID}/categories/`
-- อ่าน `users/{SOURCE_UID}/budgets/{currentPeriod}` → เขียนลง `users/{newUID}/budgets/{currentPeriod}` (reset `carry_over` เป็น 0)
-- Source UID จะ hardcode เป็นค่าคงที่ (ต้องระบุ UID จริงของ user_id_001)
-
----
-
-### โครงสร้าง Firestore ใหม่
-
+- **Role check ใน Firestore Rules**: ใช้ `get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role` เพื่อตรวจ role ฝั่ง server
+- **Approve flow**: `setDoc(users/{uid}, { email, display_name, role: "user", ... })` → `deleteDoc(requester/{uid})`
+- **Admin route protection**: ตรวจ `userRole` ใน component level — ถ้าไม่ใช่ dev/admin redirect กลับ `/`
+- **Firestore rules ใหม่สำหรับ requester**:
 ```text
-requester/
-  └── {UID}/
-        ├── created_at: Timestamp
-        ├── display_name: string
-        ├── email: string
-        └── role: "pending"
+match /requester/{requesterId} {
+  allow create: if isOwner(requesterId);
+  allow read: if isOwner(requesterId);
+  // Admin/dev can read all and delete
+  allow read, delete: if isAuthenticated() 
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['dev', 'admin'];
+  allow update: if false;
+}
 ```
 
-### Flow
-
-```text
-ผู้ใช้ใหม่กด Login
-  → ไม่พบใน users collection
-  → บันทึกลง requester/{UID}
-  → แสดง "รอการพิจารณาอนุมัติ"
-
-Admin อนุมัติ (เพิ่ม doc ใน users collection ผ่าน Firebase Console)
-  → ผู้ใช้ login อีกครั้ง → พบใน users
-  → ตรวจว่ายังไม่มี categories → คัดลอกจาก source user
-  → เข้าใช้งานได้ปกติ
-```
+### ไฟล์ที่ต้องแก้ไข
+1. `src/contexts/AuthContext.tsx` — เพิ่ม `userRole`
+2. `src/pages/AdminPanel.tsx` — สร้างใหม่
+3. `src/components/AppSidebar.tsx` — เพิ่มเมนู Admin
+4. `src/App.tsx` — เพิ่ม route
+5. `firestore.rules` — เพิ่ม admin rules
 
