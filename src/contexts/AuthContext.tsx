@@ -29,9 +29,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         const userDoc = await getDoc(doc(firestore, "users", firebaseUser.uid));
         if (userDoc.exists()) {
-          setUser(firebaseUser);
-          setUserRole(userDoc.data()?.role || "user");
-          setPendingApproval(false);
+          const data = userDoc.data();
+          if (data?.banned) {
+            // ผู้ใช้ถูกแบน — sign out
+            await firebaseSignOut(auth);
+            setUser(null);
+            setUserRole(null);
+            setPendingApproval(false);
+          } else {
+            setUser(firebaseUser);
+            setUserRole(data?.role || "user");
+            setPendingApproval(false);
+          }
         } else {
           const reqDoc = await getDoc(doc(firestore, "requester", firebaseUser.uid));
           if (reqDoc.exists()) {

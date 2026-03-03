@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { LayoutDashboard, Receipt, Wallet, Settings, ChevronDown, ChevronRight, ChevronUp, CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Receipt, Wallet, Settings, ChevronDown, ChevronRight, ChevronUp, CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart, ShieldCheck, UserCheck, UsersRound } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -54,6 +54,13 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { userRole } = useAuth();
   const isAdminUser = userRole === "dev" || userRole === "admin";
+
+  const isAdminActive = location.pathname.startsWith("/admin");
+  const [adminOpen, setAdminOpen] = useState(isAdminActive);
+
+  useEffect(() => {
+    if (isAdminActive) setAdminOpen(true);
+  }, [isAdminActive]);
 
   const isDashboardActive = location.pathname === "/";
   const isSettingsActive = location.pathname.startsWith("/settings");
@@ -182,21 +189,51 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-3 border-t border-sidebar-border">
         {isAdminUser && (
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <NavLink
-                  to="/admin"
-                  end
-                  className="hover:bg-sidebar-accent/50"
-                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                >
+          <Collapsible open={adminOpen} onOpenChange={setAdminOpen}>
+            {!collapsed && (
+              <CollapsibleContent>
+                <div className="ml-6 border-l border-sidebar-border pl-2 mb-1 space-y-0.5">
+                  {[
+                    { title: "อนุมัติผู้ใช้", url: "/admin", icon: UserCheck },
+                    { title: "จัดการผู้ใช้", url: "/admin/users", icon: UsersRound },
+                  ].map((child) => {
+                    const active = location.pathname === child.url;
+                    return (
+                      <button
+                        key={child.url}
+                        onClick={() => navigate(child.url)}
+                        className={`flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${
+                          active
+                            ? "text-sidebar-primary font-medium bg-sidebar-accent/50"
+                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
+                        }`}
+                      >
+                        <child.icon className="h-3.5 w-3.5" />
+                        {child.title}
+                      </button>
+                    );
+                  })}
+                </div>
+              </CollapsibleContent>
+            )}
+            <CollapsibleTrigger asChild>
+              <SidebarMenuButton
+                className={`w-full justify-between hover:bg-sidebar-accent/50 ${
+                  isAdminActive ? "bg-sidebar-accent text-sidebar-primary font-medium" : ""
+                }`}
+              >
+                <div className="flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4" />
                   {!collapsed && <span>Admin Panel</span>}
-                </NavLink>
+                </div>
+                {!collapsed && (
+                  adminOpen
+                    ? <ChevronUp className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+                    : <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+                )}
               </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+            </CollapsibleTrigger>
+          </Collapsible>
         )}
         <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
           {!collapsed && (
