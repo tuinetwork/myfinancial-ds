@@ -28,16 +28,14 @@ service cloud.firestore {
       allow update: if false;
     }
 
-    // อนุญาตให้ admin/dev สร้าง user document ได้ (สำหรับ approve flow)
-    match /users/{userId} {
-      allow create: if isAdminOrDev();
-    }
-
     // กฎสำหรับ Collection หลัก (users) และ Subcollection ทั้งหมดที่อยู่ข้างใน
     match /users/{userId} {
 
       // อนุญาตให้อ่านและเขียน Document Profile ของตัวเองได้
       allow read, write: if isOwner(userId);
+
+      // อนุญาตให้ admin/dev สร้าง user document ได้ (สำหรับ approve flow)
+      allow create: if isAdminOrDev();
 
       // กฎสำหรับ Subcollection ทั้งหมด (categories, budgets, transactions)
       // ที่อยู่ภายใต้ userId นี้
