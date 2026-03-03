@@ -49,18 +49,24 @@ const AppContent = () => {
   );
 };
 
+const AppWrapper = () => {
+  return (
+    <div id="app-root">
+      <Toaster />
+      <Sonner />
+      <TooltipProvider delayDuration={0}>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </TooltipProvider>
+    </div>
+  );
+};
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <div>
-            <Toaster />
-            <Sonner />
-            <AppContent />
-          </div>
-        </TooltipProvider>
-      </AuthProvider>
+      <AppWrapper />
     </QueryClientProvider>
   );
 };
