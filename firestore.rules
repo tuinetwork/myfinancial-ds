@@ -32,6 +32,7 @@ service cloud.firestore {
 
       match /{document=**} {
         allow read, write: if isOwner(userId);
+        allow create, update: if isAdminOrDev();
       }
     }
 
