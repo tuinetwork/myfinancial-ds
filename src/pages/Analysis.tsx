@@ -150,7 +150,7 @@ const Analysis = () => {
           actual,
           diff: b.budget - actual,
           pct,
-          status: pct > 100 ? "over" : pct > 80 ? "warning" : "ok",
+          status: pct > 100 ? "over" : pct === 100 ? "full" : pct > 80 ? "warning" : "ok",
         };
       })
       .sort((a, b) => b.pct - a.pct);
@@ -192,7 +192,7 @@ const Analysis = () => {
     // Budget totals
     const totalBudget = allBudgetItems.reduce((s, b) => s + b.budget, 0);
     const overBudgetCount = budgetPerformance.filter((b) => b.status === "over").length;
-    const warningCount = budgetPerformance.filter((b) => b.status === "warning").length;
+    const warningCount = budgetPerformance.filter((b) => b.status === "warning" || b.status === "full").length;
     const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
 
     return {
@@ -574,6 +574,8 @@ const Analysis = () => {
                               <TableCell className="text-center">
                                 {item.status === "over" ? (
                                   <Badge variant="destructive" className="text-[10px] px-1.5 py-0">เกินงบ</Badge>
+                                ) : item.status === "full" ? (
+                                  <Badge className="text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-500/30">เต็มแล้ว</Badge>
                                 ) : item.status === "warning" ? (
                                   <Badge className="text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-500/30">ใกล้เต็ม</Badge>
                                 ) : (
