@@ -1,4 +1,4 @@
-import { Bell } from "lucide-react";
+import { Bell, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -6,8 +6,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTransactionNotifications, TransactionNotification } from "@/hooks/useTransactionNotifications";
+import { useRequesterNotifications } from "@/hooks/useRequesterNotifications";
 import { formatCurrency } from "@/hooks/useBudgetData";
 import { Link } from "react-router-dom";
 
@@ -55,21 +55,60 @@ function NotificationItem({ tx }: { tx: TransactionNotification }) {
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAllRead } = useTransactionNotifications();
+  const { requesters, pendingCount, isAdmin } = useRequesterNotifications();
   const recent = notifications.slice(0, 5);
+  const totalBadge = unreadCount + (isAdmin ? pendingCount : 0);
 
   return (
     <Popover onOpenChange={(open) => { if (open) markAllRead(); }}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative h-9 w-9">
           <Bell className="h-4 w-4 text-muted-foreground" />
-          {unreadCount > 0 && (
+          {totalBadge > 0 && (
             <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground px-1 animate-in zoom-in-50">
-              {unreadCount > 99 ? "99+" : unreadCount}
+              {totalBadge > 99 ? "99+" : totalBadge}
             </span>
           )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end" sideOffset={8}>
+        {/* Pending requesters section for admin/dev */}
+        {isAdmin && pendingCount > 0 && (
+          <>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-3.5 w-3.5 text-primary" />
+                <h4 className="text-sm font-semibold">รออนุมัติ</h4>
+              </div>
+              <Badge variant="destructive" className="text-[10px] h-5 px-1.5">
+                {pendingCount}
+              </Badge>
+            </div>
+            <div className="p-1">
+              {requesters.slice(0, 3).map((req) => (
+                <div key={req.id} className="flex items-center gap-3 p-3 hover:bg-muted/50 rounded-lg transition-colors">
+                  <div className="w-2 h-2 rounded-full mt-0.5 shrink-0 bg-primary" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{req.display_name || "ไม่ระบุชื่อ"}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{req.email}</p>
+                  </div>
+                </div>
+              ))}
+              {pendingCount > 3 && (
+                <p className="text-[11px] text-muted-foreground text-center py-1">
+                  +{pendingCount - 3} รายการเพิ่มเติม
+                </p>
+              )}
+            </div>
+            <div className="border-t border-border px-4 py-2">
+              <Link to="/admin" className="text-xs text-primary hover:underline font-medium">
+                จัดการทั้งหมด →
+              </Link>
+            </div>
+          </>
+        )}
+
+        {/* Transaction notifications */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h4 className="text-sm font-semibold">รายการล่าสุด</h4>
           {recent.length > 0 && (
