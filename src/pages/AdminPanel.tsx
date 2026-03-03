@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, doc, setDoc, getDoc, deleteDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, getDoc, deleteDoc, updateDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -24,7 +24,7 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   CheckCircle, XCircle, Loader2, ShieldCheck, Users, UsersRound,
   Pencil, Trash2, Ban,
@@ -124,21 +124,24 @@ export default function AdminPanel() {
     if (!authLoading && !isAdmin) navigate("/");
   }, [userRole, authLoading, navigate, isAdmin]);
 
-  // ===== Requester functions =====
-  const fetchRequesters = async () => {
+  // ===== Realtime Requester listener =====
+  useEffect(() => {
+    if (!isAdmin) return;
     setReqLoading(true);
-    try {
-      const snapshot = await getDocs(collection(firestore, "requester"));
+    const unsub = onSnapshot(collection(firestore, "requester"), (snapshot) => {
       const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Requester));
       data.sort((a, b) => (b.created_at?.toMillis?.() || 0) - (a.created_at?.toMillis?.() || 0));
       setRequesters(data);
-    } catch {
-      toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถโหลดรายการ requester ได้", variant: "destructive" });
-    } finally {
       setReqLoading(false);
-    }
-  };
+    }, (error) => {
+      console.error("Error listening to requesters:", error);
+      toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถโหลดรายการ requester ได้", variant: "destructive" });
+      setReqLoading(false);
+    });
+    return () => unsub();
+  }, [isAdmin]);
 
+  // ===== Requester functions =====
   const handleApprove = async (req: Requester) => {
     setReqActionLoading(req.id);
     try {
@@ -147,8 +150,8 @@ export default function AdminPanel() {
       });
       await initializeNewUser(req.id);
       await deleteDoc(doc(firestore, "requester", req.id));
-      setRequesters((prev) => prev.filter((r) => r.id !== req.id));
       toast({ title: "อนุมัติสำเร็จ", description: `${req.display_name} ได้รับการอนุมัติแล้ว` });
+      fetchUsers(); // refresh user list after approve
     } catch {
       toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถอนุมัติผู้ใช้ได้", variant: "destructive" });
     } finally {
@@ -160,7 +163,6 @@ export default function AdminPanel() {
     setReqActionLoading(req.id);
     try {
       await deleteDoc(doc(firestore, "requester", req.id));
-      setRequesters((prev) => prev.filter((r) => r.id !== req.id));
       toast({ title: "ปฏิเสธสำเร็จ", description: `${req.display_name} ถูกปฏิเสธแล้ว` });
     } catch {
       toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถปฏิเสธผู้ใช้ได้", variant: "destructive" });
@@ -223,7 +225,6 @@ export default function AdminPanel() {
   const handleDeleteUser = async (user: UserInfo) => {
     setUserActionLoading(user.id);
     try {
-      // ลบ subcollections ทั้งหมดก่อนลบ user document
       await Promise.all([
         deleteSubcollection(user.id, "transactions"),
         deleteSubcollection(user.id, "budgets"),
@@ -256,12 +257,9 @@ export default function AdminPanel() {
     }
   };
 
-  // ===== Load data on mount =====
+  // ===== Load users on mount =====
   useEffect(() => {
-    if (isAdmin) {
-      fetchRequesters();
-      fetchUsers();
-    }
+    if (isAdmin) fetchUsers();
   }, [isAdmin]);
 
   const formatDate = (val: any) => {
@@ -297,39 +295,35 @@ export default function AdminPanel() {
           </div>
         </header>
 
-        <div className="flex-1 p-4 sm:p-6">
-          <Tabs defaultValue="approve" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="approve" className="gap-1.5">
-                <Users className="h-4 w-4" />
-                อนุมัติผู้ใช้
-                {requesters.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">{requesters.length}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="manage" className="gap-1.5">
-                <UsersRound className="h-4 w-4" />
-                จัดการผู้ใช้
-              </TabsTrigger>
-            </TabsList>
-
-            {/* ===== Tab: อนุมัติผู้ใช้ ===== */}
-            <TabsContent value="approve" className="space-y-4">
+        <div className="flex-1 p-4 sm:p-6 space-y-6">
+          {/* ===== ตารางที่ 1: รออนุมัติ (Realtime) ===== */}
+          <Card>
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-base font-medium">รายการผู้ใช้ที่รออนุมัติ</h2>
-                <Button variant="outline" size="sm" onClick={fetchRequesters} disabled={reqLoading}>
-                  {reqLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "รีเฟรช"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-base">รออนุมัติ</CardTitle>
+                  {requesters.length > 0 && (
+                    <Badge variant="destructive" className="h-5 px-1.5 text-xs animate-pulse">
+                      {requesters.length}
+                    </Badge>
+                  )}
+                </div>
+                <Badge variant="outline" className="text-xs gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                  Realtime
+                </Badge>
               </div>
-
+            </CardHeader>
+            <CardContent>
               {reqLoading ? (
-                <div className="flex items-center justify-center py-12">
+                <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : requesters.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Users className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                  <p>ไม่มีผู้ใช้ที่รออนุมัติ</p>
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">ไม่มีผู้ใช้ที่รออนุมัติ</p>
                 </div>
               ) : (
                 <div className="border rounded-lg overflow-hidden">
@@ -374,28 +368,32 @@ export default function AdminPanel() {
                   </Table>
                 </div>
               )}
-            </TabsContent>
+            </CardContent>
+          </Card>
 
-            {/* ===== Tab: จัดการผู้ใช้ ===== */}
-            <TabsContent value="manage" className="space-y-4">
+          {/* ===== ตารางที่ 2: จัดการผู้ใช้ ===== */}
+          <Card>
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-base font-medium">ผู้ใช้ทั้งหมด</h2>
+                  <UsersRound className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-base">จัดการผู้ใช้</CardTitle>
                   <Badge variant="secondary">{users.length}</Badge>
                 </div>
                 <Button variant="outline" size="sm" onClick={fetchUsers} disabled={usersLoading}>
                   {usersLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "รีเฟรช"}
                 </Button>
               </div>
-
+            </CardHeader>
+            <CardContent>
               {usersLoading ? (
-                <div className="flex items-center justify-center py-12">
+                <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : users.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <UsersRound className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                  <p>ไม่มีผู้ใช้ในระบบ</p>
+                <div className="text-center py-8 text-muted-foreground">
+                  <UsersRound className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">ไม่มีผู้ใช้ในระบบ</p>
                 </div>
               ) : (
                 <div className="border rounded-lg overflow-hidden">
@@ -446,8 +444,8 @@ export default function AdminPanel() {
                   </Table>
                 </div>
               )}
-            </TabsContent>
-          </Tabs>
+            </CardContent>
+          </Card>
         </div>
       </main>
 
