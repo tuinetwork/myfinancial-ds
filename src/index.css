@@ -51,6 +51,8 @@
     --debt-foreground: 0 0% 100%;
     --saving: 217 72% 50%;
     --saving-foreground: 0 0% 100%;
+    --investment: 187 72% 50%;
+    --investment-foreground: 0 0% 100%;
 
     --chart-1: 217 72% 50%;
     --chart-2: 160 60% 45%;
@@ -96,6 +98,8 @@
     --debt-foreground: 0 0% 100%;
     --saving: 217 72% 55%;
     --saving-foreground: 0 0% 100%;
+    --investment: 187 65% 45%;
+    --investment-foreground: 0 0% 100%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
