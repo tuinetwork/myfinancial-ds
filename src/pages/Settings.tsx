@@ -550,6 +550,7 @@ const CategorySettings = () => {
     if (!userId) return;
     setSaving(true);
     try {
+      // 1. Save categories
       await Promise.all([
         setDoc(doc(firestore, "users", userId, "categories", "expense"), {
           label: "รายจ่าย",
@@ -562,7 +563,87 @@ const CategorySettings = () => {
           main_categories: incomeGroups,
         }),
       ]);
-      toast({ title: "บันทึกสำเร็จ", description: "อัปเดตหมวดหมู่เรียบร้อย" });
+
+      // 2. Sync all budget documents with new categories
+      const budgetsCol = collection(firestore, "users", userId, "budgets");
+      const budgetsSnap = await getDocs(budgetsCol);
+
+      const syncPromises: Promise<void>[] = [];
+      budgetsSnap.forEach((budgetDoc) => {
+        const data = budgetDoc.data();
+        const expenseBudgets: Record<string, Record<string, number>> = { ...(data.expense_budgets ?? {}) };
+        const incomeEstimates: Record<string, Record<string, number>> = { ...(data.income_estimates ?? {}) };
+        let changed = false;
+
+        // Sync expense_budgets with expenseGroups
+        for (const [mainCat, subs] of Object.entries(expenseGroups)) {
+          if (!expenseBudgets[mainCat]) {
+            expenseBudgets[mainCat] = {};
+            changed = true;
+          }
+          for (const sub of subs) {
+            if (!(sub in expenseBudgets[mainCat])) {
+              expenseBudgets[mainCat][sub] = 0;
+              changed = true;
+            }
+          }
+          // Remove subcategories that no longer exist
+          for (const existingSub of Object.keys(expenseBudgets[mainCat])) {
+            if (!subs.includes(existingSub)) {
+              delete expenseBudgets[mainCat][existingSub];
+              changed = true;
+            }
+          }
+        }
+        // Remove main categories that no longer exist
+        for (const existingMain of Object.keys(expenseBudgets)) {
+          if (!(existingMain in expenseGroups)) {
+            delete expenseBudgets[existingMain];
+            changed = true;
+          }
+        }
+
+        // Sync income_estimates with incomeGroups
+        for (const [mainCat, subs] of Object.entries(incomeGroups)) {
+          if (!incomeEstimates[mainCat]) {
+            incomeEstimates[mainCat] = {};
+            changed = true;
+          }
+          for (const sub of subs) {
+            if (!(sub in incomeEstimates[mainCat])) {
+              incomeEstimates[mainCat][sub] = 0;
+              changed = true;
+            }
+          }
+          for (const existingSub of Object.keys(incomeEstimates[mainCat])) {
+            if (!subs.includes(existingSub)) {
+              delete incomeEstimates[mainCat][existingSub];
+              changed = true;
+            }
+          }
+        }
+        for (const existingMain of Object.keys(incomeEstimates)) {
+          if (!(existingMain in incomeGroups)) {
+            delete incomeEstimates[existingMain];
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          syncPromises.push(
+            updateDoc(doc(firestore, "users", userId!, "budgets", budgetDoc.id), {
+              expense_budgets: expenseBudgets,
+              income_estimates: incomeEstimates,
+            })
+          );
+        }
+      });
+
+      if (syncPromises.length > 0) {
+        await Promise.all(syncPromises);
+      }
+
+      toast({ title: "บันทึกสำเร็จ", description: "อัปเดตหมวดหมู่และซิงค์งบประมาณเรียบร้อย" });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
     }
