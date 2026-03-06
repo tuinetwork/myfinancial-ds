@@ -37,6 +37,8 @@ function getTypeBadgeClass(type: string) {
       return "bg-saving/15 text-saving hover:bg-saving/20 border-none";
     case "ค่าสมาชิกรายเดือน":
       return "bg-primary/15 text-primary hover:bg-primary/20 border-none";
+    case "เงินออมและการลงทุน":
+      return "bg-cyan-500/15 text-cyan-500 hover:bg-cyan-500/20 border-none";
     default:
       return "bg-muted text-muted-foreground border-none";
   }
