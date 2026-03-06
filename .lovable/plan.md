@@ -1,54 +1,42 @@
 
 
-## Admin Panel Plan
+## Plan: Auto-sync new subcategories to Budget and Savings Goals
 
-### สิ่งที่ต้องทำ
+### Problem
+When a new subcategory is added in Settings → Categories and saved, it doesn't appear in Settings → Budget or Settings → Savings Goals. Users must manually add entries, which is error-prone.
 
-**1. เพิ่ม `userRole` ใน AuthContext**
-- เมื่อผู้ใช้ login สำเร็จและพบใน `users` collection → อ่านฟิลด์ `role` จาก document `/users/{uid}`
-- เก็บค่า `userRole` (string เช่น "dev", "admin", "user") ใน context
-- Export `userRole` ผ่าน `useAuth()`
+### Solution
+Modify the `CategorySettings.handleSave()` function to, after saving categories, also update **all existing budget documents** to include any new subcategories (with budget amount = 0). This ensures:
 
-**2. สร้างหน้า Admin Panel (`src/pages/AdminPanel.tsx`)**
-- ดึงข้อมูลจาก Firestore collection `requester` (ทุก document) แสดงเป็นตาราง
-- แต่ละแถวแสดง: display_name, email, created_at, role status
-- ปุ่ม **อนุมัติ (Approve)**: สร้าง document ใน `users/{uid}` → ลบออกจาก `requester/{uid}` → trigger initialization
-- ปุ่ม **ปฏิเสธ (Reject)**: ลบ document ออกจาก `requester/{uid}`
-- มี confirmation dialog ก่อนทำ approve/reject
+1. **Budget tab**: New subcategories appear immediately in the budget table for all periods
+2. **Savings Goals tab**: If the new subcategory belongs to "เงินออมและการลงทุน", it also appears in savings goals automatically
 
-**3. เพิ่มเมนู Admin Panel ใน Sidebar Footer**
-- เพิ่มเมนู "Admin Panel" ใน `SidebarFooter` เหนือเมนูตั้งค่า พร้อมไอคอน `ShieldCheck`
-- แสดงเฉพาะเมื่อ `userRole === "dev" || userRole === "admin"`
-- Link ไปที่ `/admin`
+### Technical Changes
 
-**4. เพิ่ม Route `/admin` ใน App.tsx**
-- เพิ่ม `<Route path="/admin" element={<AdminPanel />} />`
+**File: `src/pages/Settings.tsx` — `CategorySettings.handleSave()`**
 
-**5. อัปเดต Firestore Rules**
-- เพิ่ม rule ให้ผู้ใช้ที่มี role "dev"/"admin" สามารถ read/delete collection `requester` ทั้งหมดได้
-- ต้องใช้ custom claim หรือตรวจสอบ role จาก `users/{uid}` document ใน rules
+After saving categories to the `categories` collection, add a sync step:
 
-### รายละเอียดทางเทคนิค
+1. Fetch all budget documents from `users/{userId}/budgets`
+2. For each budget document:
+   - Compare `expense_budgets` keys/sub-keys against `expenseGroups`
+   - Compare `income_estimates` keys/sub-keys against `incomeGroups`
+   - Add any missing subcategories with value `0`
+   - Remove subcategories/groups that no longer exist in categories
+   - Write back updated budget document
+3. This automatically covers savings goals since they read from `expense_budgets["เงินออมและการลงทุน"]`
 
-- **Role check ใน Firestore Rules**: ใช้ `get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role` เพื่อตรวจ role ฝั่ง server
-- **Approve flow**: `setDoc(users/{uid}, { email, display_name, role: "user", ... })` → `deleteDoc(requester/{uid})`
-- **Admin route protection**: ตรวจ `userRole` ใน component level — ถ้าไม่ใช่ dev/admin redirect กลับ `/`
-- **Firestore rules ใหม่สำหรับ requester**:
-```text
-match /requester/{requesterId} {
-  allow create: if isOwner(requesterId);
-  allow read: if isOwner(requesterId);
-  // Admin/dev can read all and delete
-  allow read, delete: if isAuthenticated() 
-    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['dev', 'admin'];
-  allow update: if false;
-}
+### Key Logic
+```
+For each budget doc:
+  For each main_category in expenseGroups:
+    For each subcategory in that group:
+      If subcategory not in budget.expense_budgets[main_category]:
+        Add it with value 0
+  Same for incomeGroups → income_estimates
+  
+  Remove entries from budget that no longer exist in categories
 ```
 
-### ไฟล์ที่ต้องแก้ไข
-1. `src/contexts/AuthContext.tsx` — เพิ่ม `userRole`
-2. `src/pages/AdminPanel.tsx` — สร้างใหม่
-3. `src/components/AppSidebar.tsx` — เพิ่มเมนู Admin
-4. `src/App.tsx` — เพิ่ม route
-5. `firestore.rules` — เพิ่ม admin rules
+This is a single-file change to `src/pages/Settings.tsx`, modifying only the `handleSave` function in `CategorySettings`.
 
