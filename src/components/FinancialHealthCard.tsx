@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
-import { ShieldCheck, Percent, PiggyBank, CreditCard, CalendarDays, TrendingUp } from "lucide-react";
+import { ShieldCheckIcon as ShieldCheck, BanknotesIcon as PiggyBank, CreditCardIcon as CreditCard, CalendarDaysIcon as CalendarDays, ArrowTrendingUpIcon as TrendingUp } from "@heroicons/react/24/outline";
+import { Percent } from "@/components/CustomIcons";
 
 interface Props {
   data: BudgetData;

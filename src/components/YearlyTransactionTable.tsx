@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { ArrowUpIcon as ArrowUp, ArrowDownIcon as ArrowDown, ArrowsUpDownIcon as ArrowUpDown } from "@heroicons/react/24/outline";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";

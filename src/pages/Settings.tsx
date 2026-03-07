@@ -37,9 +37,13 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import {
-  LogOut, User, Mail, Shield, ChevronRight, ChevronDown, Settings as SettingsIcon,
-  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical,
-} from "lucide-react";
+  ArrowRightStartOnRectangleIcon as LogOut, UserIcon as User, EnvelopeIcon as Mail, ShieldCheckIcon as Shield,
+  ChevronRightIcon as ChevronRight, ChevronDownIcon as ChevronDown, Cog6ToothIcon as SettingsIcon,
+  PencilIcon as Pencil, CheckIcon as Check, XMarkIcon as X, WalletIcon as Wallet, BanknotesIcon as PiggyBank,
+  PlusIcon as Plus, TrashIcon as Trash2, TagIcon as Tag, FolderIcon as FolderTree, HomeIcon as Home,
+  ArrowPathIcon as Loader2,
+} from "@heroicons/react/24/outline";
+import { Save, Target, GripVertical } from "@/components/CustomIcons";
 import { toast } from "@/hooks/use-toast";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 

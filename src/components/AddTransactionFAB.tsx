@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, X, CalendarIcon } from "lucide-react";
+import { PlusIcon as Plus, XMarkIcon as X, CalendarIcon } from "@heroicons/react/24/outline";
 import { collection, doc, getDocs, setDoc, query, where, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/hooks/useBudgetData";
 import { YearlyData } from "@/hooks/useYearlyData";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowTrendingUpIcon as TrendingUp, ArrowTrendingDownIcon as TrendingDown } from "@heroicons/react/24/outline";
 
 const SHORT_THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
