@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { LayoutDashboard, Receipt, Wallet, Settings, ChevronDown, ChevronRight, ChevronUp, CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart, ShieldCheck } from "lucide-react";
+import { Squares2X2Icon as LayoutDashboard, DocumentTextIcon as Receipt, WalletIcon as Wallet, Cog6ToothIcon as Settings, ChevronDownIcon as ChevronDown, ChevronRightIcon as ChevronRight, ChevronUpIcon as ChevronUp, CalendarDaysIcon as CalendarDays, ChartBarIcon as BarChart3, CurrencyDollarIcon as DollarSign, TagIcon as Tags, ChartPieIcon as PieChart, ShieldCheckIcon as ShieldCheck } from "@heroicons/react/24/outline";
+import { Target } from "@/components/CustomIcons";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";

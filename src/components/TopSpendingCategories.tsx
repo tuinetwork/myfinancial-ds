@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
-import { BarChart3 } from "lucide-react";
+import { ChartBarIcon as BarChart3 } from "@heroicons/react/24/outline";
 
 interface Props {
   data: BudgetData;

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Clock, LogOut } from "lucide-react";
+import { ArrowPathIcon as Loader2, ClockIcon as Clock, ArrowRightStartOnRectangleIcon as LogOut } from "@heroicons/react/24/outline";
 
 const GoogleLogin = () => {
   const { signInWithGoogle, signOut, pendingApproval, user } = useAuth();

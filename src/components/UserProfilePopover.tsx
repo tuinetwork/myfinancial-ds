@@ -8,7 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { User, Mail, Shield, Settings, LogOut } from "lucide-react";
+import { UserIcon as User, EnvelopeIcon as Mail, ShieldCheckIcon as Shield, Cog6ToothIcon as Settings, ArrowRightStartOnRectangleIcon as LogOut } from "@heroicons/react/24/outline";
 
 export function UserProfilePopover() {
   const { user, signOut } = useAuth();
