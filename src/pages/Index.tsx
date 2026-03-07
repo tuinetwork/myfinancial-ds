@@ -24,7 +24,7 @@ import {
   BreadcrumbItem,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { HomeIcon as Home, Squares2X2Icon as LayoutDashboard } from "@heroicons/react/24/outline";
+import { Home, LayoutDashboard } from "lucide-react";
 import {
   Select,
   SelectContent,

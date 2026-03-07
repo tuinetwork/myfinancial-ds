@@ -36,7 +36,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
   AreaChart, Area, LineChart, Line, ReferenceLine,
 } from "recharts";
-import { ArrowTrendingUpIcon as TrendingUp, ArrowTrendingDownIcon as TrendingDown, ExclamationTriangleIcon as AlertTriangle, CheckCircleIcon as CheckCircle, ChartPieIcon as PieIcon } from "@heroicons/react/24/outline";
+import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, PieChart as PieIcon } from "lucide-react";
 import { useEffect } from "react";
 
 const COLORS = [

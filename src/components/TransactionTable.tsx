@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUpIcon as ArrowUp, ArrowDownIcon as ArrowDown, ArrowsUpDownIcon as ArrowUpDown, ChevronLeftIcon as ChevronLeft, ChevronRightIcon as ChevronRight, ArrowDownTrayIcon as Download } from "@heroicons/react/24/outline";
+import { ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
 
 interface Props {

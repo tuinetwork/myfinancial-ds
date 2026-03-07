@@ -1,4 +1,4 @@
-import { BellIcon as Bell, UserPlusIcon as UserPlus } from "@heroicons/react/24/outline";
+import { Bell, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,

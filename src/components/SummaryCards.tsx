@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ArrowTrendingUpIcon as TrendingUp, ArrowTrendingDownIcon as TrendingDown, WalletIcon as Wallet } from "@heroicons/react/24/outline";
+import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { BudgetData, Transaction, formatCurrency } from "@/hooks/useBudgetData";
 

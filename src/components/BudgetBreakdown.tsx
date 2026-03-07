@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { EyeSlashIcon as EyeOff, EyeIcon as Eye } from "@heroicons/react/24/outline";
+import { EyeOff, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";

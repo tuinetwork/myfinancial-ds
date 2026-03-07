@@ -15,7 +15,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { HomeIcon as Home, DocumentTextIcon as Receipt } from "@heroicons/react/24/outline";
+import { Home, Receipt } from "lucide-react";
 import {
   Select,
   SelectContent,

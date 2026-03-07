@@ -1,8 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
-import { CheckCircleIcon as CheckCircle2, ExclamationTriangleIcon as AlertTriangle } from "@heroicons/react/24/outline";
-import { Target } from "@/components/CustomIcons";
+import { Target, CheckCircle2, AlertTriangle } from "lucide-react";
 
 interface Props {
   data: BudgetData;
