@@ -1,7 +1,7 @@
 import { useMemo, useRef, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
-import { ArrowUpRight, ArrowDownRight, Clock } from "lucide-react";
+import { ArrowUpRightIcon as ArrowUpRight, ArrowDownRightIcon as ArrowDownRight, ClockIcon as Clock } from "@heroicons/react/24/outline";
 
 interface Props {
   data: BudgetData;

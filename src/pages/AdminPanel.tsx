@@ -27,9 +27,9 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  CheckCircle, XCircle, Loader2, ShieldCheck, Users, UsersRound,
-  Pencil, Trash2, Ban,
-} from "lucide-react";
+  CheckCircleIcon as CheckCircle, XCircleIcon as XCircle, ArrowPathIcon as Loader2, ShieldCheckIcon as ShieldCheck, UsersIcon as Users, UserGroupIcon as UsersRound,
+  PencilIcon as Pencil, TrashIcon as Trash2, NoSymbolIcon as Ban,
+} from "@heroicons/react/24/outline";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";

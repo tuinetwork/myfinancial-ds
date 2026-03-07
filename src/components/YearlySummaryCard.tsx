@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/hooks/useBudgetData";
 import { YearlyData } from "@/hooks/useYearlyData";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank } from "lucide-react";
+import { ArrowTrendingUpIcon as TrendingUp, ArrowTrendingDownIcon as TrendingDown, WalletIcon as Wallet, BanknotesIcon as PiggyBank } from "@heroicons/react/24/outline";
 
 interface Props {
   yearlyData: YearlyData;
