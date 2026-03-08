@@ -431,7 +431,7 @@ const BudgetSettings = () => {
       const d = snap.data()!;
       const data: BudgetTreeData = {
         income_estimates: (d.income_estimates ?? {}) as Record<string, Record<string, number>>,
-        expense_budgets: (d.expense_budgets ?? {}) as Record<string, Record<string, number>>,
+        expense_budgets: (d.expense_budgets ?? {}) as Record<string, Record<string, BudgetValue>>,
         carry_over: (d.carry_over as number) ?? 0,
         period: (d.period as string) ?? period,
       };
