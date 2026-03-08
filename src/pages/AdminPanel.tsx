@@ -28,11 +28,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   CheckCircle, XCircle, Loader2, ShieldCheck, Users, UsersRound,
-  Pencil, Trash2, Ban,
+  Pencil, Trash2, Ban, Database,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
+import { runBudgetMigration, type MigrationProgress } from "@/scripts/migrateBudgetStructure";
 
 const SOURCE_USER_UID = "xgkdmyxxeJVlNiqoahNJWBekqmh2";
 
