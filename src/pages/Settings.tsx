@@ -567,12 +567,14 @@ const BudgetSettings = () => {
               selectedCategory={selectedExpenseCat}
               onCategoryChange={setSelectedExpenseCat}
               onAmountChange={updateExpense}
+              onDueDateChange={updateExpenseDueDate}
               actuals={txActuals}
+              isExpense
             />
             <BudgetTable
               title="รายรับ"
               titleColor="text-emerald-600"
-              categories={budgetData.income_estimates}
+              categories={budgetData.income_estimates as Record<string, Record<string, BudgetValue>>}
               allCategories={incomeCategories}
               selectedCategory={selectedIncomeCat}
               onCategoryChange={setSelectedIncomeCat}
