@@ -477,11 +477,28 @@ const BudgetSettings = () => {
 
   const updateExpense = (mainCat: string, subCat: string, value: number) => {
     if (!budgetData) return;
+    const existing = budgetData.expense_budgets[mainCat]?.[subCat];
+    const newVal: BudgetValue = MAP_CATEGORIES.includes(mainCat)
+      ? { amount: value, due_date: getDueDate(existing ?? 0) }
+      : value;
     setBudgetData({
       ...budgetData,
       expense_budgets: {
         ...budgetData.expense_budgets,
-        [mainCat]: { ...budgetData.expense_budgets[mainCat], [subCat]: value },
+        [mainCat]: { ...budgetData.expense_budgets[mainCat], [subCat]: newVal },
+      },
+    });
+  };
+
+  const updateExpenseDueDate = (mainCat: string, subCat: string, date: string | null) => {
+    if (!budgetData) return;
+    const existing = budgetData.expense_budgets[mainCat]?.[subCat];
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: date };
+    setBudgetData({
+      ...budgetData,
+      expense_budgets: {
+        ...budgetData.expense_budgets,
+        [mainCat]: { ...budgetData.expense_budgets[mainCat], [subCat]: newVal },
       },
     });
   };
