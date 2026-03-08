@@ -178,6 +178,70 @@ const TreeGroup = ({
   );
 };
 
+// ─── Due Date Picker (Thai Buddhist Era) ───
+const DueDatePicker = ({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (date: string | null) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const selected = value ? new Date(value) : undefined;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(
+            "flex items-center gap-1 h-8 px-2 text-xs rounded-md border border-input bg-background hover:bg-accent transition-colors whitespace-nowrap",
+            !value && "text-muted-foreground"
+          )}
+        >
+          <CalendarIcon className="h-3 w-3" />
+          {value ? formatThaiDate(value) : "เลือกวัน"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={selected}
+          onSelect={(date) => {
+            if (date) {
+              // Save as YYYY-MM-DD (CE)
+              const y = date.getFullYear();
+              const m = String(date.getMonth() + 1).padStart(2, "0");
+              const d = String(date.getDate()).padStart(2, "0");
+              onChange(`${y}-${m}-${d}`);
+            } else {
+              onChange(null);
+            }
+            setOpen(false);
+          }}
+          className={cn("p-3 pointer-events-auto")}
+          formatters={{
+            formatCaption: (date) => {
+              const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+              return `${thaiMonths[date.getMonth()]} ${date.getFullYear() + 543}`;
+            },
+            formatDay: (date) => String(date.getDate()),
+          }}
+        />
+        {value && (
+          <div className="px-3 pb-3">
+            <button
+              className="text-xs text-destructive hover:underline"
+              onClick={() => { onChange(null); setOpen(false); }}
+            >
+              ล้างวันที่
+            </button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 // ─── Budget Table for a category group ───
 const BudgetTable = ({
   title,
@@ -187,20 +251,25 @@ const BudgetTable = ({
   selectedCategory,
   onCategoryChange,
   onAmountChange,
+  onDueDateChange,
   actuals,
+  isExpense,
 }: {
   title: string;
   titleColor: string;
-  categories: Record<string, Record<string, number>>;
+  categories: Record<string, Record<string, BudgetValue>>;
   allCategories: string[];
   selectedCategory: string;
   onCategoryChange: (cat: string) => void;
   onAmountChange: (group: string, sub: string, value: number) => void;
+  onDueDateChange?: (group: string, sub: string, date: string | null) => void;
   actuals: Record<string, number>;
+  isExpense?: boolean;
 }) => {
   const currentGroup = categories[selectedCategory] ?? {};
   const entries = Object.entries(currentGroup);
-  const totalBudget = entries.reduce((s, [, v]) => s + v, 0);
+  const showDueDate = isExpense && MAP_CATEGORIES.includes(selectedCategory);
+  const totalBudget = entries.reduce((s, [, v]) => s + getAmount(v), 0);
   const totalActual = entries.reduce((s, [sub]) => s + (actuals[sub] ?? 0), 0);
   const totalRemaining = totalBudget - totalActual;
 
@@ -233,18 +302,21 @@ const BudgetTable = ({
           </Select>
         </div>
 
-        <div className="border-t border-border">
+        <div className="border-t border-border overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="text-left px-3 py-2.5 font-medium">หมวดหมู่</th>
                 <th className="text-right px-3 py-2.5 font-medium">งบประมาณ</th>
+                {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันกำหนดชำระ</th>}
                 <th className="text-right px-3 py-2.5 font-medium">จ่ายแล้ว</th>
                 <th className="text-right px-3 py-2.5 font-medium">คงเหลือ</th>
               </tr>
             </thead>
             <tbody>
-              {entries.map(([sub, amount]) => {
+              {entries.map(([sub, val]) => {
+                const amount = getAmount(val);
+                const dueDate = getDueDate(val);
                 const actual = actuals[sub] ?? 0;
                 const remaining = amount - actual;
                 return (
@@ -258,6 +330,14 @@ const BudgetTable = ({
                         className="h-8 w-28 text-sm text-right ml-auto [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                     </td>
+                    {showDueDate && (
+                      <td className="px-3 py-2.5 text-center">
+                        <DueDatePicker
+                          value={dueDate}
+                          onChange={(d) => onDueDateChange?.(selectedCategory, sub, d)}
+                        />
+                      </td>
+                    )}
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       {actual > 0 ? fmt(actual) : "-"}
                     </td>
@@ -269,7 +349,7 @@ const BudgetTable = ({
               })}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-3 py-4 text-center text-muted-foreground">ไม่มีรายการ</td>
+                  <td colSpan={showDueDate ? 5 : 4} className="px-3 py-4 text-center text-muted-foreground">ไม่มีรายการ</td>
                 </tr>
               )}
             </tbody>
@@ -277,6 +357,7 @@ const BudgetTable = ({
               <tr className="bg-muted/50 font-medium">
                 <td className="px-3 py-2.5">รวม</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalBudget)}</td>
+                {showDueDate && <td />}
                 <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalActual)}</td>
                 <td className={`px-3 py-2.5 text-right tabular-nums ${remainingColor(totalBudget, totalActual)}`}>{fmt(totalRemaining)}</td>
               </tr>
