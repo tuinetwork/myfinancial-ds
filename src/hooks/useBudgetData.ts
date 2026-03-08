@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export interface BudgetItem {
   label: string;
   budget: number;
+  dueDate?: string | null;
 }
 
 export interface Transaction {
