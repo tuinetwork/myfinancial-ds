@@ -73,14 +73,18 @@ function parseBudgetDocForYear(budgetDoc: any, period: string, transactions: Tra
     }
   }
 
-  const expenseBudgets = (data.expense_budgets ?? {}) as Record<string, Record<string, number>>;
+  const expenseBudgets = (data.expense_budgets ?? {}) as Record<string, Record<string, unknown>>;
   const expenses: BudgetData["expenses"] = {
     general: [], bills: [], debts: [], subscriptions: [], savings: [],
   };
   for (const [mainCat, subs] of Object.entries(expenseBudgets)) {
     const key = EXPENSE_CATEGORY_MAP[mainCat];
     if (key && subs && typeof subs === "object") {
-      expenses[key] = Object.entries(subs).map(([label, budget]) => ({ label, budget }));
+      expenses[key] = Object.entries(subs).map(([label, val]) => {
+        const budget = typeof val === "number" ? val : (val as any)?.amount ?? 0;
+        const dueDate = typeof val === "object" && val !== null ? (val as any)?.due_date ?? null : null;
+        return { label, budget, dueDate };
+      });
     }
   }
 

@@ -7,6 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { collection, doc, getDoc, getDocs, updateDoc, setDoc, query, where } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import { firestore } from "@/lib/firebase";
+import { format as fnsFormat, parse as fnsParse } from "date-fns";
+import { th } from "date-fns/locale";
 import { useAvailableMonths, createBudgetFromLatest } from "@/hooks/useBudgetData";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -38,8 +40,10 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   LogOut, User, Mail, Shield, ChevronRight, ChevronDown, Settings as SettingsIcon,
-  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical,
+  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical, CalendarIcon,
 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 
@@ -47,11 +51,45 @@ import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-p
 type SettingsTab = "budget" | "categories" | "savings" | "user";
 
 // ─── Budget tree types ───
+// Budget value can be a number (general) or {amount, due_date} (bills, debts, savings, subscriptions)
+type BudgetValue = number | { amount: number; due_date: string | null };
+
 interface BudgetTreeData {
   income_estimates: Record<string, Record<string, number>>;
-  expense_budgets: Record<string, Record<string, number>>;
+  expense_budgets: Record<string, Record<string, BudgetValue>>;
   carry_over: number;
   period: string;
+}
+
+const MAP_CATEGORIES = [
+  "บิลและสาธารณูปโภค",
+  "หนี้สิน",
+  "เงินออมและการลงทุน",
+  "ค่าสมาชิกรายเดือน",
+];
+
+function getAmount(val: BudgetValue): number {
+  return typeof val === "number" ? val : val?.amount ?? 0;
+}
+
+function getDueDate(val: BudgetValue): string | null {
+  return typeof val === "object" && val !== null ? val?.due_date ?? null : null;
+}
+
+// Format date string to Thai Buddhist Era display
+function formatThaiDate(dateStr: string | null): string {
+  if (!dateStr) return "-";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "-";
+    const day = d.getDate();
+    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    const month = thaiMonths[d.getMonth()];
+    const buddhistYear = d.getFullYear() + 543;
+    return `${day} ${month} ${buddhistYear}`;
+  } catch {
+    return "-";
+  }
 }
 
 // ─── Editable cell ───
@@ -140,6 +178,70 @@ const TreeGroup = ({
   );
 };
 
+// ─── Due Date Picker (Thai Buddhist Era) ───
+const DueDatePicker = ({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (date: string | null) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const selected = value ? new Date(value) : undefined;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(
+            "flex items-center gap-1 h-8 px-2 text-xs rounded-md border border-input bg-background hover:bg-accent transition-colors whitespace-nowrap",
+            !value && "text-muted-foreground"
+          )}
+        >
+          <CalendarIcon className="h-3 w-3" />
+          {value ? formatThaiDate(value) : "เลือกวัน"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={selected}
+          onSelect={(date) => {
+            if (date) {
+              // Save as YYYY-MM-DD (CE)
+              const y = date.getFullYear();
+              const m = String(date.getMonth() + 1).padStart(2, "0");
+              const d = String(date.getDate()).padStart(2, "0");
+              onChange(`${y}-${m}-${d}`);
+            } else {
+              onChange(null);
+            }
+            setOpen(false);
+          }}
+          className={cn("p-3 pointer-events-auto")}
+          formatters={{
+            formatCaption: (date) => {
+              const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+              return `${thaiMonths[date.getMonth()]} ${date.getFullYear() + 543}`;
+            },
+            formatDay: (date) => String(date.getDate()),
+          }}
+        />
+        {value && (
+          <div className="px-3 pb-3">
+            <button
+              className="text-xs text-destructive hover:underline"
+              onClick={() => { onChange(null); setOpen(false); }}
+            >
+              ล้างวันที่
+            </button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 // ─── Budget Table for a category group ───
 const BudgetTable = ({
   title,
@@ -149,20 +251,25 @@ const BudgetTable = ({
   selectedCategory,
   onCategoryChange,
   onAmountChange,
+  onDueDateChange,
   actuals,
+  isExpense,
 }: {
   title: string;
   titleColor: string;
-  categories: Record<string, Record<string, number>>;
+  categories: Record<string, Record<string, BudgetValue>>;
   allCategories: string[];
   selectedCategory: string;
   onCategoryChange: (cat: string) => void;
   onAmountChange: (group: string, sub: string, value: number) => void;
+  onDueDateChange?: (group: string, sub: string, date: string | null) => void;
   actuals: Record<string, number>;
+  isExpense?: boolean;
 }) => {
   const currentGroup = categories[selectedCategory] ?? {};
   const entries = Object.entries(currentGroup);
-  const totalBudget = entries.reduce((s, [, v]) => s + v, 0);
+  const showDueDate = isExpense && MAP_CATEGORIES.includes(selectedCategory);
+  const totalBudget = entries.reduce((s, [, v]) => s + getAmount(v), 0);
   const totalActual = entries.reduce((s, [sub]) => s + (actuals[sub] ?? 0), 0);
   const totalRemaining = totalBudget - totalActual;
 
@@ -195,18 +302,21 @@ const BudgetTable = ({
           </Select>
         </div>
 
-        <div className="border-t border-border">
+        <div className="border-t border-border overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="text-left px-3 py-2.5 font-medium">หมวดหมู่</th>
                 <th className="text-right px-3 py-2.5 font-medium">งบประมาณ</th>
+                {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันกำหนดชำระ</th>}
                 <th className="text-right px-3 py-2.5 font-medium">จ่ายแล้ว</th>
                 <th className="text-right px-3 py-2.5 font-medium">คงเหลือ</th>
               </tr>
             </thead>
             <tbody>
-              {entries.map(([sub, amount]) => {
+              {entries.map(([sub, val]) => {
+                const amount = getAmount(val);
+                const dueDate = getDueDate(val);
                 const actual = actuals[sub] ?? 0;
                 const remaining = amount - actual;
                 return (
@@ -220,6 +330,14 @@ const BudgetTable = ({
                         className="h-8 w-28 text-sm text-right ml-auto [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                     </td>
+                    {showDueDate && (
+                      <td className="px-3 py-2.5 text-center">
+                        <DueDatePicker
+                          value={dueDate}
+                          onChange={(d) => onDueDateChange?.(selectedCategory, sub, d)}
+                        />
+                      </td>
+                    )}
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       {actual > 0 ? fmt(actual) : "-"}
                     </td>
@@ -231,7 +349,7 @@ const BudgetTable = ({
               })}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-3 py-4 text-center text-muted-foreground">ไม่มีรายการ</td>
+                  <td colSpan={showDueDate ? 5 : 4} className="px-3 py-4 text-center text-muted-foreground">ไม่มีรายการ</td>
                 </tr>
               )}
             </tbody>
@@ -239,6 +357,7 @@ const BudgetTable = ({
               <tr className="bg-muted/50 font-medium">
                 <td className="px-3 py-2.5">รวม</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalBudget)}</td>
+                {showDueDate && <td />}
                 <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalActual)}</td>
                 <td className={`px-3 py-2.5 text-right tabular-nums ${remainingColor(totalBudget, totalActual)}`}>{fmt(totalRemaining)}</td>
               </tr>
@@ -312,7 +431,7 @@ const BudgetSettings = () => {
       const d = snap.data()!;
       const data: BudgetTreeData = {
         income_estimates: (d.income_estimates ?? {}) as Record<string, Record<string, number>>,
-        expense_budgets: (d.expense_budgets ?? {}) as Record<string, Record<string, number>>,
+        expense_budgets: (d.expense_budgets ?? {}) as Record<string, Record<string, BudgetValue>>,
         carry_over: (d.carry_over as number) ?? 0,
         period: (d.period as string) ?? period,
       };
@@ -358,11 +477,28 @@ const BudgetSettings = () => {
 
   const updateExpense = (mainCat: string, subCat: string, value: number) => {
     if (!budgetData) return;
+    const existing = budgetData.expense_budgets[mainCat]?.[subCat];
+    const newVal: BudgetValue = MAP_CATEGORIES.includes(mainCat)
+      ? { amount: value, due_date: getDueDate(existing ?? 0) }
+      : value;
     setBudgetData({
       ...budgetData,
       expense_budgets: {
         ...budgetData.expense_budgets,
-        [mainCat]: { ...budgetData.expense_budgets[mainCat], [subCat]: value },
+        [mainCat]: { ...budgetData.expense_budgets[mainCat], [subCat]: newVal },
+      },
+    });
+  };
+
+  const updateExpenseDueDate = (mainCat: string, subCat: string, date: string | null) => {
+    if (!budgetData) return;
+    const existing = budgetData.expense_budgets[mainCat]?.[subCat];
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: date };
+    setBudgetData({
+      ...budgetData,
+      expense_budgets: {
+        ...budgetData.expense_budgets,
+        [mainCat]: { ...budgetData.expense_budgets[mainCat], [subCat]: newVal },
       },
     });
   };
@@ -431,12 +567,14 @@ const BudgetSettings = () => {
               selectedCategory={selectedExpenseCat}
               onCategoryChange={setSelectedExpenseCat}
               onAmountChange={updateExpense}
+              onDueDateChange={updateExpenseDueDate}
               actuals={txActuals}
+              isExpense
             />
             <BudgetTable
               title="รายรับ"
               titleColor="text-emerald-600"
-              categories={budgetData.income_estimates}
+              categories={budgetData.income_estimates as Record<string, Record<string, BudgetValue>>}
               allCategories={incomeCategories}
               selectedCategory={selectedIncomeCat}
               onCategoryChange={setSelectedIncomeCat}
@@ -571,7 +709,7 @@ const CategorySettings = () => {
       const syncPromises: Promise<void>[] = [];
       budgetsSnap.forEach((budgetDoc) => {
         const data = budgetDoc.data();
-        const expenseBudgets: Record<string, Record<string, number>> = { ...(data.expense_budgets ?? {}) };
+        const expenseBudgets: Record<string, Record<string, any>> = { ...(data.expense_budgets ?? {}) };
         const incomeEstimates: Record<string, Record<string, number>> = { ...(data.income_estimates ?? {}) };
         let changed = false;
 
@@ -583,7 +721,10 @@ const CategorySettings = () => {
           }
           for (const sub of subs) {
             if (!(sub in expenseBudgets[mainCat])) {
-              expenseBudgets[mainCat][sub] = 0;
+              // Use {amount, due_date} for map categories, number for general
+              expenseBudgets[mainCat][sub] = MAP_CATEGORIES.includes(mainCat)
+                ? { amount: 0, due_date: null }
+                : 0;
               changed = true;
             }
           }

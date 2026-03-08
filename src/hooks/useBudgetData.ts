@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export interface BudgetItem {
   label: string;
   budget: number;
+  dueDate?: string | null;
 }
 
 export interface Transaction {
@@ -109,10 +110,10 @@ function parseBudgetDoc(
     }
   }
 
-  // expense_budgets → expenses groups
+  // expense_budgets → expenses groups (supports both number and {amount, due_date} formats)
   const expenseBudgets = (docData.expense_budgets ?? {}) as Record<
     string,
-    Record<string, number>
+    Record<string, unknown>
   >;
   const expenses: BudgetData["expenses"] = {
     general: [],
@@ -124,10 +125,11 @@ function parseBudgetDoc(
   for (const [mainCat, subs] of Object.entries(expenseBudgets)) {
     const key = EXPENSE_CATEGORY_MAP[mainCat];
     if (key && subs && typeof subs === "object") {
-      expenses[key] = Object.entries(subs).map(([label, budget]) => ({
-        label,
-        budget,
-      }));
+      expenses[key] = Object.entries(subs).map(([label, val]) => {
+        const budget = typeof val === "number" ? val : (val as any)?.amount ?? 0;
+        const dueDate = typeof val === "object" && val !== null ? (val as any)?.due_date ?? null : null;
+        return { label, budget, dueDate };
+      });
     }
   }
 
