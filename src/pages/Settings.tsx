@@ -51,11 +51,45 @@ import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-p
 type SettingsTab = "budget" | "categories" | "savings" | "user";
 
 // ─── Budget tree types ───
+// Budget value can be a number (general) or {amount, due_date} (bills, debts, savings, subscriptions)
+type BudgetValue = number | { amount: number; due_date: string | null };
+
 interface BudgetTreeData {
   income_estimates: Record<string, Record<string, number>>;
-  expense_budgets: Record<string, Record<string, number>>;
+  expense_budgets: Record<string, Record<string, BudgetValue>>;
   carry_over: number;
   period: string;
+}
+
+const MAP_CATEGORIES = [
+  "บิลและสาธารณูปโภค",
+  "หนี้สิน",
+  "เงินออมและการลงทุน",
+  "ค่าสมาชิกรายเดือน",
+];
+
+function getAmount(val: BudgetValue): number {
+  return typeof val === "number" ? val : val?.amount ?? 0;
+}
+
+function getDueDate(val: BudgetValue): string | null {
+  return typeof val === "object" && val !== null ? val?.due_date ?? null : null;
+}
+
+// Format date string to Thai Buddhist Era display
+function formatThaiDate(dateStr: string | null): string {
+  if (!dateStr) return "-";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "-";
+    const day = d.getDate();
+    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    const month = thaiMonths[d.getMonth()];
+    const buddhistYear = d.getFullYear() + 543;
+    return `${day} ${month} ${buddhistYear}`;
+  } catch {
+    return "-";
+  }
 }
 
 // ─── Editable cell ───
