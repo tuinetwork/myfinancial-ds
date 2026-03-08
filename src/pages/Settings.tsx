@@ -709,7 +709,7 @@ const CategorySettings = () => {
       const syncPromises: Promise<void>[] = [];
       budgetsSnap.forEach((budgetDoc) => {
         const data = budgetDoc.data();
-        const expenseBudgets: Record<string, Record<string, number>> = { ...(data.expense_budgets ?? {}) };
+        const expenseBudgets: Record<string, Record<string, any>> = { ...(data.expense_budgets ?? {}) };
         const incomeEstimates: Record<string, Record<string, number>> = { ...(data.income_estimates ?? {}) };
         let changed = false;
 
@@ -721,7 +721,10 @@ const CategorySettings = () => {
           }
           for (const sub of subs) {
             if (!(sub in expenseBudgets[mainCat])) {
-              expenseBudgets[mainCat][sub] = 0;
+              // Use {amount, due_date} for map categories, number for general
+              expenseBudgets[mainCat][sub] = MAP_CATEGORIES.includes(mainCat)
+                ? { amount: 0, due_date: null }
+                : 0;
               changed = true;
             }
           }
