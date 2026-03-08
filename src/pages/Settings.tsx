@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { collection, doc, getDoc, getDocs, updateDoc, setDoc, query, where } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import { firestore } from "@/lib/firebase";
-import { fnsFormat, fnsParse } from "date-fns";
+import { format as fnsFormat, parse as fnsParse } from "date-fns";
 import { th } from "date-fns/locale";
 import { useAvailableMonths, createBudgetFromLatest } from "@/hooks/useBudgetData";
 import { AppSidebar } from "@/components/AppSidebar";
