@@ -55,7 +55,9 @@ export function expandRecurrence(
   startDate: string | null | undefined,
   rrule: string | null | undefined,
   year: number,
-  month: number
+  month: number,
+  rangeStart?: string | null,
+  rangeEnd?: string | null
 ): string[] {
   const parsed = parseRRule(rrule);
   if (!parsed || !startDate) return [];
@@ -64,7 +66,6 @@ export function expandRecurrence(
   const pad = (n: number) => String(n).padStart(2, "0");
 
   if (parsed.freq === "DAILY") {
-    // Every day in the month
     const daysInMonth = new Date(year, month, 0).getDate();
     for (let d = 1; d <= daysInMonth; d++) {
       results.push(`${year}-${pad(month)}-${pad(d)}`);
@@ -72,7 +73,6 @@ export function expandRecurrence(
   } else if (parsed.freq === "WEEKLY" && parsed.byDay) {
     const targetDay = DAY_MAP[parsed.byDay];
     if (targetDay === undefined) return [];
-    // Find all matching weekdays in the month
     const daysInMonth = new Date(year, month, 0).getDate();
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(year, month - 1, d);
@@ -81,14 +81,18 @@ export function expandRecurrence(
       }
     }
   } else if (parsed.freq === "MONTHLY") {
-    // Same day each month as the startDate
     const startDay = parseInt(startDate.split("-")[2], 10);
     const daysInMonth = new Date(year, month, 0).getDate();
     const day = Math.min(startDay, daysInMonth);
     results.push(`${year}-${pad(month)}-${pad(day)}`);
   }
 
-  return results;
+  // Filter by date range (start_date / end_date)
+  return results.filter((dateStr) => {
+    if (rangeStart && dateStr < rangeStart) return false;
+    if (rangeEnd && dateStr > rangeEnd) return false;
+    return true;
+  });
 }
 
 /**

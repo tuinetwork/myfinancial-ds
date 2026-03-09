@@ -55,7 +55,7 @@ type SettingsTab = "budget" | "categories" | "savings" | "user";
 
 // ─── Budget tree types ───
 // Budget value can be a number (general) or {amount, due_date} (bills, debts, savings, subscriptions)
-type BudgetValue = number | { amount: number; due_date: string | null; recurrence?: string | null };
+type BudgetValue = number | { amount: number; due_date: string | null; recurrence?: string | null; start_date?: string | null; end_date?: string | null; paid_dates?: string[] };
 
 interface BudgetTreeData {
   income_estimates: Record<string, Record<string, number>>;
@@ -81,6 +81,18 @@ function getDueDate(val: BudgetValue): string | null {
 
 function getRecurrence(val: BudgetValue): string | null {
   return typeof val === "object" && val !== null ? (val as any)?.recurrence ?? null : null;
+}
+
+function getStartDate(val: BudgetValue): string | null {
+  return typeof val === "object" && val !== null ? (val as any)?.start_date ?? null : null;
+}
+
+function getEndDate(val: BudgetValue): string | null {
+  return typeof val === "object" && val !== null ? (val as any)?.end_date ?? null : null;
+}
+
+function getPaidDates(val: BudgetValue): string[] {
+  return typeof val === "object" && val !== null ? (val as any)?.paid_dates ?? [] : [];
 }
 
 // Format date string to Thai Buddhist Era display
@@ -291,6 +303,8 @@ const BudgetTable = ({
   onAmountChange,
   onDueDateChange,
   onRecurrenceChange,
+  onStartDateChange,
+  onEndDateChange,
   onToggleDueDate,
   dueDateEnabled,
   actuals,
@@ -305,6 +319,8 @@ const BudgetTable = ({
   onAmountChange: (group: string, sub: string, value: number) => void;
   onDueDateChange?: (group: string, sub: string, date: string | null) => void;
   onRecurrenceChange?: (group: string, sub: string, rrule: string | null) => void;
+  onStartDateChange?: (group: string, sub: string, date: string | null) => void;
+  onEndDateChange?: (group: string, sub: string, date: string | null) => void;
   onToggleDueDate?: (group: string, enabled: boolean) => void;
   dueDateEnabled?: Record<string, boolean>;
   actuals: Record<string, number>;
@@ -317,7 +333,7 @@ const BudgetTable = ({
   const totalBudget = entries.reduce((s, [, v]) => s + getAmount(v), 0);
   const totalActual = entries.reduce((s, [sub]) => s + (actuals[sub] ?? 0), 0);
   const totalRemaining = totalBudget - totalActual;
-  const colSpan = showDueDate ? 6 : 4;
+  const colSpan = showDueDate ? 8 : 4;
 
   const fmt = (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 2 });
 
@@ -369,6 +385,8 @@ const BudgetTable = ({
                 <th className="text-right px-3 py-2.5 font-medium">งบประมาณ</th>
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันกำหนดชำระ</th>}
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">ความถี่</th>}
+                {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันเริ่ม</th>}
+                {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันสิ้นสุด</th>}
                 <th className="text-right px-3 py-2.5 font-medium">จ่ายแล้ว</th>
                 <th className="text-right px-3 py-2.5 font-medium">คงเหลือ</th>
               </tr>
@@ -378,8 +396,11 @@ const BudgetTable = ({
                 const amount = getAmount(val);
                 const dueDate = getDueDate(val);
                 const recurrence = getRecurrence(val);
+                const startDt = getStartDate(val);
+                const endDt = getEndDate(val);
                 const actual = actuals[sub] ?? 0;
                 const remaining = amount - actual;
+                const hasRecurrence = recurrence !== null && recurrence !== undefined;
                 return (
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="px-3 py-2.5 text-muted-foreground">{sub}</td>
@@ -408,6 +429,24 @@ const BudgetTable = ({
                         />
                       </td>
                     )}
+                    {showDueDate && (
+                      <td className="px-3 py-2.5 text-center">
+                        {hasRecurrence ? (
+                          <DueDatePicker value={startDt} onChange={(d) => onStartDateChange?.(selectedCategory, sub, d)} />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </td>
+                    )}
+                    {showDueDate && (
+                      <td className="px-3 py-2.5 text-center">
+                        {hasRecurrence ? (
+                          <DueDatePicker value={endDt} onChange={(d) => onEndDateChange?.(selectedCategory, sub, d)} />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       {actual > 0 ? fmt(actual) : "-"}
                     </td>
@@ -427,6 +466,8 @@ const BudgetTable = ({
               <tr className="bg-muted/50 font-medium">
                 <td className="px-3 py-2.5">รวม</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalBudget)}</td>
+                {showDueDate && <td />}
+                {showDueDate && <td />}
                 {showDueDate && <td />}
                 {showDueDate && <td />}
                 <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalActual)}</td>
@@ -560,7 +601,7 @@ const BudgetSettings = () => {
     if (!budgetData) return;
     const existing = budgetData.expense_budgets[mainCat]?.[subCat];
     const newVal: BudgetValue = MAP_CATEGORIES.includes(mainCat)
-      ? { amount: value, due_date: getDueDate(existing ?? 0), recurrence: getRecurrence(existing ?? 0) }
+      ? { amount: value, due_date: getDueDate(existing ?? 0), recurrence: getRecurrence(existing ?? 0), start_date: getStartDate(existing ?? 0), end_date: getEndDate(existing ?? 0), paid_dates: getPaidDates(existing ?? 0) }
       : value;
     setBudgetData({
       ...budgetData,
@@ -574,7 +615,7 @@ const BudgetSettings = () => {
   const updateExpenseDueDate = (mainCat: string, subCat: string, date: string | null) => {
     if (!budgetData) return;
     const existing = budgetData.expense_budgets[mainCat]?.[subCat];
-    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: date, recurrence: getRecurrence(existing ?? 0) };
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: date, recurrence: getRecurrence(existing ?? 0), start_date: getStartDate(existing ?? 0), end_date: getEndDate(existing ?? 0), paid_dates: getPaidDates(existing ?? 0) };
     setBudgetData({
       ...budgetData,
       expense_budgets: {
@@ -587,7 +628,33 @@ const BudgetSettings = () => {
   const updateExpenseRecurrence = (mainCat: string, subCat: string, rrule: string | null) => {
     if (!budgetData) return;
     const existing = budgetData.expense_budgets[mainCat]?.[subCat];
-    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: getDueDate(existing ?? 0), recurrence: rrule };
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: getDueDate(existing ?? 0), recurrence: rrule, start_date: getStartDate(existing ?? 0), end_date: getEndDate(existing ?? 0), paid_dates: getPaidDates(existing ?? 0) };
+    setBudgetData({
+      ...budgetData,
+      expense_budgets: {
+        ...budgetData.expense_budgets,
+        [mainCat]: { ...budgetData.expense_budgets[mainCat], [subCat]: newVal },
+      },
+    });
+  };
+
+  const updateStartDate = (mainCat: string, subCat: string, date: string | null) => {
+    if (!budgetData) return;
+    const existing = budgetData.expense_budgets[mainCat]?.[subCat];
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: getDueDate(existing ?? 0), recurrence: getRecurrence(existing ?? 0), start_date: date, end_date: getEndDate(existing ?? 0), paid_dates: getPaidDates(existing ?? 0) };
+    setBudgetData({
+      ...budgetData,
+      expense_budgets: {
+        ...budgetData.expense_budgets,
+        [mainCat]: { ...budgetData.expense_budgets[mainCat], [subCat]: newVal },
+      },
+    });
+  };
+
+  const updateEndDate = (mainCat: string, subCat: string, date: string | null) => {
+    if (!budgetData) return;
+    const existing = budgetData.expense_budgets[mainCat]?.[subCat];
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: getDueDate(existing ?? 0), recurrence: getRecurrence(existing ?? 0), start_date: getStartDate(existing ?? 0), end_date: date, paid_dates: getPaidDates(existing ?? 0) };
     setBudgetData({
       ...budgetData,
       expense_budgets: {
@@ -600,11 +667,10 @@ const BudgetSettings = () => {
   const handleToggleDueDate = (mainCat: string, enabled: boolean) => {
     setDueDateEnabled((prev) => ({ ...prev, [mainCat]: enabled }));
     if (!enabled && budgetData) {
-      // Null-ify all due_dates for this category
       const updatedSubs = { ...budgetData.expense_budgets[mainCat] };
       for (const [sub, val] of Object.entries(updatedSubs)) {
         if (typeof val === "object" && val !== null) {
-          updatedSubs[sub] = { ...val, due_date: null, recurrence: null };
+          updatedSubs[sub] = { ...val, due_date: null, recurrence: null, start_date: null, end_date: null, paid_dates: [] };
         }
       }
       setBudgetData({
@@ -683,6 +749,8 @@ const BudgetSettings = () => {
               onAmountChange={updateExpense}
               onDueDateChange={updateExpenseDueDate}
               onRecurrenceChange={updateExpenseRecurrence}
+              onStartDateChange={updateStartDate}
+              onEndDateChange={updateEndDate}
               onToggleDueDate={handleToggleDueDate}
               dueDateEnabled={dueDateEnabled}
               actuals={txActuals}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { doc, getDoc, updateDoc, onSnapshot, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, updateDoc, onSnapshot, collection, query, where, getDocs, arrayUnion, arrayRemove } from "firebase/firestore";
 import { expandRecurrence, formatFrequencyThai } from "@/lib/recurrence";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,6 +37,7 @@ interface DueDateItem {
   isPaid: boolean;
   isRecurring: boolean;
   recurrence?: string | null;
+  paidDates?: string[];
 }
 
 const THAI_MONTHS = [
@@ -85,10 +86,10 @@ function getStartPadding(year: number, month: number): number {
 
 type ExpenseBudgetValue =
   | number
-  | { amount: number; due_date?: string | null; recurrence?: string | null }
-  | { is_due_date_enabled?: boolean; sub_categories: Record<string, { amount: number; due_date?: string | null; recurrence?: string | null }> };
+  | { amount: number; due_date?: string | null; recurrence?: string | null; start_date?: string | null; end_date?: string | null; paid_dates?: string[] }
+  | { is_due_date_enabled?: boolean; sub_categories: Record<string, { amount: number; due_date?: string | null; recurrence?: string | null; start_date?: string | null; end_date?: string | null; paid_dates?: string[] }> };
 
-function isV2Format(val: unknown): val is { is_due_date_enabled?: boolean; sub_categories: Record<string, { amount: number; due_date?: string | null }> } {
+function isV2Format(val: unknown): val is { is_due_date_enabled?: boolean; sub_categories: Record<string, { amount: number; due_date?: string | null; paid_dates?: string[] }> } {
   return typeof val === "object" && val !== null && "sub_categories" in val;
 }
 
@@ -100,38 +101,42 @@ function extractDueDateItems(
   const items: DueDateItem[] = [];
   const [filterYear, filterMonthNum] = filterMonth ? filterMonth.split("-").map(Number) : [0, 0];
 
-  const addItem = (mainCat: string, subCat: string, amount: number, dueDate: string, recurrence?: string | null) => {
+  const addItem = (mainCat: string, subCat: string, amount: number, dueDate: string, recurrence?: string | null, startDate?: string | null, endDate?: string | null, paidDates?: string[]) => {
     const paidAmount = txActuals[subCat] ?? 0;
     const rrule = recurrence ?? null;
+    const itemPaidDates = paidDates ?? [];
 
     if (rrule && filterYear && filterMonthNum) {
-      // Expand recurring dates within the month
-      const expandedDates = expandRecurrence(dueDate, rrule, filterYear, filterMonthNum);
-      const perOccurrence = amount; // Each occurrence has the full budget amount
+      const expandedDates = expandRecurrence(dueDate, rrule, filterYear, filterMonthNum, startDate, endDate);
+      const perOccurrence = amount;
       for (const expDate of expandedDates) {
+        const isPaidByDate = itemPaidDates.includes(expDate);
         items.push({
           mainCategory: mainCat,
           subCategory: subCat,
           amount: perOccurrence,
           dueDate: expDate,
-          paidAmount: 0, // Recurring items: individual paid tracking not yet supported
-          isPaid: false,
+          paidAmount: isPaidByDate ? perOccurrence : 0,
+          isPaid: isPaidByDate,
           isRecurring: true,
           recurrence: rrule,
+          paidDates: itemPaidDates,
         });
       }
     } else {
-      // One-time payment
       if (!filterMonth || dueDate.startsWith(filterMonth)) {
+        const isPaidByDate = itemPaidDates.includes(dueDate);
+        const isPaid = isPaidByDate || (paidAmount >= amount && amount > 0);
         items.push({
           mainCategory: mainCat,
           subCategory: subCat,
           amount,
           dueDate,
-          paidAmount,
-          isPaid: paidAmount >= amount && amount > 0,
+          paidAmount: isPaidByDate ? amount : paidAmount,
+          isPaid,
           isRecurring: false,
           recurrence: null,
+          paidDates: itemPaidDates,
         });
       }
     }
@@ -141,15 +146,15 @@ function extractDueDateItems(
     if (isV2Format(val)) {
       for (const [subCat, subVal] of Object.entries(val.sub_categories)) {
         if (subVal?.due_date) {
-          addItem(mainCat, subCat, subVal.amount ?? 0, subVal.due_date, (subVal as any)?.recurrence);
+          addItem(mainCat, subCat, subVal.amount ?? 0, subVal.due_date, (subVal as any)?.recurrence, (subVal as any)?.start_date, (subVal as any)?.end_date, (subVal as any)?.paid_dates);
         }
       }
     } else if (typeof val === "object" && val !== null && !Array.isArray(val)) {
       for (const [subCat, subVal] of Object.entries(val as Record<string, unknown>)) {
         if (typeof subVal === "object" && subVal !== null && "due_date" in subVal) {
-          const v = subVal as { amount?: number; due_date?: string | null; recurrence?: string | null };
+          const v = subVal as { amount?: number; due_date?: string | null; recurrence?: string | null; start_date?: string | null; end_date?: string | null; paid_dates?: string[] };
           if (v.due_date) {
-            addItem(mainCat, subCat, v.amount ?? 0, v.due_date, v.recurrence);
+            addItem(mainCat, subCat, v.amount ?? 0, v.due_date, v.recurrence, v.start_date, v.end_date, v.paid_dates);
           }
         }
       }
@@ -275,6 +280,74 @@ const CalendarPage = () => {
       title: "อัปเดตวันชำระสำเร็จ", 
       description: `${subCat} → ${formatThaiDate(newDate)}`,
     });
+  };
+
+  const markAsPaid = async (mainCat: string, subCat: string, dateStr: string) => {
+    if (!userId) return;
+    const docRef = doc(firestore, "users", userId, "budgets", period);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const budgets = { ...(data.expense_budgets ?? {}) } as Record<string, any>;
+    const catData = budgets[mainCat];
+
+    if (isV2Format(catData)) {
+      const sub = catData.sub_categories[subCat];
+      if (sub) {
+        const currentPaid = sub.paid_dates ?? [];
+        budgets[mainCat] = {
+          ...catData,
+          sub_categories: {
+            ...catData.sub_categories,
+            [subCat]: { ...sub, paid_dates: [...currentPaid, dateStr] },
+          },
+        };
+      }
+    } else if (typeof catData === "object" && catData !== null) {
+      const sub = catData[subCat];
+      if (sub && typeof sub === "object") {
+        const currentPaid = sub.paid_dates ?? [];
+        budgets[mainCat] = { ...catData, [subCat]: { ...sub, paid_dates: [...currentPaid, dateStr] } };
+      }
+    }
+
+    await updateDoc(docRef, { expense_budgets: budgets });
+    toast({ title: "บันทึกการชำระสำเร็จ", description: `${subCat} — ${formatThaiDate(dateStr)}` });
+  };
+
+  const undoPaid = async (mainCat: string, subCat: string, dateStr: string) => {
+    if (!userId) return;
+    const docRef = doc(firestore, "users", userId, "budgets", period);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const budgets = { ...(data.expense_budgets ?? {}) } as Record<string, any>;
+    const catData = budgets[mainCat];
+
+    if (isV2Format(catData)) {
+      const sub = catData.sub_categories[subCat];
+      if (sub) {
+        const currentPaid = (sub.paid_dates ?? []).filter((d: string) => d !== dateStr);
+        budgets[mainCat] = {
+          ...catData,
+          sub_categories: {
+            ...catData.sub_categories,
+            [subCat]: { ...sub, paid_dates: currentPaid },
+          },
+        };
+      }
+    } else if (typeof catData === "object" && catData !== null) {
+      const sub = catData[subCat];
+      if (sub && typeof sub === "object") {
+        const currentPaid = (sub.paid_dates ?? []).filter((d: string) => d !== dateStr);
+        budgets[mainCat] = { ...catData, [subCat]: { ...sub, paid_dates: currentPaid } };
+      }
+    }
+
+    await updateDoc(docRef, { expense_budgets: budgets });
+    toast({ title: "ยกเลิกการชำระสำเร็จ", description: `${subCat} — ${formatThaiDate(dateStr)}` });
   };
 
   const handleDragStart = () => {
@@ -654,10 +727,31 @@ const CalendarPage = () => {
                                           </div>
                                           <div className="text-[10px] text-muted-foreground truncate">{item.mainCategory}</div>
                                         </div>
-                                        <div className={`font-bold text-sm tabular-nums shrink-0 ${
-                                          item.isPaid ? "text-accent" : isOverdue ? "text-destructive" : ""
-                                        }`}>
-                                          {formatCurrency(item.amount)}
+                                        <div className="flex items-center gap-1 shrink-0">
+                                          <div className={`font-bold text-sm tabular-nums ${
+                                            item.isPaid ? "text-accent" : isOverdue ? "text-destructive" : ""
+                                          }`}>
+                                            {formatCurrency(item.amount)}
+                                          </div>
+                                          {item.isPaid ? (
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6"
+                                              onClick={(e) => { e.stopPropagation(); undoPaid(item.mainCategory, item.subCategory, item.dueDate); }}
+                                            >
+                                              <X className="h-3 w-3 text-muted-foreground" />
+                                            </Button>
+                                          ) : (
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6"
+                                              onClick={(e) => { e.stopPropagation(); markAsPaid(item.mainCategory, item.subCategory, item.dueDate); }}
+                                            >
+                                              <CheckCircle2 className="h-3.5 w-3.5 text-accent" />
+                                            </Button>
+                                          )}
                                         </div>
                                       </div>
                                     )}

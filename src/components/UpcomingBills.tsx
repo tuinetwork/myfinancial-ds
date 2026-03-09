@@ -71,9 +71,13 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
           const now = new Date();
           const year = now.getFullYear();
           const month = now.getMonth() + 1;
-          const expandedDates = expandRecurrence(item.dueDate, rrule, year, month);
+          const startDate = item.startDate ?? null;
+          const endDate = item.endDate ?? null;
+          const paidDates = item.paidDates ?? [];
+          const expandedDates = expandRecurrence(item.dueDate, rrule, year, month, startDate, endDate);
           for (const expDate of expandedDates) {
             const daysUntil = getDaysUntil(expDate);
+            const isPaidByDate = paidDates.includes(expDate);
             items.push({
               label: item.label,
               category: categoryNames[cat],
@@ -81,17 +85,19 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
               dueDate: expDate,
               isOverdue: daysUntil < 0,
               daysUntil,
-              isPaid: false,
-              paidAmount: 0,
-              paidPercent: 0,
+              isPaid: isPaidByDate,
+              paidAmount: isPaidByDate ? item.budget : 0,
+              paidPercent: isPaidByDate ? 100 : 0,
               isRecurring: true,
             });
           }
         } else {
           // One-time payment
           const daysUntil = getDaysUntil(item.dueDate);
-          const paidAmount = txActuals[item.label] ?? 0;
-          const isPaid = paidAmount >= item.budget && item.budget > 0;
+          const paidDates = item.paidDates ?? [];
+          const isPaidByDate = paidDates.includes(item.dueDate ?? "");
+          const paidAmount = isPaidByDate ? item.budget : (txActuals[item.label] ?? 0);
+          const isPaid = isPaidByDate || (paidAmount >= item.budget && item.budget > 0);
           const paidPercent = item.budget > 0 ? Math.min(100, Math.round((paidAmount / item.budget) * 100)) : 0;
           items.push({
             label: item.label,
