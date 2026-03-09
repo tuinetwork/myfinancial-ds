@@ -20,6 +20,7 @@ interface BillItem {
   isPaid: boolean;
   paidAmount: number;
   paidPercent: number;
+  isRecurring: boolean;
 }
 
 function formatThaiDate(dateStr: string): string {
