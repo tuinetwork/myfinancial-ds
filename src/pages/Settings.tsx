@@ -1729,10 +1729,14 @@ const SavingsGoalSettings = () => {
         } else { setLoading(false); return; }
       }
       const d = snap.data()!;
-      const expBudgets = (d.expense_budgets ?? {}) as Record<string, Record<string, number>>;
-      // Find savings group (เงินออมและการลงทุน)
+      const expBudgets = (d.expense_budgets ?? {}) as Record<string, Record<string, BudgetValue>>;
+      // Find savings group — extract amount from BudgetValue
       const savingsGroup = expBudgets["เงินออมและการลงทุน"] ?? {};
-      setSavingsTargets({ ...savingsGroup });
+      const targets: Record<string, number> = {};
+      for (const [key, val] of Object.entries(savingsGroup)) {
+        targets[key] = getAmount(val);
+      }
+      setSavingsTargets(targets);
       setLoading(false);
     });
   }, [userId, period]);
