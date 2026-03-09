@@ -138,13 +138,11 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
       }
     }
 
-    // Sort: unpaid first, then by due date ascending
-    items.sort((a, b) => {
-      if (a.isPaid !== b.isPaid) return a.isPaid ? 1 : -1;
-      return a.dueDate.localeCompare(b.dueDate);
-    });
+    // Filter out paid items and sort by due date ascending
+    const unpaidItems = items.filter(item => !item.isPaid);
+    unpaidItems.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
-    return items.slice(0, 8);
+    return unpaidItems.slice(0, 8);
   }, [data.expenses, data.transactions]);
 
   if (bills.length === 0) {
@@ -163,21 +161,16 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
         {bills.map((bill, idx) => (
           <div
             key={`${bill.label}-${idx}`}
-            className={`flex items-center justify-between py-2 border-b border-border last:border-0 ${bill.isPaid ? "opacity-60" : ""}`}
+            className="flex items-center justify-between py-2 border-b border-border last:border-0"
           >
             <div className="flex-1 min-w-0">
-              <div className={`font-medium text-sm truncate ${bill.isPaid ? "line-through text-muted-foreground" : ""}`}>
+              <div className="font-medium text-sm truncate">
                 {bill.isRecurring && <RefreshCw className="h-3 w-3 inline-block mr-1 text-primary" />}
                 {bill.label}
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{formatThaiDate(bill.dueDate)}</span>
-                {bill.isPaid ? (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500 text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    ชำระแล้ว
-                  </Badge>
-                ) : bill.isOverdue ? (
+                {bill.isOverdue ? (
                   <Badge variant="destructive" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
                     เลยกำหนด {Math.abs(bill.daysUntil)} วัน
@@ -197,7 +190,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
                   </Badge>
                 )}
               </div>
-              {!bill.isPaid && bill.paidAmount > 0 && (
+              {bill.paidAmount > 0 && (
                 <div className="flex items-center gap-2 mt-1">
                   <Progress value={bill.paidPercent} className="h-1.5 flex-1" />
                   <span className="text-[10px] text-muted-foreground whitespace-nowrap">
@@ -206,7 +199,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
                 </div>
               )}
             </div>
-            <div className={`text-sm font-semibold text-right ${bill.isPaid ? "line-through text-muted-foreground" : ""}`}>
+            <div className="text-sm font-semibold text-right">
               {formatCurrency(bill.amount)}
             </div>
           </div>
