@@ -309,6 +309,19 @@ const BudgetTable = ({
           </Select>
         </div>
 
+        {isMapCategory && (
+          <div className="px-4 pb-2 flex items-center gap-2">
+            <Switch
+              id={`due-date-toggle-${selectedCategory}`}
+              checked={dueDateEnabled?.[selectedCategory] ?? false}
+              onCheckedChange={(checked) => onToggleDueDate?.(selectedCategory, checked)}
+            />
+            <Label htmlFor={`due-date-toggle-${selectedCategory}`} className="text-xs text-muted-foreground cursor-pointer">
+              เปิดใช้งานการกำหนดวันชำระ
+            </Label>
+          </div>
+        )}
+
         <div className="border-t border-border overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
