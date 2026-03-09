@@ -41,6 +41,7 @@ const AppContent = () => {
             <Route path="/" element={<Index />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/analysis" element={<Analysis />} />
+            <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="*" element={<NotFound />} />

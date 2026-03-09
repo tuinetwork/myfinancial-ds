@@ -30,15 +30,16 @@ interface MenuItem {
 }
 
 const mainMenuItems: MenuItem[] = [
-  {
-    title: "แดชบอร์ด", url: "/", icon: LayoutDashboard,
-    children: [
-      { title: "รายเดือน", url: "/?view=monthly", icon: CalendarDays },
-      { title: "รายปี", url: "/?view=yearly", icon: BarChart3 },
-    ],
-  },
+  {
+    title: "แดชบอร์ด", url: "/", icon: LayoutDashboard,
+    children: [
+      { title: "รายเดือน", url: "/?view=monthly", icon: CalendarDays },
+      { title: "รายปี", url: "/?view=yearly", icon: BarChart3 },
+    ],
+  },
   { title: "วิเคราะห์", url: "/analysis", icon: PieChart },
-  { title: "รายการธุรกรรม", url: "/transactions", icon: Receipt },
+  { title: "ปฏิทินการเงิน", url: "/calendar", icon: CalendarDays },
+  { title: "รายการธุรกรรม", url: "/transactions", icon: Receipt },
 ];
 
 const settingsChildren = [

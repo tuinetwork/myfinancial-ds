@@ -97,7 +97,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
                     เลยกำหนด
                   </Badge>
                 ) : bill.daysUntil <= 3 ? (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500 text-amber-600 dark:text-amber-400">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-warning text-warning">
                     อีก {bill.daysUntil} วัน
                   </Badge>
                 ) : null}
