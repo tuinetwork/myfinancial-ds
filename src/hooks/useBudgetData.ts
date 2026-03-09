@@ -133,7 +133,10 @@ function parseBudgetDoc(
         const budget = typeof val === "number" ? val : (val as any)?.amount ?? 0;
         const dueDate = typeof val === "object" && val !== null ? (val as any)?.due_date ?? null : null;
         const recurrence = typeof val === "object" && val !== null ? (val as any)?.recurrence ?? null : null;
-        return { label, budget, dueDate, recurrence };
+        const startDate = typeof val === "object" && val !== null ? (val as any)?.start_date ?? null : null;
+        const endDate = typeof val === "object" && val !== null ? (val as any)?.end_date ?? null : null;
+        const paidDates = typeof val === "object" && val !== null ? (val as any)?.paid_dates ?? [] : [];
+        return { label, budget, dueDate, recurrence, startDate, endDate, paidDates };
       });
     }
   }
