@@ -530,7 +530,7 @@ const BudgetSettings = () => {
   const [saving, setSaving] = useState(false);
   const [selectedExpenseCat, setSelectedExpenseCat] = useState<string>("");
   const [selectedIncomeCat, setSelectedIncomeCat] = useState<string>("");
-  const [txActuals, setTxActuals] = useState<Record<string, number>>({});
+  const [txBySubDate, setTxBySubDate] = useState<Record<string, TxEntry[]>>({});
   const [dueDateEnabled, setDueDateEnabled] = useState<Record<string, boolean>>({});
 
   const years = useMemo(() => {
