@@ -197,16 +197,70 @@ const TreeGroup = ({
   );
 };
 
+// ─── Day-of-week names ───
+const DAY_NAMES_TH = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
+const DAY_NAMES_EN = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+
 // ─── Due Date Picker (Thai Buddhist Era) ───
 const DueDatePicker = ({
   value,
   onChange,
+  frequency,
 }: {
   value: string | null;
   onChange: (date: string | null) => void;
+  frequency?: string | null;
 }) => {
   const [open, setOpen] = useState(false);
   const selected = value ? new Date(value) : undefined;
+  const isWeekly = frequency === "weekly";
+
+  // For weekly: show day-of-week selector
+  if (isWeekly) {
+    const currentDayIdx = value ? new Date(value).getDay() : null;
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            className={cn(
+              "flex items-center gap-1 h-8 px-2 text-xs rounded-md border border-input bg-background hover:bg-accent transition-colors whitespace-nowrap",
+              !value && "text-muted-foreground"
+            )}
+          >
+            <CalendarIcon className="h-3 w-3" />
+            {currentDayIdx !== null ? `ทุกวัน${DAY_NAMES_TH[currentDayIdx]}` : "เลือกวัน"}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-2 pointer-events-auto" align="start">
+          <div className="grid grid-cols-7 gap-1">
+            {DAY_NAMES_TH.map((name, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  // Find the next occurrence of this day-of-week from today
+                  const today = new Date();
+                  const diff = (idx - today.getDay() + 7) % 7 || 7;
+                  const target = new Date(today);
+                  target.setDate(today.getDate() + diff);
+                  const y = target.getFullYear();
+                  const m = String(target.getMonth() + 1).padStart(2, "0");
+                  const d = String(target.getDate()).padStart(2, "0");
+                  onChange(`${y}-${m}-${d}`);
+                  setOpen(false);
+                }}
+                className={cn(
+                  "h-8 w-8 rounded-md text-xs font-medium transition-colors hover:bg-accent",
+                  currentDayIdx === idx && "bg-primary text-primary-foreground hover:bg-primary/90"
+                )}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -227,7 +281,6 @@ const DueDatePicker = ({
           selected={selected}
           onSelect={(date) => {
             if (date) {
-              // Save as YYYY-MM-DD (CE)
               const y = date.getFullYear();
               const m = String(date.getMonth() + 1).padStart(2, "0");
               const d = String(date.getDate()).padStart(2, "0");
