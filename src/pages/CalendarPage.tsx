@@ -583,7 +583,7 @@ const CalendarPage = () => {
                                   {total > 0 && (
                                     <div className={`mt-0.5 px-1 py-0.5 rounded text-[9px] sm:text-[10px] font-medium truncate text-center
                                       ${allPaid
-                                        ? "bg-accent/15 text-accent"
+                                        ? "line-through bg-accent/15 text-accent"
                                         : isOverdue
                                           ? "bg-destructive/15 text-destructive"
                                           : "bg-primary/10 text-primary"
