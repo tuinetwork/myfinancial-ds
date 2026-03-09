@@ -953,15 +953,38 @@ const BudgetSettings = () => {
           </Select>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <Button onClick={handleCopyToNextMonth} disabled={copying || !budgetData} size="sm" variant="outline" className="gap-1.5">
-            {copying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
-            {copying ? "กำลังคัดลอก..." : "คัดลอกไปเดือนหน้า"}
-          </Button>
+          {period && (() => {
+            const now = new Date();
+            const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+            return period === currentPeriod;
+          })() && (
+            <Button onClick={() => setShowCopyConfirm(true)} disabled={copying || !budgetData} size="sm" variant="outline" className="gap-1.5">
+              {copying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+              {copying ? "กำลังคัดลอก..." : "คัดลอกไปเดือนหน้า"}
+            </Button>
+          )}
           <Button onClick={handleSave} disabled={saving || !budgetData} size="sm" className="gap-1.5">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {saving ? "กำลังบันทึก..." : "บันทึก"}
           </Button>
         </div>
+
+        <AlertDialog open={showCopyConfirm} onOpenChange={setShowCopyConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>คัดลอกงบประมาณไปเดือนหน้า?</AlertDialogTitle>
+              <AlertDialogDescription>
+                ระบบจะคัดลอกงบประมาณจากเดือนปัจจุบันไปยังเดือนถัดไป โดยรีเซตวันที่ทั้งหมด หากมีข้อมูลงบประมาณเดือนหน้าอยู่แล้วจะถูกเขียนทับ
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { setShowCopyConfirm(false); handleCopyToNextMonth(); }}>
+                ยืนยันคัดลอก
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {loading ? (
