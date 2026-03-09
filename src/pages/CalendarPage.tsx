@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   CalendarDays, ChevronLeft, ChevronRight, Home, GripVertical,
-  Banknote, Clock, AlertTriangle, CircleDollarSign, Receipt, Landmark, X, Move, CheckCircle2,
+  Banknote, Clock, AlertTriangle, CircleDollarSign, Receipt, Landmark, X, Move, CheckCircle2, RefreshCw,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
