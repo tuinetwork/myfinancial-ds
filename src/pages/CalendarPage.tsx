@@ -282,6 +282,74 @@ const CalendarPage = () => {
     });
   };
 
+  const markAsPaid = async (mainCat: string, subCat: string, dateStr: string) => {
+    if (!userId) return;
+    const docRef = doc(firestore, "users", userId, "budgets", period);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const budgets = { ...(data.expense_budgets ?? {}) } as Record<string, any>;
+    const catData = budgets[mainCat];
+
+    if (isV2Format(catData)) {
+      const sub = catData.sub_categories[subCat];
+      if (sub) {
+        const currentPaid = sub.paid_dates ?? [];
+        budgets[mainCat] = {
+          ...catData,
+          sub_categories: {
+            ...catData.sub_categories,
+            [subCat]: { ...sub, paid_dates: [...currentPaid, dateStr] },
+          },
+        };
+      }
+    } else if (typeof catData === "object" && catData !== null) {
+      const sub = catData[subCat];
+      if (sub && typeof sub === "object") {
+        const currentPaid = sub.paid_dates ?? [];
+        budgets[mainCat] = { ...catData, [subCat]: { ...sub, paid_dates: [...currentPaid, dateStr] } };
+      }
+    }
+
+    await updateDoc(docRef, { expense_budgets: budgets });
+    toast({ title: "บันทึกการชำระสำเร็จ", description: `${subCat} — ${formatThaiDate(dateStr)}` });
+  };
+
+  const undoPaid = async (mainCat: string, subCat: string, dateStr: string) => {
+    if (!userId) return;
+    const docRef = doc(firestore, "users", userId, "budgets", period);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const budgets = { ...(data.expense_budgets ?? {}) } as Record<string, any>;
+    const catData = budgets[mainCat];
+
+    if (isV2Format(catData)) {
+      const sub = catData.sub_categories[subCat];
+      if (sub) {
+        const currentPaid = (sub.paid_dates ?? []).filter((d: string) => d !== dateStr);
+        budgets[mainCat] = {
+          ...catData,
+          sub_categories: {
+            ...catData.sub_categories,
+            [subCat]: { ...sub, paid_dates: currentPaid },
+          },
+        };
+      }
+    } else if (typeof catData === "object" && catData !== null) {
+      const sub = catData[subCat];
+      if (sub && typeof sub === "object") {
+        const currentPaid = (sub.paid_dates ?? []).filter((d: string) => d !== dateStr);
+        budgets[mainCat] = { ...catData, [subCat]: { ...sub, paid_dates: currentPaid } };
+      }
+    }
+
+    await updateDoc(docRef, { expense_budgets: budgets });
+    toast({ title: "ยกเลิกการชำระสำเร็จ", description: `${subCat} — ${formatThaiDate(dateStr)}` });
+  };
+
   const handleDragStart = () => {
     setIsDragging(true);
   };
