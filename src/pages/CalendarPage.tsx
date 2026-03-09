@@ -201,20 +201,24 @@ const CalendarPage = () => {
     return () => unsub();
   }, [userId, period]);
 
-  // Fetch transactions for actuals (to determine paid status)
+  // Fetch transactions for actuals (to determine paid status) — store per-date entries
   useEffect(() => {
     if (!userId || !period) return;
     const txCol = collection(firestore, "users", userId, "transactions");
     const txQ = query(txCol, where("month_year", "==", period));
     getDocs(txQ).then((txSnap) => {
-      const map: Record<string, number> = {};
+      const map: Record<string, TxEntry[]> = {};
       txSnap.forEach((d) => {
         const data = d.data();
         const subCat = (data.sub_category as string) ?? "";
         const amount = (data.amount as number) ?? 0;
-        if (subCat) map[subCat] = (map[subCat] || 0) + amount;
+        const date = (data.date as string) ?? "";
+        if (subCat && date) {
+          if (!map[subCat]) map[subCat] = [];
+          map[subCat].push({ date, amount });
+        }
       });
-      setTxActuals(map);
+      setTxBySubDate(map);
     });
   }, [userId, period]);
 
