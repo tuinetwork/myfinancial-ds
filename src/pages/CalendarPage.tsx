@@ -222,7 +222,7 @@ const CalendarPage = () => {
     });
   }, [userId, period]);
 
-  const dueDateItems = useMemo(() => extractDueDateItems(expenseBudgets, txActuals, period), [expenseBudgets, txActuals, period]);
+  const dueDateItems = useMemo(() => extractDueDateItems(expenseBudgets, txBySubDate, period), [expenseBudgets, txBySubDate, period]);
 
   const itemsByDate = useMemo(() => {
     const map: Record<string, DueDateItem[]> = {};
