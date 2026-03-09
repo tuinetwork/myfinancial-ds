@@ -98,42 +98,58 @@ function extractDueDateItems(
   filterMonth?: string
 ): DueDateItem[] {
   const items: DueDateItem[] = [];
+  const [filterYear, filterMonthNum] = filterMonth ? filterMonth.split("-").map(Number) : [0, 0];
+
+  const addItem = (mainCat: string, subCat: string, amount: number, dueDate: string, recurrence?: string | null) => {
+    const paidAmount = txActuals[subCat] ?? 0;
+    const rrule = recurrence ?? null;
+
+    if (rrule && filterYear && filterMonthNum) {
+      // Expand recurring dates within the month
+      const expandedDates = expandRecurrence(dueDate, rrule, filterYear, filterMonthNum);
+      const perOccurrence = amount; // Each occurrence has the full budget amount
+      for (const expDate of expandedDates) {
+        items.push({
+          mainCategory: mainCat,
+          subCategory: subCat,
+          amount: perOccurrence,
+          dueDate: expDate,
+          paidAmount: 0, // Recurring items: individual paid tracking not yet supported
+          isPaid: false,
+          isRecurring: true,
+          recurrence: rrule,
+        });
+      }
+    } else {
+      // One-time payment
+      if (!filterMonth || dueDate.startsWith(filterMonth)) {
+        items.push({
+          mainCategory: mainCat,
+          subCategory: subCat,
+          amount,
+          dueDate,
+          paidAmount,
+          isPaid: paidAmount >= amount && amount > 0,
+          isRecurring: false,
+          recurrence: null,
+        });
+      }
+    }
+  };
 
   for (const [mainCat, val] of Object.entries(expenseBudgets)) {
     if (isV2Format(val)) {
       for (const [subCat, subVal] of Object.entries(val.sub_categories)) {
         if (subVal?.due_date) {
-          if (!filterMonth || subVal.due_date.startsWith(filterMonth)) {
-            const amount = subVal.amount ?? 0;
-            const paidAmount = txActuals[subCat] ?? 0;
-            items.push({ 
-              mainCategory: mainCat, 
-              subCategory: subCat, 
-              amount, 
-              dueDate: subVal.due_date,
-              paidAmount,
-              isPaid: paidAmount >= amount && amount > 0,
-            });
-          }
+          addItem(mainCat, subCat, subVal.amount ?? 0, subVal.due_date, (subVal as any)?.recurrence);
         }
       }
     } else if (typeof val === "object" && val !== null && !Array.isArray(val)) {
       for (const [subCat, subVal] of Object.entries(val as Record<string, unknown>)) {
         if (typeof subVal === "object" && subVal !== null && "due_date" in subVal) {
-          const v = subVal as { amount?: number; due_date?: string | null };
+          const v = subVal as { amount?: number; due_date?: string | null; recurrence?: string | null };
           if (v.due_date) {
-            if (!filterMonth || v.due_date.startsWith(filterMonth)) {
-              const amount = v.amount ?? 0;
-              const paidAmount = txActuals[subCat] ?? 0;
-              items.push({ 
-                mainCategory: mainCat, 
-                subCategory: subCat, 
-                amount, 
-                dueDate: v.due_date,
-                paidAmount,
-                isPaid: paidAmount >= amount && amount > 0,
-              });
-            }
+            addItem(mainCat, subCat, v.amount ?? 0, v.due_date, v.recurrence);
           }
         }
       }
