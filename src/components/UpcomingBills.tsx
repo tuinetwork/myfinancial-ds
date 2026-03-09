@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { CalendarClock, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { formatCurrency, type BudgetData } from "@/hooks/useBudgetData";
-import { expandRecurrence, formatFrequencyThai } from "@/lib/recurrence";
+import { expandRecurrence, formatFrequencyThai, matchTxToOccurrences, type TxEntry } from "@/lib/recurrence";
 
 interface UpcomingBillsProps {
   data: BudgetData;
