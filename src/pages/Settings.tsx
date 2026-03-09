@@ -557,6 +557,11 @@ const BudgetTable = ({
                         )}
                       </td>
                     )}
+                    {showDueDate && (
+                      <td className="px-3 py-2.5 text-center tabular-nums text-muted-foreground">
+                        {hasRecurrence && occurrences > 1 ? `${occurrences} ครั้ง` : "-"}
+                      </td>
+                    )}
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       {actual > 0 ? fmt(actual) : "-"}
                     </td>
