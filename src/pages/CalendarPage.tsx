@@ -390,7 +390,6 @@ const CalendarPage = () => {
                     </div>
                   </CardContent>
                 </Card>
-                </Card>
                 <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
                   <CardContent className="p-4 flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-primary/15">
