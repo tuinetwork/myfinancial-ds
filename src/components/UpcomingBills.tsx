@@ -84,7 +84,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
           for (const expDate of expandedDates) {
             const daysUntil = getDaysUntil(expDate);
             const isPaidByDate = paidDates.includes(expDate);
-            const isPaidByTx = !isPaidByDate && (txMatchMap.get(expDate) ?? false);
+            const isPaidByTx = !isPaidByDate && (txMatchMap.get(expDate)?.isPaid ?? false);
             const isPaid = isPaidByDate || isPaidByTx;
             items.push({
               label: item.label,
