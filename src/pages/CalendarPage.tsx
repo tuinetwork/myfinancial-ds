@@ -203,10 +203,14 @@ const CalendarPage = () => {
         },
       };
       budgets[mainCat] = updated;
-    } else if (typeof catData === "object" && catData !== null) {
-      const flat = catData as Record<string, { amount: number; due_date?: string | null }>;
-      flat[subCat] = { ...flat[subCat], due_date: newDate };
-      budgets[mainCat] = flat as ExpenseBudgetValue;
+    } else if (typeof catData === "object" && catData !== null && !("amount" in catData)) {
+      // V1 flat format: { subCat: { amount, due_date } }
+      const flat = catData as unknown as Record<string, { amount: number; due_date?: string | null }>;
+      const updatedFlat = {
+        ...flat,
+        [subCat]: { ...flat[subCat], due_date: newDate },
+      };
+      budgets[mainCat] = updatedFlat as unknown as ExpenseBudgetValue;
     }
 
     await updateDoc(docRef, { expense_budgets: budgets });
