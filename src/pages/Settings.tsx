@@ -833,7 +833,42 @@ const BudgetSettings = () => {
     });
   };
 
-  const handleToggleDueDate = (mainCat: string, enabled: boolean) => {
+  const updateOccurrences = (mainCat: string, subCat: string, count: number) => {
+    if (!budgetData) return;
+    const existing = budgetData.expense_budgets[mainCat]?.[subCat];
+    const recurrence = getRecurrence(existing ?? 0);
+    const startDt = getStartDate(existing ?? 0);
+    if (!recurrence || !startDt) return;
+
+    const freqType = getFrequencyType(recurrence);
+    const start = new Date(startDt);
+    let endDate: Date;
+
+    if (freqType === "daily") {
+      endDate = new Date(start);
+      endDate.setDate(start.getDate() + count - 1);
+    } else if (freqType === "weekly") {
+      endDate = new Date(start);
+      endDate.setDate(start.getDate() + (count - 1) * 7);
+    } else if (freqType === "monthly") {
+      endDate = new Date(start);
+      endDate.setMonth(start.getMonth() + count - 1);
+    } else {
+      return;
+    }
+
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const endStr = `${endDate.getFullYear()}-${pad(endDate.getMonth() + 1)}-${pad(endDate.getDate())}`;
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: getDueDate(existing ?? 0), recurrence, start_date: startDt, end_date: endStr, paid_dates: getPaidDates(existing ?? 0) };
+    setBudgetData({
+      ...budgetData,
+      expense_budgets: {
+        ...budgetData.expense_budgets,
+        [mainCat]: { ...budgetData.expense_budgets[mainCat], [subCat]: newVal },
+      },
+    });
+  };
+
     setDueDateEnabled((prev) => ({ ...prev, [mainCat]: enabled }));
     if (!enabled && budgetData) {
       const updatedSubs = { ...budgetData.expense_budgets[mainCat] };
