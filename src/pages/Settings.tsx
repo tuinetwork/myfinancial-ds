@@ -832,7 +832,7 @@ const BudgetSettings = () => {
               selectedCategory={selectedIncomeCat}
               onCategoryChange={setSelectedIncomeCat}
               onAmountChange={updateIncome}
-              actuals={txActuals}
+              txBySubDate={txBySubDate}
               selectedPeriod={selectedYear && selectedMonth ? `${selectedYear}-${selectedMonth}` : undefined}
             />
           </div>
