@@ -1689,7 +1689,6 @@ const SavingsGoalSettings = () => {
   const [selectedYear, setSelectedYear] = useState<string>();
   const [selectedMonth, setSelectedMonth] = useState<string>();
   const [savingsTargets, setSavingsTargets] = useState<Record<string, number>>({});
-  const [savingsActuals, setSavingsActuals] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -1742,25 +1741,6 @@ const SavingsGoalSettings = () => {
     });
   }, [userId, period]);
 
-  // Fetch actual savings transactions for the selected period
-  useEffect(() => {
-    if (!userId || !period) return;
-    const txCol = collection(firestore, "users", userId, "transactions");
-    const txQ = query(txCol, where("month_year", "==", period), where("main_category", "==", "เงินออมและการลงทุน"));
-    getDocs(txQ).then((txSnap) => {
-      const actuals: Record<string, number> = {};
-      txSnap.forEach((d) => {
-        const data = d.data();
-        const subCat = (data.sub_category as string) ?? "";
-        const amount = Math.abs((data.amount as number) ?? 0);
-        if (subCat) {
-          actuals[subCat] = (actuals[subCat] || 0) + amount;
-        }
-      });
-      setSavingsActuals(actuals);
-    });
-  }, [userId, period]);
-
   const handleSave = async () => {
     if (!userId || !period) return;
     setSaving(true);
@@ -1791,15 +1771,6 @@ const SavingsGoalSettings = () => {
   };
 
   const totalTarget = Object.values(savingsTargets).reduce((s, v) => s + v, 0);
-  const totalActual = Object.values(savingsActuals).reduce((s, v) => s + v, 0);
-
-  const getProgressColor = (actual: number, target: number) => {
-    if (target <= 0) return "text-muted-foreground";
-    const pct = (actual / target) * 100;
-    if (pct >= 100) return "text-accent";
-    if (pct >= 50) return "text-primary";
-    return "text-destructive";
-  };
 
   return (
     <div className="space-y-4">
@@ -1854,60 +1825,36 @@ const SavingsGoalSettings = () => {
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
                     <th className="text-left px-3 py-2.5 font-medium">หมวดการออม</th>
-                    <th className="text-right px-3 py-2.5 font-medium">ออมจริง</th>
                     <th className="text-right px-3 py-2.5 font-medium">เป้าหมาย (บาท)</th>
-                    <th className="text-right px-3 py-2.5 font-medium w-24">ความคืบหน้า</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(savingsTargets).map(([label, amount]) => {
-                    const actual = savingsActuals[label] || 0;
-                    const pct = amount > 0 ? Math.min((actual / amount) * 100, 100) : 0;
-                    return (
-                      <tr key={label} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                        <td className="px-3 py-2.5">
-                          <div className="flex items-center gap-2">
-                            <Target className="h-3.5 w-3.5 text-muted-foreground" />
-                            {label}
-                          </div>
-                        </td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${getProgressColor(actual, amount)}`}>
-                          {actual.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="px-3 py-2.5 text-right">
-                          <Input
-                            type="number"
-                            value={amount}
-                            onChange={(e) =>
-                              setSavingsTargets((prev) => ({
-                                ...prev,
-                                [label]: Number(e.target.value) || 0,
-                              }))
-                            }
-                            className="h-8 w-32 text-sm text-right ml-auto"
-                          />
-                        </td>
-                        <td className="px-3 py-2.5 text-right">
-                          <div className="flex items-center gap-2 justify-end">
-                            <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${
-                                  pct >= 100 ? "bg-accent" : pct >= 50 ? "bg-primary" : "bg-destructive"
-                                }`}
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                            <span className={`text-xs tabular-nums font-medium ${getProgressColor(actual, amount)}`}>
-                              {pct.toFixed(0)}%
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {Object.entries(savingsTargets).map(([label, amount]) => (
+                    <tr key={label} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <Target className="h-3.5 w-3.5 text-muted-foreground" />
+                          {label}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-right">
+                        <Input
+                          type="number"
+                          value={amount}
+                          onChange={(e) =>
+                            setSavingsTargets((prev) => ({
+                              ...prev,
+                              [label]: Number(e.target.value) || 0,
+                            }))
+                          }
+                          className="h-8 w-32 text-sm text-right ml-auto"
+                        />
+                      </td>
+                    </tr>
+                  ))}
                   {Object.keys(savingsTargets).length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
+                      <td colSpan={2} className="px-3 py-6 text-center text-muted-foreground">
                         ยังไม่มีหมวดการออม — เพิ่มได้ในตั้งค่าหมวดหมู่
                       </td>
                     </tr>
@@ -1915,17 +1862,9 @@ const SavingsGoalSettings = () => {
                 </tbody>
                 <tfoot>
                   <tr className="bg-muted/50 font-medium">
-                    <td className="px-3 py-2.5">รวม</td>
-                    <td className={`px-3 py-2.5 text-right tabular-nums ${getProgressColor(totalActual, totalTarget)}`}>
-                      {totalActual.toLocaleString("th-TH", { minimumFractionDigits: 2 })} ฿
-                    </td>
+                    <td className="px-3 py-2.5">รวมเป้าหมาย</td>
                     <td className="px-3 py-2.5 text-right tabular-nums font-display">
                       {totalTarget.toLocaleString("th-TH", { minimumFractionDigits: 2 })} ฿
-                    </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <span className={`text-xs tabular-nums font-medium ${getProgressColor(totalActual, totalTarget)}`}>
-                        {totalTarget > 0 ? ((totalActual / totalTarget) * 100).toFixed(0) : 0}%
-                      </span>
                     </td>
                   </tr>
                 </tfoot>
