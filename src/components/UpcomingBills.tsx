@@ -155,5 +155,3 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
     </Card>
   );
 }
-  );
-}
