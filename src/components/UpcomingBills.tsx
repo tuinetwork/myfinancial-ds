@@ -94,13 +94,22 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
                 {bill.isOverdue ? (
                   <Badge variant="destructive" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
-                    เลยกำหนด
+                    เลยกำหนด {Math.abs(bill.daysUntil)} วัน
+                  </Badge>
+                ) : bill.daysUntil === 0 ? (
+                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    วันนี้!
                   </Badge>
                 ) : bill.daysUntil <= 3 ? (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-warning text-warning">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-destructive text-destructive">
                     อีก {bill.daysUntil} วัน
                   </Badge>
-                ) : null}
+                ) : (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-muted-foreground/50 text-muted-foreground">
+                    อีก {bill.daysUntil} วัน
+                  </Badge>
+                )}
               </div>
             </div>
             <div className="text-sm font-semibold text-right">
