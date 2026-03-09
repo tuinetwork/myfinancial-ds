@@ -139,6 +139,14 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
                   </Badge>
                 )}
               </div>
+              {!bill.isPaid && bill.paidAmount > 0 && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Progress value={bill.paidPercent} className="h-1.5 flex-1" />
+                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                    {formatCurrency(bill.paidAmount)}/{formatCurrency(bill.amount)}
+                  </span>
+                </div>
+              )}
             </div>
             <div className={`text-sm font-semibold text-right ${bill.isPaid ? "line-through text-muted-foreground" : ""}`}>
               {formatCurrency(bill.amount)}
