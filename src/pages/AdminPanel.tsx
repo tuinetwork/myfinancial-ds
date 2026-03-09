@@ -58,9 +58,11 @@ async function initializeNewUser(userId: string) {
           for (const groupKey of Object.keys(fieldValue)) {
             const groupValue = fieldValue[groupKey];
             if (groupValue && typeof groupValue === "object") {
-              const resetSubcats: Record<string, number> = {};
-              for (const subKey of Object.keys(groupValue)) resetSubcats[subKey] = 0;
-              resetGroup[groupKey] = resetSubcats;
+              const resetSubcats: Record<string, any> = {};
+              for (const subKey of Object.keys(groupValue)) {
+                resetSubcats[subKey] = { amount: 0, due_date: null, recurrence: null, start_date: null, end_date: null, paid_dates: [] };
+              }
+              resetGroup[groupKey] = { is_due_date_enabled: false, sub_categories: resetSubcats };
             } else {
               resetGroup[groupKey] = 0;
             }
