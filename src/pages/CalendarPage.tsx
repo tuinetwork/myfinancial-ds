@@ -12,13 +12,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   Breadcrumb,
   BreadcrumbList,
   BreadcrumbItem,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { CalendarDays, ChevronLeft, ChevronRight, Home, GripVertical } from "lucide-react";
+import {
+  CalendarDays, ChevronLeft, ChevronRight, Home, GripVertical,
+  Banknote, Clock, AlertTriangle, CircleDollarSign, Receipt, Landmark,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { formatCurrency } from "@/hooks/useBudgetData";
@@ -37,12 +41,27 @@ const THAI_MONTHS = [
 
 const THAI_WEEKDAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 
+const CATEGORY_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  "บิลและสาธารณูปโภค": Receipt,
+  "หนี้สิน": Landmark,
+  "เงินออมและการลงทุน": CircleDollarSign,
+  "ค่าสมาชิกรายเดือน": Banknote,
+};
+
 function formatThaiDate(dateStr: string): string {
   const d = new Date(dateStr);
   const day = d.getDate();
   const thaiMonth = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."][d.getMonth()];
   const buddhistYear = d.getFullYear() + 543;
   return `${day} ${thaiMonth} ${buddhistYear}`;
+}
+
+function getDaysUntil(dateStr: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(dateStr);
+  d.setHours(0, 0, 0, 0);
+  return Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function getDaysInMonth(year: number, month: number): Date[] {
@@ -79,28 +98,17 @@ function extractDueDateItems(
       for (const [subCat, subVal] of Object.entries(val.sub_categories)) {
         if (subVal?.due_date) {
           if (!filterMonth || subVal.due_date.startsWith(filterMonth)) {
-            items.push({
-              mainCategory: mainCat,
-              subCategory: subCat,
-              amount: subVal.amount ?? 0,
-              dueDate: subVal.due_date,
-            });
+            items.push({ mainCategory: mainCat, subCategory: subCat, amount: subVal.amount ?? 0, dueDate: subVal.due_date });
           }
         }
       }
     } else if (typeof val === "object" && val !== null && !Array.isArray(val)) {
-      // V1 flat format: { subCat: { amount, due_date } }
       for (const [subCat, subVal] of Object.entries(val as Record<string, unknown>)) {
         if (typeof subVal === "object" && subVal !== null && "due_date" in subVal) {
           const v = subVal as { amount?: number; due_date?: string | null };
           if (v.due_date) {
             if (!filterMonth || v.due_date.startsWith(filterMonth)) {
-              items.push({
-                mainCategory: mainCat,
-                subCategory: subCat,
-                amount: v.amount ?? 0,
-                dueDate: v.due_date,
-              });
+              items.push({ mainCategory: mainCat, subCategory: subCat, amount: v.amount ?? 0, dueDate: v.due_date });
             }
           }
         }
@@ -123,28 +131,22 @@ const CalendarPage = () => {
   const month = currentDate.getMonth();
   const period = `${year}-${String(month + 1).padStart(2, "0")}`;
 
-  // Listen to budget doc for the current period
   useEffect(() => {
     if (!userId) return;
     setLoading(true);
     const docRef = doc(firestore, "users", userId, "budgets", period);
-    
     const unsub = onSnapshot(docRef, (snap) => {
       if (snap.exists()) {
-        const data = snap.data();
-        setExpenseBudgets((data.expense_budgets ?? {}) as Record<string, ExpenseBudgetValue>);
+        setExpenseBudgets((snap.data().expense_budgets ?? {}) as Record<string, ExpenseBudgetValue>);
       } else {
         setExpenseBudgets({});
       }
       setLoading(false);
     });
-
     return () => unsub();
   }, [userId, period]);
 
-  const dueDateItems = useMemo(() => {
-    return extractDueDateItems(expenseBudgets, period);
-  }, [expenseBudgets, period]);
+  const dueDateItems = useMemo(() => extractDueDateItems(expenseBudgets, period), [expenseBudgets, period]);
 
   const itemsByDate = useMemo(() => {
     const map: Record<string, DueDateItem[]> = {};
@@ -163,16 +165,13 @@ const CalendarPage = () => {
     return map;
   }, [itemsByDate]);
 
+  const monthTotal = useMemo(() => dueDateItems.reduce((s, i) => s + i.amount, 0), [dueDateItems]);
+
   const days = getDaysInMonth(year, month);
   const startPadding = getStartPadding(year, month);
 
-  const goToPrevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
-  };
-
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
-  };
+  const goToPrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+  const goToNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
   const handleDateClick = (dateStr: string) => {
     if (itemsByDate[dateStr]?.length) {
@@ -192,48 +191,31 @@ const CalendarPage = () => {
     const catData = budgets[mainCat];
 
     if (isV2Format(catData)) {
-      const updated = {
+      budgets[mainCat] = {
         ...catData,
         sub_categories: {
           ...catData.sub_categories,
-          [subCat]: {
-            ...catData.sub_categories[subCat],
-            due_date: newDate,
-          },
+          [subCat]: { ...catData.sub_categories[subCat], due_date: newDate },
         },
       };
-      budgets[mainCat] = updated;
     } else if (typeof catData === "object" && catData !== null && !("amount" in catData)) {
-      // V1 flat format: { subCat: { amount, due_date } }
       const flat = catData as unknown as Record<string, { amount: number; due_date?: string | null }>;
-      const updatedFlat = {
-        ...flat,
-        [subCat]: { ...flat[subCat], due_date: newDate },
-      };
-      budgets[mainCat] = updatedFlat as unknown as ExpenseBudgetValue;
+      budgets[mainCat] = { ...flat, [subCat]: { ...flat[subCat], due_date: newDate } } as unknown as ExpenseBudgetValue;
     }
 
     await updateDoc(docRef, { expense_budgets: budgets });
-    toast({
-      title: "อัปเดตวันชำระสำเร็จ",
-      description: `${subCat} → ${formatThaiDate(newDate)}`,
-    });
+    toast({ title: "อัปเดตวันชำระสำเร็จ", description: `${subCat} → ${formatThaiDate(newDate)}` });
   };
 
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
-
     const sourceDate = result.source.droppableId;
     const destDate = result.destination.droppableId;
-
     if (sourceDate === destDate) return;
-
     const sourceItems = itemsByDate[sourceDate];
     if (!sourceItems) return;
-
     const item = sourceItems[result.source.index];
     if (!item) return;
-
     await updateDueDate(item.mainCategory, item.subCategory, destDate);
     setModalOpen(false);
     setSelectedDate(null);
@@ -261,7 +243,7 @@ const CalendarPage = () => {
         </header>
 
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">
-          <div className="space-y-4">
+          <div className="space-y-5">
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
@@ -273,43 +255,87 @@ const CalendarPage = () => {
               </BreadcrumbList>
             </Breadcrumb>
 
-            <Card>
-              <CardHeader className="pb-2">
+            {/* Summary Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/15">
+                    <Banknote className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground font-medium">ยอดชำระเดือนนี้</p>
+                    <p className="text-lg font-bold text-foreground">{formatCurrency(monthTotal)}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-accent/10 to-accent/5 border-accent/20">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-accent/15">
+                    <CalendarDays className="h-5 w-5 text-accent" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground font-medium">จำนวนรายการ</p>
+                    <p className="text-lg font-bold text-foreground">{dueDateItems.length} <span className="text-sm font-normal text-muted-foreground">รายการ</span></p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20 col-span-2 sm:col-span-1">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-destructive/15">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground font-medium">เลยกำหนด</p>
+                    <p className="text-lg font-bold text-foreground">
+                      {dueDateItems.filter(i => getDaysUntil(i.dueDate) < 0).length}
+                      <span className="text-sm font-normal text-muted-foreground"> รายการ</span>
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Calendar Grid */}
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 to-transparent">
                 <div className="flex items-center justify-between">
-                  <Button variant="ghost" size="icon" onClick={goToPrevMonth}>
+                  <Button variant="ghost" size="icon" onClick={goToPrevMonth} className="rounded-full hover:bg-primary/10">
                     <ChevronLeft className="h-5 w-5" />
                   </Button>
-                  <CardTitle className="text-lg">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <CalendarDays className="h-5 w-5 text-primary" />
                     {THAI_MONTHS[month]} {year + 543}
                   </CardTitle>
-                  <Button variant="ghost" size="icon" onClick={goToNextMonth}>
+                  <Button variant="ghost" size="icon" onClick={goToNextMonth} className="rounded-full hover:bg-primary/10">
                     <ChevronRight className="h-5 w-5" />
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-2 sm:p-4">
                 {loading ? (
-                  <div className="grid grid-cols-7 gap-1">
+                  <div className="grid grid-cols-7 gap-1.5">
                     {[...Array(35)].map((_, i) => (
-                      <Skeleton key={i} className="h-20 rounded" />
+                      <Skeleton key={i} className="h-20 sm:h-24 rounded-lg" />
                     ))}
                   </div>
                 ) : (
                   <DragDropContext onDragEnd={handleDragEnd}>
-                    <div className="grid grid-cols-7 gap-1">
+                    <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
                       {/* Weekday headers */}
-                      {THAI_WEEKDAYS.map((day) => (
+                      {THAI_WEEKDAYS.map((day, i) => (
                         <div
                           key={day}
-                          className="text-center text-xs font-medium text-muted-foreground py-2"
+                          className={`text-center text-[11px] sm:text-xs font-semibold py-2 rounded-md ${
+                            i === 0 ? "text-destructive/70" : i === 6 ? "text-primary/70" : "text-muted-foreground"
+                          }`}
                         >
                           {day}
                         </div>
                       ))}
 
-                      {/* Empty padding cells */}
+                      {/* Empty padding */}
                       {[...Array(startPadding)].map((_, i) => (
-                        <div key={`pad-${i}`} className="h-20" />
+                        <div key={`pad-${i}`} className="h-20 sm:h-24" />
                       ))}
 
                       {/* Day cells */}
@@ -319,6 +345,9 @@ const CalendarPage = () => {
                         const total = totalByDate[dateStr] || 0;
                         const isToday = dateStr === todayStr;
                         const hasItems = dayItems.length > 0;
+                        const isOverdue = hasItems && getDaysUntil(dateStr) < 0;
+                        const isSunday = d.getDay() === 0;
+                        const isSaturday = d.getDay() === 6;
 
                         return (
                           <Droppable droppableId={dateStr} key={dateStr}>
@@ -327,25 +356,57 @@ const CalendarPage = () => {
                                 ref={provided.innerRef}
                                 {...provided.droppableProps}
                                 onClick={() => handleDateClick(dateStr)}
-                                className={`h-20 p-1 rounded border text-xs transition-colors cursor-pointer
-                                  ${isToday ? "border-primary bg-primary/5" : "border-border"}
-                                  ${snapshot.isDraggingOver ? "bg-accent/50 border-accent" : ""}
-                                  ${hasItems ? "hover:bg-muted/50" : ""}
+                                className={`h-20 sm:h-24 p-1 sm:p-1.5 rounded-lg border text-xs transition-all duration-200 relative group
+                                  ${isToday
+                                    ? "border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm"
+                                    : hasItems
+                                      ? "border-border bg-card hover:shadow-md hover:border-primary/30"
+                                      : "border-border/50 bg-card/50 hover:bg-card"
+                                  }
+                                  ${snapshot.isDraggingOver ? "bg-accent/20 border-accent ring-2 ring-accent/30 scale-[1.02]" : ""}
+                                  ${hasItems ? "cursor-pointer" : ""}
                                 `}
                               >
-                                <div className={`font-medium mb-1 ${isToday ? "text-primary" : ""}`}>
-                                  {d.getDate()}
+                                {/* Day number */}
+                                <div className={`flex items-center justify-between mb-0.5`}>
+                                  <span className={`text-[11px] sm:text-xs font-semibold leading-none
+                                    ${isToday ? "bg-primary text-primary-foreground rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center" : ""}
+                                    ${!isToday && isSunday ? "text-destructive/80" : ""}
+                                    ${!isToday && isSaturday ? "text-primary/80" : ""}
+                                  `}>
+                                    {d.getDate()}
+                                  </span>
+                                  {isOverdue && (
+                                    <AlertTriangle className="h-3 w-3 text-destructive animate-pulse" />
+                                  )}
                                 </div>
+
+                                {/* Amount badge */}
                                 {total > 0 && (
-                                  <Badge variant="secondary" className="text-[10px] px-1 py-0 font-normal">
+                                  <div className={`mt-0.5 px-1 py-0.5 rounded text-[9px] sm:text-[10px] font-medium truncate text-center
+                                    ${isOverdue
+                                      ? "bg-destructive/15 text-destructive"
+                                      : "bg-primary/10 text-primary"
+                                    }
+                                  `}>
                                     {formatCurrency(total)}
-                                  </Badge>
-                                )}
-                                {dayItems.length > 1 && (
-                                  <div className="text-[10px] text-muted-foreground mt-0.5">
-                                    {dayItems.length} รายการ
                                   </div>
                                 )}
+
+                                {/* Item count dots */}
+                                {dayItems.length > 0 && (
+                                  <div className="flex items-center justify-center gap-0.5 mt-1">
+                                    {dayItems.slice(0, 3).map((_, idx) => (
+                                      <div key={idx} className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${
+                                        isOverdue ? "bg-destructive/60" : "bg-primary/50"
+                                      }`} />
+                                    ))}
+                                    {dayItems.length > 3 && (
+                                      <span className="text-[8px] text-muted-foreground ml-0.5">+{dayItems.length - 3}</span>
+                                    )}
+                                  </div>
+                                )}
+
                                 {provided.placeholder}
                               </div>
                             )}
@@ -358,28 +419,83 @@ const CalendarPage = () => {
               </CardContent>
             </Card>
 
-            {/* Summary */}
+            {/* Items List */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">รายการในเดือนนี้</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary" />
+                  รายการในเดือนนี้
+                  {dueDateItems.length > 0 && (
+                    <Badge variant="secondary" className="text-[10px] ml-1">
+                      {dueDateItems.length}
+                    </Badge>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {dueDateItems.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">ไม่มีรายการที่ต้องชำระในเดือนนี้</p>
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                    <CalendarDays className="h-10 w-10 mb-3 opacity-30" />
+                    <p className="text-sm font-medium">ไม่มีรายการที่ต้องชำระในเดือนนี้</p>
+                    <p className="text-xs mt-1">กำหนดวันชำระได้ที่หน้าตั้งค่างบประมาณ</p>
+                  </div>
                 ) : (
-                  <div className="space-y-2">
-                    {dueDateItems.map((item, idx) => (
-                      <div
-                        key={`${item.mainCategory}-${item.subCategory}-${idx}`}
-                        className="flex items-center justify-between py-2 border-b border-border last:border-0"
-                      >
-                        <div>
-                          <div className="font-medium text-sm">{item.subCategory}</div>
-                          <div className="text-xs text-muted-foreground">{formatThaiDate(item.dueDate)}</div>
+                  <div className="space-y-1">
+                    {dueDateItems.map((item, idx) => {
+                      const daysUntil = getDaysUntil(item.dueDate);
+                      const isOverdue = daysUntil < 0;
+                      const isUrgent = daysUntil >= 0 && daysUntil <= 3;
+                      const IconComponent = CATEGORY_ICON_MAP[item.mainCategory] || Banknote;
+
+                      return (
+                        <div
+                          key={`${item.mainCategory}-${item.subCategory}-${idx}`}
+                          className={`flex items-center gap-3 p-3 rounded-lg transition-colors border
+                            ${isOverdue
+                              ? "bg-destructive/5 border-destructive/20"
+                              : isUrgent
+                                ? "bg-primary/5 border-primary/15"
+                                : "bg-card border-border/50 hover:bg-muted/30"
+                            }
+                          `}
+                        >
+                          <div className={`p-2 rounded-lg shrink-0 ${
+                            isOverdue ? "bg-destructive/10" : "bg-primary/10"
+                          }`}>
+                            <IconComponent className={`h-4 w-4 ${
+                              isOverdue ? "text-destructive" : "text-primary"
+                            }`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm truncate">{item.subCategory}</div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{formatThaiDate(item.dueDate)}</span>
+                              {isOverdue && (
+                                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                  เลยกำหนด {Math.abs(daysUntil)} วัน
+                                </Badge>
+                              )}
+                              {isUrgent && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/40 text-primary">
+                                  อีก {daysUntil} วัน
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className={`text-sm font-bold tabular-nums ${
+                            isOverdue ? "text-destructive" : "text-foreground"
+                          }`}>
+                            {formatCurrency(item.amount)}
+                          </div>
                         </div>
-                        <div className="font-semibold text-sm">{formatCurrency(item.amount)}</div>
-                      </div>
-                    ))}
+                      );
+                    })}
+
+                    <Separator className="my-2" />
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-sm font-medium text-muted-foreground">รวมทั้งหมด</span>
+                      <span className="text-base font-bold">{formatCurrency(monthTotal)}</span>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -393,50 +509,75 @@ const CalendarPage = () => {
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-primary" />
               รายการวันที่ {selectedDate ? formatThaiDate(selectedDate) : ""}
             </DialogTitle>
           </DialogHeader>
+
           {selectedDate && itemsByDate[selectedDate] && (
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId={selectedDate}>
-                {(provided) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
-                    {itemsByDate[selectedDate].map((item, index) => (
-                      <Draggable
-                        key={`${item.mainCategory}-${item.subCategory}`}
-                        draggableId={`${item.mainCategory}-${item.subCategory}`}
-                        index={index}
-                      >
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            className={`flex items-center gap-3 p-3 rounded-lg border transition-shadow ${
-                              snapshot.isDragging ? "shadow-lg bg-card" : "bg-muted/30"
-                            }`}
+            <>
+              <div className="flex items-center gap-2 px-1 mb-2">
+                <Badge variant="secondary" className="text-xs">
+                  {itemsByDate[selectedDate].length} รายการ
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  รวม {formatCurrency(totalByDate[selectedDate] || 0)}
+                </Badge>
+              </div>
+
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId={selectedDate}>
+                  {(provided) => (
+                    <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
+                      {itemsByDate[selectedDate].map((item, index) => {
+                        const IconComponent = CATEGORY_ICON_MAP[item.mainCategory] || Banknote;
+                        return (
+                          <Draggable
+                            key={`${item.mainCategory}-${item.subCategory}`}
+                            draggableId={`${item.mainCategory}-${item.subCategory}`}
+                            index={index}
                           >
-                            <div {...provided.dragHandleProps} className="cursor-grab">
-                              <GripVertical className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                            <div className="flex-1">
-                              <div className="font-medium">{item.subCategory}</div>
-                              <div className="text-xs text-muted-foreground">{item.mainCategory}</div>
-                            </div>
-                            <div className="font-semibold">{formatCurrency(item.amount)}</div>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                                  snapshot.isDragging
+                                    ? "shadow-xl bg-card border-primary/30 scale-[1.02]"
+                                    : "bg-muted/20 border-border/50 hover:bg-muted/40"
+                                }`}
+                              >
+                                <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                  <GripVertical className="h-4 w-4 text-muted-foreground/50" />
+                                </div>
+                                <div className="p-1.5 rounded-md bg-primary/10">
+                                  <IconComponent className="h-4 w-4 text-primary" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-sm">{item.subCategory}</div>
+                                  <div className="text-[11px] text-muted-foreground">{item.mainCategory}</div>
+                                </div>
+                                <div className="font-bold text-sm tabular-nums">{formatCurrency(item.amount)}</div>
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </>
           )}
-          <p className="text-xs text-muted-foreground mt-2">
-            ลากรายการไปวางบนวันอื่นในปฏิทินเพื่อเปลี่ยนวันชำระ
-          </p>
+
+          <div className="flex items-center gap-2 mt-2 p-2 rounded-md bg-muted/30">
+            <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">
+              ลากรายการไปวางบนวันอื่นในปฏิทินเพื่อเปลี่ยนวันชำระ
+            </p>
+          </div>
         </DialogContent>
       </Dialog>
     </>
