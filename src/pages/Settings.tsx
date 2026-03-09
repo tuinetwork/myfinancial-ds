@@ -249,6 +249,37 @@ const DueDatePicker = ({
   );
 };
 
+// ─── Frequency Picker ───
+const FrequencyPicker = ({
+  value,
+  dueDate,
+  onChange,
+}: {
+  value: string | null;
+  dueDate: string | null;
+  onChange: (rrule: string | null) => void;
+}) => {
+  const freqType = getFrequencyType(value);
+
+  const handleChange = (type: string) => {
+    onChange(buildRRule(type, dueDate));
+  };
+
+  return (
+    <Select value={freqType} onValueChange={handleChange}>
+      <SelectTrigger className="h-8 w-32 text-xs">
+        <SelectValue placeholder="ความถี่" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="once" className="text-xs">จ่ายครั้งเดียว</SelectItem>
+        <SelectItem value="daily" className="text-xs">รายวัน</SelectItem>
+        <SelectItem value="weekly" className="text-xs">รายสัปดาห์</SelectItem>
+        <SelectItem value="monthly" className="text-xs">รายเดือน</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+};
+
 // ─── Budget Table for a category group ───
 const BudgetTable = ({
   title,
