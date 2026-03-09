@@ -78,6 +78,10 @@ function getDueDate(val: BudgetValue): string | null {
   return typeof val === "object" && val !== null ? val?.due_date ?? null : null;
 }
 
+function getRecurrence(val: BudgetValue): string | null {
+  return typeof val === "object" && val !== null ? (val as any)?.recurrence ?? null : null;
+}
+
 // Format date string to Thai Buddhist Era display
 function formatThaiDate(dateStr: string | null): string {
   if (!dateStr) return "-";
