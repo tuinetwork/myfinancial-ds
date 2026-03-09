@@ -1,42 +1,45 @@
 
 
-## Plan: Auto-sync new subcategories to Budget and Savings Goals
+## Plan: Show Recurring Items Across Months & Disable Drag for Recurring
 
 ### Problem
-When a new subcategory is added in Settings → Categories and saved, it doesn't appear in Settings → Budget or Settings → Savings Goals. Users must manually add entries, which is error-prone.
+1. **Recurring items only show in their origin month** — If a weekly recurring item starts in April with end_date in October, navigating to May/June shows nothing because the calendar only fetches the budget document for the displayed month.
+2. **Recurring items can be dragged** — Dragging a recurring item changes its `due_date`, which breaks the recurrence pattern. Recurring items should not be draggable.
 
-### Solution
-Modify the `CategorySettings.handleSave()` function to, after saving categories, also update **all existing budget documents** to include any new subcategories (with budget amount = 0). This ensures:
+### Changes
 
-1. **Budget tab**: New subcategories appear immediately in the budget table for all periods
-2. **Savings Goals tab**: If the new subcategory belongs to "เงินออมและการลงทุน", it also appears in savings goals automatically
+**File: `src/pages/CalendarPage.tsx`**
 
-### Technical Changes
+#### 1. Fetch budget documents from surrounding months for recurring items
+- Instead of only fetching the single budget document for the current period, also fetch budget documents from **other periods** (e.g., past 12 months) to find recurring items whose `start_date`/`end_date` range overlaps with the currently viewed month.
+- Add a second `useEffect` that queries all budget documents for the user, then for each recurring item found, check if its date range covers the current view month.
+- Merge these "cross-month recurring items" into the existing `dueDateItems` via `expandRecurrence()` using the viewed month's year/month.
 
-**File: `src/pages/Settings.tsx` — `CategorySettings.handleSave()`**
+#### 2. Disable drag for recurring items
+- On the `<Draggable>` component in the side panel, set `isDragDisabled={item.isRecurring}`.
+- Hide the grip handle (`GripVertical`) for recurring items.
+- Update the drag hint text at the bottom of the side panel to clarify only non-recurring items can be dragged.
 
-After saving categories to the `categories` collection, add a sync step:
+### Implementation Detail
 
-1. Fetch all budget documents from `users/{userId}/budgets`
-2. For each budget document:
-   - Compare `expense_budgets` keys/sub-keys against `expenseGroups`
-   - Compare `income_estimates` keys/sub-keys against `incomeGroups`
-   - Add any missing subcategories with value `0`
-   - Remove subcategories/groups that no longer exist in categories
-   - Write back updated budget document
-3. This automatically covers savings goals since they read from `expense_budgets["เงินออมและการลงทุน"]`
-
-### Key Logic
-```
-For each budget doc:
-  For each main_category in expenseGroups:
-    For each subcategory in that group:
-      If subcategory not in budget.expense_budgets[main_category]:
-        Add it with value 0
-  Same for incomeGroups → income_estimates
-  
-  Remove entries from budget that no longer exist in categories
+**Cross-month recurring fetch:**
+```text
+useEffect:
+  1. Query collection "users/{userId}/budgets" (all docs)
+  2. For each doc, scan expense_budgets for items with recurrence + start_date/end_date
+  3. If end_date >= first day of viewed month AND start_date <= last day of viewed month
+     → include in a "crossMonthBudgets" state (skip items from current period to avoid duplicates)
+  4. In extractDueDateItems, merge cross-month recurring items
 ```
 
-This is a single-file change to `src/pages/Settings.tsx`, modifying only the `handleSave` function in `CategorySettings`.
+**Disable drag:**
+```text
+<Draggable isDragDisabled={item.isRecurring} ...>
+  {/* Hide GripVertical when item.isRecurring */}
+</Draggable>
+```
+
+### Scope
+- 1 file changed: `src/pages/CalendarPage.tsx`
+- No changes to `recurrence.ts` (expandRecurrence already supports cross-month expansion)
 
