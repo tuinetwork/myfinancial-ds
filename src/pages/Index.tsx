@@ -15,6 +15,8 @@ import { RecentTransactions } from "@/components/RecentTransactions";
 import { TopSpendingCategories } from "@/components/TopSpendingCategories";
 import { FinancialHealthCard } from "@/components/FinancialHealthCard";
 import { SavingsGoalCard } from "@/components/SavingsGoalCard";
+import { UpcomingBills } from "@/components/UpcomingBills";
+import { FinancialCalendar } from "@/components/FinancialCalendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
