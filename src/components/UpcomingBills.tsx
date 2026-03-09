@@ -79,9 +79,13 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
           const endDate = item.endDate ?? null;
           const paidDates = item.paidDates ?? [];
           const expandedDates = expandRecurrence(item.dueDate, rrule, year, month, startDate, endDate);
+          const txList = txBySubDate[item.label] ?? [];
+          const txMatchMap = matchTxToOccurrences(txList, expandedDates, item.budget);
           for (const expDate of expandedDates) {
             const daysUntil = getDaysUntil(expDate);
             const isPaidByDate = paidDates.includes(expDate);
+            const isPaidByTx = !isPaidByDate && (txMatchMap.get(expDate) ?? false);
+            const isPaid = isPaidByDate || isPaidByTx;
             items.push({
               label: item.label,
               category: categoryNames[cat],
@@ -89,9 +93,9 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
               dueDate: expDate,
               isOverdue: daysUntil < 0,
               daysUntil,
-              isPaid: isPaidByDate,
-              paidAmount: isPaidByDate ? item.budget : 0,
-              paidPercent: isPaidByDate ? 100 : 0,
+              isPaid,
+              paidAmount: isPaid ? item.budget : 0,
+              paidPercent: isPaid ? 100 : 0,
               isRecurring: true,
             });
           }
@@ -100,8 +104,12 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
           const daysUntil = getDaysUntil(item.dueDate);
           const paidDates = item.paidDates ?? [];
           const isPaidByDate = paidDates.includes(item.dueDate ?? "");
-          const paidAmount = isPaidByDate ? item.budget : (txActuals[item.label] ?? 0);
-          const isPaid = isPaidByDate || (paidAmount >= item.budget && item.budget > 0);
+          const txList = txBySubDate[item.label] ?? [];
+          const txMatchMap = matchTxToOccurrences(txList, [item.dueDate], item.budget);
+          const isPaidByTx = txMatchMap.get(item.dueDate) ?? false;
+          const isPaid = isPaidByDate || isPaidByTx;
+          const totalTx = txList.reduce((s, t) => s + t.amount, 0);
+          const paidAmount = isPaid ? item.budget : totalTx;
           const paidPercent = item.budget > 0 ? Math.min(100, Math.round((paidAmount / item.budget) * 100)) : 0;
           items.push({
             label: item.label,
