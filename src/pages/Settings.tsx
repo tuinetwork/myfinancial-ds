@@ -638,11 +638,10 @@ const BudgetSettings = () => {
   const handleToggleDueDate = (mainCat: string, enabled: boolean) => {
     setDueDateEnabled((prev) => ({ ...prev, [mainCat]: enabled }));
     if (!enabled && budgetData) {
-      // Null-ify all due_dates for this category
       const updatedSubs = { ...budgetData.expense_budgets[mainCat] };
       for (const [sub, val] of Object.entries(updatedSubs)) {
         if (typeof val === "object" && val !== null) {
-          updatedSubs[sub] = { ...val, due_date: null, recurrence: null };
+          updatedSubs[sub] = { ...val, due_date: null, recurrence: null, start_date: null, end_date: null, paid_dates: [] };
         }
       }
       setBudgetData({
