@@ -572,7 +572,7 @@ const BudgetSettings = () => {
     if (!budgetData) return;
     const existing = budgetData.expense_budgets[mainCat]?.[subCat];
     const newVal: BudgetValue = MAP_CATEGORIES.includes(mainCat)
-      ? { amount: value, due_date: getDueDate(existing ?? 0), recurrence: getRecurrence(existing ?? 0) }
+      ? { amount: value, due_date: getDueDate(existing ?? 0), recurrence: getRecurrence(existing ?? 0), start_date: getStartDate(existing ?? 0), end_date: getEndDate(existing ?? 0), paid_dates: getPaidDates(existing ?? 0) }
       : value;
     setBudgetData({
       ...budgetData,
