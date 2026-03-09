@@ -560,7 +560,7 @@ const BudgetSettings = () => {
     if (!budgetData) return;
     const existing = budgetData.expense_budgets[mainCat]?.[subCat];
     const newVal: BudgetValue = MAP_CATEGORIES.includes(mainCat)
-      ? { amount: value, due_date: getDueDate(existing ?? 0) }
+      ? { amount: value, due_date: getDueDate(existing ?? 0), recurrence: getRecurrence(existing ?? 0) }
       : value;
     setBudgetData({
       ...budgetData,
@@ -574,7 +574,20 @@ const BudgetSettings = () => {
   const updateExpenseDueDate = (mainCat: string, subCat: string, date: string | null) => {
     if (!budgetData) return;
     const existing = budgetData.expense_budgets[mainCat]?.[subCat];
-    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: date };
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: date, recurrence: getRecurrence(existing ?? 0) };
+    setBudgetData({
+      ...budgetData,
+      expense_budgets: {
+        ...budgetData.expense_budgets,
+        [mainCat]: { ...budgetData.expense_budgets[mainCat], [subCat]: newVal },
+      },
+    });
+  };
+
+  const updateExpenseRecurrence = (mainCat: string, subCat: string, rrule: string | null) => {
+    if (!budgetData) return;
+    const existing = budgetData.expense_budgets[mainCat]?.[subCat];
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: getDueDate(existing ?? 0), recurrence: rrule };
     setBudgetData({
       ...budgetData,
       expense_budgets: {
