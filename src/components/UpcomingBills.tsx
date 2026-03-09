@@ -138,6 +138,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
           >
             <div className="flex-1 min-w-0">
               <div className={`font-medium text-sm truncate ${bill.isPaid ? "line-through text-muted-foreground" : ""}`}>
+                {bill.isRecurring && <RefreshCw className="h-3 w-3 inline-block mr-1 text-primary" />}
                 {bill.label}
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">

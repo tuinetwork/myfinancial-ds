@@ -45,11 +45,15 @@ export async function runBudgetMigration(
         const subs = { ...updated[mainCat] };
         for (const [subKey, val] of Object.entries(subs)) {
           if (typeof val === "number") {
-            // Convert number → {amount, due_date: null}
-            subs[subKey] = { amount: val, due_date: null };
+            // Convert number → {amount, due_date: null, recurrence: null}
+            subs[subKey] = { amount: val, due_date: null, recurrence: null };
+            changed = true;
+          } else if (typeof val === "object" && val !== null && !("recurrence" in (val as any))) {
+            // Add missing recurrence field
+            subs[subKey] = { ...(val as any), recurrence: null };
             changed = true;
           }
-          // Already object → skip (idempotent)
+          // Already has recurrence → skip (idempotent)
         }
         updated[mainCat] = subs;
       }
