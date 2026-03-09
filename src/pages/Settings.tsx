@@ -366,8 +366,25 @@ const BudgetTable = ({
     return 1;
   };
 
+  // Compute actuals using tolerance matching
+  const computeActual = (sub: string, val: BudgetValue): number => {
+    const txList = txBySubDate[sub] ?? [];
+    const totalTx = txList.reduce((s, t) => s + t.amount, 0);
+    const recurrence = getRecurrence(val);
+    if (!recurrence || !selectedPeriod) return totalTx;
+    const dueDate = getDueDate(val);
+    const startDt = getStartDate(val);
+    const endDt = getEndDate(val);
+    const [py, pm] = selectedPeriod.split("-").map(Number);
+    if (!py || !pm) return totalTx;
+    const occDates = expandRecurrence(dueDate, recurrence, py, pm, startDt, endDt);
+    const matchMap = matchTxToOccurrences(txList, occDates, getAmount(val));
+    const paidCount = [...matchMap.values()].filter(Boolean).length;
+    return paidCount * getAmount(val);
+  };
+
   const totalBudget = entries.reduce((s, [, v]) => s + getAmount(v) * getOccurrences(v), 0);
-  const totalActual = entries.reduce((s, [sub]) => s + (actuals[sub] ?? 0), 0);
+  const totalActual = entries.reduce((s, [sub, val]) => s + computeActual(sub, val), 0);
   const totalRemaining = totalBudget - totalActual;
   const colSpan = showDueDate ? 8 : 4;
 
