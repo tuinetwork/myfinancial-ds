@@ -493,6 +493,7 @@ const BudgetTable = ({
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">ความถี่</th>}
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันเริ่ม</th>}
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันสิ้นสุด</th>}
+                {showDueDate && <th className="text-center px-3 py-2.5 font-medium">งวด</th>}
                 <th className="text-right px-3 py-2.5 font-medium">จ่ายแล้ว</th>
                 <th className="text-right px-3 py-2.5 font-medium">คงเหลือ</th>
               </tr>
