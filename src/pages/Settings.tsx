@@ -585,6 +585,7 @@ const BudgetTable = ({
                 {showDueDate && <td />}
                 {showDueDate && <td />}
                 {showDueDate && <td />}
+                {showDueDate && <td />}
                 <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalActual)}</td>
                 <td className={`px-3 py-2.5 text-right tabular-nums ${remainingColor(totalBudget, totalActual)}`}>{fmt(totalRemaining)}</td>
               </tr>
