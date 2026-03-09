@@ -89,7 +89,7 @@ type ExpenseBudgetValue =
   | { amount: number; due_date?: string | null; recurrence?: string | null; start_date?: string | null; end_date?: string | null; paid_dates?: string[] }
   | { is_due_date_enabled?: boolean; sub_categories: Record<string, { amount: number; due_date?: string | null; recurrence?: string | null; start_date?: string | null; end_date?: string | null; paid_dates?: string[] }> };
 
-function isV2Format(val: unknown): val is { is_due_date_enabled?: boolean; sub_categories: Record<string, { amount: number; due_date?: string | null }> } {
+function isV2Format(val: unknown): val is { is_due_date_enabled?: boolean; sub_categories: Record<string, { amount: number; due_date?: string | null; paid_dates?: string[] }> } {
   return typeof val === "object" && val !== null && "sub_categories" in val;
 }
 
