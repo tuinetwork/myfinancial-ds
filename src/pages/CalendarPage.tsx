@@ -128,6 +128,7 @@ function extractDueDateItems(
           recurrence: rrule,
           paidDates: itemPaidDates,
           txDaysDiff: isPaidByTx ? matchResult?.daysDiff : undefined,
+          txDate: isPaidByTx ? matchResult?.txDate : undefined,
         });
       }
     } else {
