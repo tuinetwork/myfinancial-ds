@@ -101,38 +101,42 @@ function extractDueDateItems(
   const items: DueDateItem[] = [];
   const [filterYear, filterMonthNum] = filterMonth ? filterMonth.split("-").map(Number) : [0, 0];
 
-  const addItem = (mainCat: string, subCat: string, amount: number, dueDate: string, recurrence?: string | null) => {
+  const addItem = (mainCat: string, subCat: string, amount: number, dueDate: string, recurrence?: string | null, startDate?: string | null, endDate?: string | null, paidDates?: string[]) => {
     const paidAmount = txActuals[subCat] ?? 0;
     const rrule = recurrence ?? null;
+    const itemPaidDates = paidDates ?? [];
 
     if (rrule && filterYear && filterMonthNum) {
-      // Expand recurring dates within the month
-      const expandedDates = expandRecurrence(dueDate, rrule, filterYear, filterMonthNum);
-      const perOccurrence = amount; // Each occurrence has the full budget amount
+      const expandedDates = expandRecurrence(dueDate, rrule, filterYear, filterMonthNum, startDate, endDate);
+      const perOccurrence = amount;
       for (const expDate of expandedDates) {
+        const isPaidByDate = itemPaidDates.includes(expDate);
         items.push({
           mainCategory: mainCat,
           subCategory: subCat,
           amount: perOccurrence,
           dueDate: expDate,
-          paidAmount: 0, // Recurring items: individual paid tracking not yet supported
-          isPaid: false,
+          paidAmount: isPaidByDate ? perOccurrence : 0,
+          isPaid: isPaidByDate,
           isRecurring: true,
           recurrence: rrule,
+          paidDates: itemPaidDates,
         });
       }
     } else {
-      // One-time payment
       if (!filterMonth || dueDate.startsWith(filterMonth)) {
+        const isPaidByDate = itemPaidDates.includes(dueDate);
+        const isPaid = isPaidByDate || (paidAmount >= amount && amount > 0);
         items.push({
           mainCategory: mainCat,
           subCategory: subCat,
           amount,
           dueDate,
-          paidAmount,
-          isPaid: paidAmount >= amount && amount > 0,
+          paidAmount: isPaidByDate ? amount : paidAmount,
+          isPaid,
           isRecurring: false,
           recurrence: null,
+          paidDates: itemPaidDates,
         });
       }
     }
