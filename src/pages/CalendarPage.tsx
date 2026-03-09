@@ -754,10 +754,10 @@ const CalendarPage = () => {
                                                     : "border-orange-400 text-orange-500"
                                                   : "border-accent/40 text-accent"
                                               }`}>
-                                                {item.txDaysDiff !== undefined && item.txDaysDiff !== 0
+                                                {item.txDaysDiff !== undefined && item.txDaysDiff !== 0 && item.txDate
                                                   ? item.txDaysDiff < 0
-                                                    ? `จ่ายก่อน ${Math.abs(item.txDaysDiff)} วัน`
-                                                    : `จ่ายเลท ${item.txDaysDiff} วัน`
+                                                    ? `จ่ายก่อน ${Math.abs(item.txDaysDiff)} วัน (${formatThaiDate(item.txDate).split(" ").slice(0, 2).join(" ")})`
+                                                    : `จ่ายเลท ${item.txDaysDiff} วัน (${formatThaiDate(item.txDate).split(" ").slice(0, 2).join(" ")})`
                                                   : "ชำระแล้ว"
                                                 }
                                               </Badge>
