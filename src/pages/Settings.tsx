@@ -16,6 +16,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -252,6 +254,8 @@ const BudgetTable = ({
   onCategoryChange,
   onAmountChange,
   onDueDateChange,
+  onToggleDueDate,
+  dueDateEnabled,
   actuals,
   isExpense,
 }: {
@@ -263,12 +267,15 @@ const BudgetTable = ({
   onCategoryChange: (cat: string) => void;
   onAmountChange: (group: string, sub: string, value: number) => void;
   onDueDateChange?: (group: string, sub: string, date: string | null) => void;
+  onToggleDueDate?: (group: string, enabled: boolean) => void;
+  dueDateEnabled?: Record<string, boolean>;
   actuals: Record<string, number>;
   isExpense?: boolean;
 }) => {
   const currentGroup = categories[selectedCategory] ?? {};
   const entries = Object.entries(currentGroup);
-  const showDueDate = isExpense && MAP_CATEGORIES.includes(selectedCategory);
+  const isMapCategory = isExpense && MAP_CATEGORIES.includes(selectedCategory);
+  const showDueDate = isMapCategory && (dueDateEnabled?.[selectedCategory] ?? false);
   const totalBudget = entries.reduce((s, [, v]) => s + getAmount(v), 0);
   const totalActual = entries.reduce((s, [sub]) => s + (actuals[sub] ?? 0), 0);
   const totalRemaining = totalBudget - totalActual;
@@ -301,6 +308,19 @@ const BudgetTable = ({
             </SelectContent>
           </Select>
         </div>
+
+        {isMapCategory && (
+          <div className="px-4 pb-2 flex items-center gap-2">
+            <Switch
+              id={`due-date-toggle-${selectedCategory}`}
+              checked={dueDateEnabled?.[selectedCategory] ?? false}
+              onCheckedChange={(checked) => onToggleDueDate?.(selectedCategory, checked)}
+            />
+            <Label htmlFor={`due-date-toggle-${selectedCategory}`} className="text-xs text-muted-foreground cursor-pointer">
+              เปิดใช้งานการกำหนดวันชำระ
+            </Label>
+          </div>
+        )}
 
         <div className="border-t border-border overflow-x-auto">
           <table className="w-full text-sm">
@@ -381,6 +401,7 @@ const BudgetSettings = () => {
   const [selectedExpenseCat, setSelectedExpenseCat] = useState<string>("");
   const [selectedIncomeCat, setSelectedIncomeCat] = useState<string>("");
   const [txActuals, setTxActuals] = useState<Record<string, number>>({});
+  const [dueDateEnabled, setDueDateEnabled] = useState<Record<string, boolean>>({});
 
   const years = useMemo(() => {
     if (!months) return [];
@@ -436,6 +457,15 @@ const BudgetSettings = () => {
         period: (d.period as string) ?? period,
       };
       setBudgetData(data);
+      // Initialize dueDateEnabled from existing data (check if any subcategory has a due_date)
+      const enabledMap: Record<string, boolean> = {};
+      for (const [mainCat, subs] of Object.entries(data.expense_budgets)) {
+        if (MAP_CATEGORIES.includes(mainCat)) {
+          const hasAnyDueDate = Object.values(subs).some((v) => getDueDate(v) !== null);
+          enabledMap[mainCat] = hasAnyDueDate;
+        }
+      }
+      setDueDateEnabled(enabledMap);
       const expKeys = Object.keys(data.expense_budgets);
       if (expKeys.length > 0 && !selectedExpenseCat) setSelectedExpenseCat(expKeys[0]);
       const incKeys = Object.keys(data.income_estimates);
@@ -503,6 +533,26 @@ const BudgetSettings = () => {
     });
   };
 
+  const handleToggleDueDate = (mainCat: string, enabled: boolean) => {
+    setDueDateEnabled((prev) => ({ ...prev, [mainCat]: enabled }));
+    if (!enabled && budgetData) {
+      // Null-ify all due_dates for this category
+      const updatedSubs = { ...budgetData.expense_budgets[mainCat] };
+      for (const [sub, val] of Object.entries(updatedSubs)) {
+        if (typeof val === "object" && val !== null) {
+          updatedSubs[sub] = { ...val, due_date: null };
+        }
+      }
+      setBudgetData({
+        ...budgetData,
+        expense_budgets: {
+          ...budgetData.expense_budgets,
+          [mainCat]: updatedSubs,
+        },
+      });
+    }
+  };
+
   const updateIncome = (group: string, sub: string, value: number) => {
     if (!budgetData) return;
     setBudgetData({
@@ -568,6 +618,8 @@ const BudgetSettings = () => {
               onCategoryChange={setSelectedExpenseCat}
               onAmountChange={updateExpense}
               onDueDateChange={updateExpenseDueDate}
+              onToggleDueDate={handleToggleDueDate}
+              dueDateEnabled={dueDateEnabled}
               actuals={txActuals}
               isExpense
             />
