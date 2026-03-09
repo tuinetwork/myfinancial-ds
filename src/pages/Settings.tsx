@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   LogOut, User, Mail, Shield, ChevronRight, ChevronDown, Settings as SettingsIcon,
-  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical, CalendarIcon,
+  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical, CalendarIcon, Copy,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -439,7 +439,7 @@ const BudgetTable = ({
   const totalBudget = entries.reduce((s, [, v]) => s + getAmount(v) * getOccurrences(v), 0);
   const totalActual = entries.reduce((s, [sub, val]) => s + computeActual(sub, val), 0);
   const totalRemaining = totalBudget - totalActual;
-  const colSpan = showDueDate ? 8 : 4;
+  const colSpan = showDueDate ? 9 : 4;
 
   const fmt = (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 2 });
 
@@ -493,6 +493,7 @@ const BudgetTable = ({
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">ความถี่</th>}
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันเริ่ม</th>}
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันสิ้นสุด</th>}
+                {showDueDate && <th className="text-center px-3 py-2.5 font-medium">งวด</th>}
                 <th className="text-right px-3 py-2.5 font-medium">จ่ายแล้ว</th>
                 <th className="text-right px-3 py-2.5 font-medium">คงเหลือ</th>
               </tr>
@@ -556,6 +557,11 @@ const BudgetTable = ({
                         )}
                       </td>
                     )}
+                    {showDueDate && (
+                      <td className="px-3 py-2.5 text-center tabular-nums text-muted-foreground">
+                        {hasRecurrence && occurrences > 1 ? `${occurrences} ครั้ง` : "-"}
+                      </td>
+                    )}
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       {actual > 0 ? fmt(actual) : "-"}
                     </td>
@@ -575,6 +581,7 @@ const BudgetTable = ({
               <tr className="bg-muted/50 font-medium">
                 <td className="px-3 py-2.5">รวม</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalBudget)}</td>
+                {showDueDate && <td />}
                 {showDueDate && <td />}
                 {showDueDate && <td />}
                 {showDueDate && <td />}
@@ -599,6 +606,7 @@ const BudgetSettings = () => {
   const [budgetData, setBudgetData] = useState<BudgetTreeData | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [copying, setCopying] = useState(false);
   const [selectedExpenseCat, setSelectedExpenseCat] = useState<string>("");
   const [selectedIncomeCat, setSelectedIncomeCat] = useState<string>("");
   const [txBySubDate, setTxBySubDate] = useState<Record<string, TxEntry[]>>({});
@@ -708,6 +716,31 @@ const BudgetSettings = () => {
       toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
     }
     setSaving(false);
+  };
+  const getNextPeriod = (p: string) => {
+    const [y, m] = p.split("-").map(Number);
+    let ny = y, nm = m + 1;
+    if (nm > 12) { nm = 1; ny++; }
+    return `${ny}-${String(nm).padStart(2, "0")}`;
+  };
+
+  const handleCopyToNextMonth = async () => {
+    if (!userId || !period || !budgetData) return;
+    setCopying(true);
+    try {
+      const nextPeriod = getNextPeriod(period);
+      const nextDocRef = doc(firestore, "users", userId, "budgets", nextPeriod);
+      await setDoc(nextDocRef, {
+        period: nextPeriod,
+        carry_over: 0,
+        income_estimates: budgetData.income_estimates,
+        expense_budgets: budgetData.expense_budgets,
+      });
+      toast({ title: "คัดลอกสำเร็จ", description: `คัดลอกงบประมาณไปยัง ${nextPeriod}` });
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
+    }
+    setCopying(false);
   };
 
   const updateExpense = (mainCat: string, subCat: string, value: number) => {
@@ -846,10 +879,16 @@ const BudgetSettings = () => {
             </SelectContent>
           </Select>
         )}
-        <Button onClick={handleSave} disabled={saving || !budgetData} size="sm" className="ml-auto gap-1.5">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {saving ? "กำลังบันทึก..." : "บันทึก"}
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button onClick={handleCopyToNextMonth} disabled={copying || !budgetData} size="sm" variant="outline" className="gap-1.5">
+            {copying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+            {copying ? "กำลังคัดลอก..." : "คัดลอกไปเดือนหน้า"}
+          </Button>
+          <Button onClick={handleSave} disabled={saving || !budgetData} size="sm" className="gap-1.5">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {saving ? "กำลังบันทึก..." : "บันทึก"}
+          </Button>
+        </div>
       </div>
 
       {loading ? (
