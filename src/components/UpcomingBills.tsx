@@ -138,13 +138,11 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
       }
     }
 
-    // Sort: unpaid first, then by due date ascending
-    items.sort((a, b) => {
-      if (a.isPaid !== b.isPaid) return a.isPaid ? 1 : -1;
-      return a.dueDate.localeCompare(b.dueDate);
-    });
+    // Filter out paid items and sort by due date ascending
+    const unpaidItems = items.filter(item => !item.isPaid);
+    unpaidItems.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
-    return items.slice(0, 8);
+    return unpaidItems.slice(0, 8);
   }, [data.expenses, data.transactions]);
 
   if (bills.length === 0) {
