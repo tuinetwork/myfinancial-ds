@@ -325,12 +325,47 @@ const BudgetTable = ({
   dueDateEnabled?: Record<string, boolean>;
   actuals: Record<string, number>;
   isExpense?: boolean;
+  selectedPeriod?: string;
 }) => {
   const currentGroup = categories[selectedCategory] ?? {};
   const entries = Object.entries(currentGroup);
   const isMapCategory = isExpense && MAP_CATEGORIES.includes(selectedCategory);
   const showDueDate = isMapCategory && (dueDateEnabled?.[selectedCategory] ?? false);
-  const totalBudget = entries.reduce((s, [, v]) => s + getAmount(v), 0);
+
+  // Calculate occurrences for recurring items
+  const getOccurrences = (val: BudgetValue): number => {
+    const recurrence = getRecurrence(val);
+    if (!recurrence) return 1;
+    const dueDate = getDueDate(val);
+    const startDt = getStartDate(val);
+    const endDt = getEndDate(val);
+    if (startDt && endDt) {
+      // Count all occurrences across all months in the range
+      const start = new Date(startDt);
+      const end = new Date(endDt);
+      let total = 0;
+      let y = start.getFullYear();
+      let m = start.getMonth() + 1;
+      const endY = end.getFullYear();
+      const endM = end.getMonth() + 1;
+      while (y < endY || (y === endY && m <= endM)) {
+        total += expandRecurrence(dueDate, recurrence, y, m, startDt, endDt).length;
+        m++;
+        if (m > 12) { m = 1; y++; }
+      }
+      return Math.max(total, 1);
+    }
+    if (selectedPeriod) {
+      const [py, pm] = selectedPeriod.split("-").map(Number);
+      if (py && pm) {
+        const count = expandRecurrence(dueDate, recurrence, py, pm).length;
+        return Math.max(count, 1);
+      }
+    }
+    return 1;
+  };
+
+  const totalBudget = entries.reduce((s, [, v]) => s + getAmount(v) * getOccurrences(v), 0);
   const totalActual = entries.reduce((s, [sub]) => s + (actuals[sub] ?? 0), 0);
   const totalRemaining = totalBudget - totalActual;
   const colSpan = showDueDate ? 8 : 4;
