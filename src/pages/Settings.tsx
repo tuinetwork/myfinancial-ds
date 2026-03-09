@@ -593,7 +593,7 @@ const BudgetTable = ({
 // ─── Budget Settings Tab ───
 const BudgetSettings = () => {
   const { userId } = useAuth();
-  const { data: months } = useAvailableMonths();
+  const { data: months } = useAvailableMonthsWithNextMonth();
   const [selectedYear, setSelectedYear] = useState<string>();
   const [selectedMonth, setSelectedMonth] = useState<string>();
   const [budgetData, setBudgetData] = useState<BudgetTreeData | null>(null);
