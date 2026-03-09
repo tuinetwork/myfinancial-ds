@@ -890,6 +890,7 @@ const BudgetSettings = () => {
     });
   };
 
+  const handleToggleDueDate = (mainCat: string, enabled: boolean) => {
     setDueDateEnabled((prev) => ({ ...prev, [mainCat]: enabled }));
     if (!enabled && budgetData) {
       const updatedSubs = { ...budgetData.expense_budgets[mainCat] };
