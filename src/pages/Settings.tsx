@@ -307,7 +307,7 @@ const BudgetTable = ({
   onEndDateChange,
   onToggleDueDate,
   dueDateEnabled,
-  actuals,
+  txBySubDate,
   isExpense,
   selectedPeriod,
 }: {
@@ -324,7 +324,7 @@ const BudgetTable = ({
   onEndDateChange?: (group: string, sub: string, date: string | null) => void;
   onToggleDueDate?: (group: string, enabled: boolean) => void;
   dueDateEnabled?: Record<string, boolean>;
-  actuals: Record<string, number>;
+  txBySubDate: Record<string, TxEntry[]>;
   isExpense?: boolean;
   selectedPeriod?: string;
 }) => {
