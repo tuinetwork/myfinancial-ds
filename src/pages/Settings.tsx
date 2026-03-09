@@ -805,7 +805,7 @@ const BudgetSettings = () => {
       ) : (
         <>
           {/* Two-column layout: Expenses left, Income right */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+           <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
             <BudgetTable
               title="รายจ่าย"
               titleColor="text-destructive"
