@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarClock, AlertCircle } from "lucide-react";
+import { CalendarClock, AlertCircle, CheckCircle2 } from "lucide-react";
 import { formatCurrency, type BudgetData } from "@/hooks/useBudgetData";
 
 interface UpcomingBillsProps {
@@ -15,6 +15,7 @@ interface BillItem {
   dueDate: string;
   isOverdue: boolean;
   daysUntil: number;
+  isPaid: boolean;
 }
 
 function formatThaiDate(dateStr: string): string {
@@ -45,11 +46,22 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
       savings: "เงินออม",
     };
 
+    // Build a map of actual spending per sub-category from transactions
+    const txActuals: Record<string, number> = {};
+    for (const tx of data.transactions || []) {
+      if (tx.type === "expense") {
+        const key = tx.description || tx.category;
+        txActuals[key] = (txActuals[key] || 0) + tx.amount;
+      }
+    }
+
     for (const cat of categories) {
       const catItems = data.expenses[cat] || [];
       for (const item of catItems) {
         if (item.dueDate) {
           const daysUntil = getDaysUntil(item.dueDate);
+          const paidAmount = txActuals[item.label] ?? 0;
+          const isPaid = paidAmount >= item.budget && item.budget > 0;
           items.push({
             label: item.label,
             category: categoryNames[cat],
@@ -57,17 +69,20 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
             dueDate: item.dueDate,
             isOverdue: daysUntil < 0,
             daysUntil,
+            isPaid,
           });
         }
       }
     }
 
-    // Sort by due date (ascending)
-    items.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+    // Sort: unpaid first, then by due date ascending
+    items.sort((a, b) => {
+      if (a.isPaid !== b.isPaid) return a.isPaid ? 1 : -1;
+      return a.dueDate.localeCompare(b.dueDate);
+    });
 
-    // Return top 5
     return items.slice(0, 5);
-  }, [data.expenses]);
+  }, [data.expenses, data.transactions]);
 
   if (bills.length === 0) {
     return null;
@@ -85,13 +100,20 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
         {bills.map((bill, idx) => (
           <div
             key={`${bill.label}-${idx}`}
-            className="flex items-center justify-between py-2 border-b border-border last:border-0"
+            className={`flex items-center justify-between py-2 border-b border-border last:border-0 ${bill.isPaid ? "opacity-60" : ""}`}
           >
             <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm truncate">{bill.label}</div>
+              <div className={`font-medium text-sm truncate ${bill.isPaid ? "line-through text-muted-foreground" : ""}`}>
+                {bill.label}
+              </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{formatThaiDate(bill.dueDate)}</span>
-                {bill.isOverdue ? (
+                {bill.isPaid ? (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500 text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    ชำระแล้ว
+                  </Badge>
+                ) : bill.isOverdue ? (
                   <Badge variant="destructive" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
                     เลยกำหนด {Math.abs(bill.daysUntil)} วัน
@@ -112,7 +134,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
                 )}
               </div>
             </div>
-            <div className="text-sm font-semibold text-right">
+            <div className={`text-sm font-semibold text-right ${bill.isPaid ? "line-through text-muted-foreground" : ""}`}>
               {formatCurrency(bill.amount)}
             </div>
           </div>
