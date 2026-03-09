@@ -487,7 +487,7 @@ const BudgetTable = ({
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       {actual > 0 ? fmt(actual) : "-"}
                     </td>
-                    <td className={`px-3 py-2.5 text-right tabular-nums ${remainingColor(amount, actual)}`}>
+                    <td className={`px-3 py-2.5 text-right tabular-nums ${remainingColor(totalForSub, actual)}`}>
                       {actual > 0 ? fmt(remaining) : "-"}
                     </td>
                   </tr>
