@@ -1,42 +1,51 @@
 
+## Plan: ระบบการจัดการการเงินครบวงจร — Due Date Tracking + Smart Calendar
 
-## Plan: Auto-sync new subcategories to Budget and Savings Goals
+### Status: In Progress ✅
 
-### Problem
-When a new subcategory is added in Settings → Categories and saved, it doesn't appear in Settings → Budget or Settings → Savings Goals. Users must manually add entries, which is error-prone.
+---
 
-### Solution
-Modify the `CategorySettings.handleSave()` function to, after saving categories, also update **all existing budget documents** to include any new subcategories (with budget amount = 0). This ensures:
+### Completed Tasks
 
-1. **Budget tab**: New subcategories appear immediately in the budget table for all periods
-2. **Savings Goals tab**: If the new subcategory belongs to "เงินออมและการลงทุน", it also appears in savings goals automatically
+#### 1. ✅ Migration Script (`src/scripts/migrateBudgetStructure.ts`)
+- Updated to support new schema with `is_due_date_enabled` toggle and `sub_categories` wrapper
+- Added helper functions: `getSubCategories()`, `isDueDateEnabled()`, `getAmount()`, `getDueDate()`
+- Migration converts old format → new format for all users
 
-### Technical Changes
+#### 2. ✅ UpcomingBills Component (`src/components/UpcomingBills.tsx`)
+- Dashboard card showing bills sorted by due date
+- Urgency indicators: red (overdue/today), amber (1-3 days), green (>3 days)
+- Thai localization with พ.ศ. date format
 
-**File: `src/pages/Settings.tsx` — `CategorySettings.handleSave()`**
+#### 3. ✅ FinancialCalendar Component (`src/components/FinancialCalendar.tsx`)  
+- Smart calendar with daily aggregation of due amounts
+- Click day → modal shows all items for that day
+- Drag & drop support for rescheduling (onUpdateDueDate callback)
+- Thai Buddhist Era date display
 
-After saving categories to the `categories` collection, add a sync step:
+#### 4. ✅ Dashboard Integration (`src/pages/Index.tsx`)
+- Added UpcomingBills to 3-column grid with FinancialHealthCard and SavingsGoalCard
+- Added FinancialCalendar in dedicated section
 
-1. Fetch all budget documents from `users/{userId}/budgets`
-2. For each budget document:
-   - Compare `expense_budgets` keys/sub-keys against `expenseGroups`
-   - Compare `income_estimates` keys/sub-keys against `incomeGroups`
-   - Add any missing subcategories with value `0`
-   - Remove subcategories/groups that no longer exist in categories
-   - Write back updated budget document
-3. This automatically covers savings goals since they read from `expense_budgets["เงินออมและการลงทุน"]`
+---
 
-### Key Logic
-```
-For each budget doc:
-  For each main_category in expenseGroups:
-    For each subcategory in that group:
-      If subcategory not in budget.expense_budgets[main_category]:
-        Add it with value 0
-  Same for incomeGroups → income_estimates
-  
-  Remove entries from budget that no longer exist in categories
-```
+### Remaining Tasks
 
-This is a single-file change to `src/pages/Settings.tsx`, modifying only the `handleSave` function in `CategorySettings`.
+#### 5. ⏳ Settings UI Enhancement
+- Add Toggle Switch per category group for "เปิดใช้งานการกำหนดวันชำระ"
+- Show/hide Date Picker based on toggle state
+- Auto-set `due_date: null` when toggle is OFF
 
+#### 6. ⏳ Data Hooks Update
+- Update `useBudgetData.ts` to handle new nested schema
+- Update `useYearlyData.ts` for consistency
+- Ensure backward compatibility during migration
+
+---
+
+### Technical Notes
+
+- **Real-time**: Uses `onSnapshot` listeners for budget changes
+- **Thai Localization**: Date Picker shows พ.ศ., stores ค.ศ. (ISO)
+- **Toast Notifications**: All saves show confirmation toast
+- **Null-safe**: Helper functions handle both old and new data formats
