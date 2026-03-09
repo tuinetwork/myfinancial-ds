@@ -87,7 +87,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
       return a.dueDate.localeCompare(b.dueDate);
     });
 
-    return items.slice(0, 5);
+    return items;
   }, [data.expenses, data.transactions]);
 
   if (bills.length === 0) {
