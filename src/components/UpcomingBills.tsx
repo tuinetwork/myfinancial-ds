@@ -2,8 +2,9 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CalendarClock, AlertCircle, CheckCircle2 } from "lucide-react";
+import { CalendarClock, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { formatCurrency, type BudgetData } from "@/hooks/useBudgetData";
+import { expandRecurrence, formatFrequencyThai } from "@/lib/recurrence";
 
 interface UpcomingBillsProps {
   data: BudgetData;
