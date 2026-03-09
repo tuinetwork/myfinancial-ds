@@ -64,6 +64,15 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
       }
     }
 
+    // Expand for current month AND next month
+    const now = new Date();
+    const months: { year: number; month: number }[] = [
+      { year: now.getFullYear(), month: now.getMonth() + 1 },
+      { year: now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear(), month: now.getMonth() === 11 ? 1 : now.getMonth() + 2 },
+    ];
+
+    const seenKeys = new Set<string>();
+
     for (const cat of categories) {
       const catItems = data.expenses[cat] || [];
       for (const item of catItems) {
@@ -71,33 +80,35 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
         const rrule = item.recurrence ?? null;
 
         if (rrule) {
-          // Expand recurring items for the current month
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = now.getMonth() + 1;
           const startDate = item.startDate ?? null;
           const endDate = item.endDate ?? null;
           const paidDates = item.paidDates ?? [];
-          const expandedDates = expandRecurrence(item.dueDate, rrule, year, month, startDate, endDate);
-          const txList = txBySubDate[item.label] ?? [];
-          const txMatchMap = matchTxToOccurrences(txList, expandedDates, item.budget);
-          for (const expDate of expandedDates) {
-            const daysUntil = getDaysUntil(expDate);
-            const isPaidByDate = paidDates.includes(expDate);
-            const isPaidByTx = !isPaidByDate && (txMatchMap.get(expDate)?.isPaid ?? false);
-            const isPaid = isPaidByDate || isPaidByTx;
-            items.push({
-              label: item.label,
-              category: categoryNames[cat],
-              amount: item.budget,
-              dueDate: expDate,
-              isOverdue: daysUntil < 0,
-              daysUntil,
-              isPaid,
-              paidAmount: isPaid ? item.budget : 0,
-              paidPercent: isPaid ? 100 : 0,
-              isRecurring: true,
-            });
+
+          for (const { year, month } of months) {
+            const expandedDates = expandRecurrence(item.dueDate, rrule, year, month, startDate, endDate);
+            const txList = txBySubDate[item.label] ?? [];
+            const txMatchMap = matchTxToOccurrences(txList, expandedDates, item.budget);
+            for (const expDate of expandedDates) {
+              const key = `${item.label}::${expDate}`;
+              if (seenKeys.has(key)) continue;
+              seenKeys.add(key);
+              const daysUntil = getDaysUntil(expDate);
+              const isPaidByDate = paidDates.includes(expDate);
+              const isPaidByTx = !isPaidByDate && (txMatchMap.get(expDate)?.isPaid ?? false);
+              const isPaid = isPaidByDate || isPaidByTx;
+              items.push({
+                label: item.label,
+                category: categoryNames[cat],
+                amount: item.budget,
+                dueDate: expDate,
+                isOverdue: daysUntil < 0,
+                daysUntil,
+                isPaid,
+                paidAmount: isPaid ? item.budget : 0,
+                paidPercent: isPaid ? 100 : 0,
+                isRecurring: true,
+              });
+            }
           }
         } else {
           // One-time payment
@@ -133,7 +144,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
       return a.dueDate.localeCompare(b.dueDate);
     });
 
-    return items.slice(0, 5);
+    return items.slice(0, 8);
   }, [data.expenses, data.transactions]);
 
   if (bills.length === 0) {
