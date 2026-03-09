@@ -62,6 +62,9 @@ export function expandRecurrence(
   const parsed = parseRRule(rrule);
   if (!parsed || !startDate) return [];
 
+  // Validate year/month
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return [];
+
   const results: string[] = [];
   const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -81,13 +84,15 @@ export function expandRecurrence(
       }
     }
   } else if (parsed.freq === "MONTHLY") {
-    const startDay = parseInt(startDate.split("-")[2], 10);
+    const dayPart = startDate.split("-")[2];
+    const startDay = dayPart ? parseInt(dayPart, 10) : 1;
+    if (!Number.isFinite(startDay) || startDay < 1) return [];
     const daysInMonth = new Date(year, month, 0).getDate();
     const day = Math.min(startDay, daysInMonth);
     results.push(`${year}-${pad(month)}-${pad(day)}`);
   }
 
-  // Filter by date range (start_date / end_date)
+  // Filter by date range (start_date / end_date) — supports cross-month/year ranges
   return results.filter((dateStr) => {
     if (rangeStart && dateStr < rangeStart) return false;
     if (rangeEnd && dateStr > rangeEnd) return false;
