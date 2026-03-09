@@ -615,7 +615,15 @@ const BudgetSettings = () => {
   const updateExpenseDueDate = (mainCat: string, subCat: string, date: string | null) => {
     if (!budgetData) return;
     const existing = budgetData.expense_budgets[mainCat]?.[subCat];
-    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: date, recurrence: getRecurrence(existing ?? 0), start_date: getStartDate(existing ?? 0), end_date: getEndDate(existing ?? 0), paid_dates: getPaidDates(existing ?? 0) };
+    // If weekly recurrence is active, rebuild RRULE with new day-of-week
+    let recurrence = getRecurrence(existing ?? 0);
+    if (recurrence && date) {
+      const freqType = getFrequencyType(recurrence);
+      if (freqType === "weekly") {
+        recurrence = buildRRule("weekly", date);
+      }
+    }
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: date, recurrence, start_date: getStartDate(existing ?? 0), end_date: getEndDate(existing ?? 0), paid_dates: getPaidDates(existing ?? 0) };
     setBudgetData({
       ...budgetData,
       expense_budgets: {
