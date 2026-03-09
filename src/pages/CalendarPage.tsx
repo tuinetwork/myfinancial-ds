@@ -95,27 +95,25 @@ function isV2Format(val: unknown): val is { is_due_date_enabled?: boolean; sub_c
 
 function extractDueDateItems(
   expenseBudgets: Record<string, ExpenseBudgetValue>,
-  txActuals: Record<string, number>,
+  txBySubDate: Record<string, TxEntry[]>,
   filterMonth?: string
 ): DueDateItem[] {
   const items: DueDateItem[] = [];
   const [filterYear, filterMonthNum] = filterMonth ? filterMonth.split("-").map(Number) : [0, 0];
 
   const addItem = (mainCat: string, subCat: string, amount: number, dueDate: string, recurrence?: string | null, startDate?: string | null, endDate?: string | null, paidDates?: string[]) => {
-    const paidAmount = txActuals[subCat] ?? 0;
     const rrule = recurrence ?? null;
     const itemPaidDates = paidDates ?? [];
+    const txList = txBySubDate[subCat] ?? [];
 
     if (rrule && filterYear && filterMonthNum) {
       const expandedDates = expandRecurrence(dueDate, rrule, filterYear, filterMonthNum, startDate, endDate);
       const perOccurrence = amount;
-      const totalPaidFromTx = txActuals[subCat] ?? 0;
-      const coveredByTx = perOccurrence > 0 ? Math.floor(totalPaidFromTx / perOccurrence) : 0;
-      let txCoveredCount = 0;
+      // Use ±3 day tolerance matching
+      const txMatchMap = matchTxToOccurrences(txList, expandedDates, perOccurrence);
       for (const expDate of expandedDates) {
         const isPaidByDate = itemPaidDates.includes(expDate);
-        const isPaidByTx = !isPaidByDate && txCoveredCount < coveredByTx;
-        if (isPaidByTx) txCoveredCount++;
+        const isPaidByTx = !isPaidByDate && (txMatchMap.get(expDate) ?? false);
         const isPaid = isPaidByDate || isPaidByTx;
         items.push({
           mainCategory: mainCat,
@@ -132,13 +130,17 @@ function extractDueDateItems(
     } else {
       if (!filterMonth || dueDate.startsWith(filterMonth)) {
         const isPaidByDate = itemPaidDates.includes(dueDate);
-        const isPaid = isPaidByDate || (paidAmount >= amount && amount > 0);
+        // For non-recurring: check if any tx within ±3 days covers the amount
+        const txMatchMap = matchTxToOccurrences(txList, [dueDate], amount);
+        const isPaidByTx = txMatchMap.get(dueDate) ?? false;
+        const isPaid = isPaidByDate || isPaidByTx;
+        const totalTx = txList.reduce((s, t) => s + t.amount, 0);
         items.push({
           mainCategory: mainCat,
           subCategory: subCat,
           amount,
           dueDate,
-          paidAmount: isPaidByDate ? amount : paidAmount,
+          paidAmount: isPaidByDate ? amount : (isPaidByTx ? amount : totalTx),
           isPaid,
           isRecurring: false,
           recurrence: null,
