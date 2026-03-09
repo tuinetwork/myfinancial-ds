@@ -745,13 +745,34 @@ const BudgetSettings = () => {
     try {
       const nextPeriod = getNextPeriod(period);
       const nextDocRef = doc(firestore, "users", userId, "budgets", nextPeriod);
+
+      // Reset dates in expense_budgets (keep only amounts and recurrence rules)
+      const resetExpenseBudgets: Record<string, Record<string, any>> = {};
+      for (const [mainCat, subs] of Object.entries(budgetData.expense_budgets)) {
+        resetExpenseBudgets[mainCat] = {};
+        for (const [sub, val] of Object.entries(subs)) {
+          if (typeof val === "object" && val !== null) {
+            resetExpenseBudgets[mainCat][sub] = {
+              amount: getAmount(val),
+              due_date: null,
+              recurrence: getRecurrence(val),
+              start_date: null,
+              end_date: null,
+              paid_dates: [],
+            };
+          } else {
+            resetExpenseBudgets[mainCat][sub] = val;
+          }
+        }
+      }
+
       await setDoc(nextDocRef, {
         period: nextPeriod,
         carry_over: 0,
         income_estimates: budgetData.income_estimates,
-        expense_budgets: budgetData.expense_budgets,
+        expense_budgets: resetExpenseBudgets,
       });
-      toast({ title: "คัดลอกสำเร็จ", description: `คัดลอกงบประมาณไปยัง ${nextPeriod}` });
+      toast({ title: "คัดลอกสำเร็จ", description: `คัดลอกงบประมาณไปยัง ${nextPeriod} (รีเซตวันที่แล้ว)` });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
     }
