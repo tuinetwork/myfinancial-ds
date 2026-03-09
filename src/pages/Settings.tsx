@@ -8,7 +8,7 @@ import { collection, doc, getDoc, getDocs, updateDoc, setDoc, query, where } fro
 import { cn } from "@/lib/utils";
 import { firestore } from "@/lib/firebase";
 import { format as fnsFormat, parse as fnsParse } from "date-fns";
-import { buildRRule, getFrequencyType, formatFrequencyThai, expandRecurrence } from "@/lib/recurrence";
+import { buildRRule, getFrequencyType, formatFrequencyThai, expandRecurrence, matchTxToOccurrences, type TxEntry } from "@/lib/recurrence";
 import { th } from "date-fns/locale";
 import { useAvailableMonths, createBudgetFromLatest } from "@/hooks/useBudgetData";
 import { AppSidebar } from "@/components/AppSidebar";
