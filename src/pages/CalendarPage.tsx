@@ -91,6 +91,7 @@ function isV2Format(val: unknown): val is { is_due_date_enabled?: boolean; sub_c
 
 function extractDueDateItems(
   expenseBudgets: Record<string, ExpenseBudgetValue>,
+  txActuals: Record<string, number>,
   filterMonth?: string
 ): DueDateItem[] {
   const items: DueDateItem[] = [];
@@ -100,7 +101,16 @@ function extractDueDateItems(
       for (const [subCat, subVal] of Object.entries(val.sub_categories)) {
         if (subVal?.due_date) {
           if (!filterMonth || subVal.due_date.startsWith(filterMonth)) {
-            items.push({ mainCategory: mainCat, subCategory: subCat, amount: subVal.amount ?? 0, dueDate: subVal.due_date });
+            const amount = subVal.amount ?? 0;
+            const paidAmount = txActuals[subCat] ?? 0;
+            items.push({ 
+              mainCategory: mainCat, 
+              subCategory: subCat, 
+              amount, 
+              dueDate: subVal.due_date,
+              paidAmount,
+              isPaid: paidAmount >= amount && amount > 0,
+            });
           }
         }
       }
@@ -110,7 +120,16 @@ function extractDueDateItems(
           const v = subVal as { amount?: number; due_date?: string | null };
           if (v.due_date) {
             if (!filterMonth || v.due_date.startsWith(filterMonth)) {
-              items.push({ mainCategory: mainCat, subCategory: subCat, amount: v.amount ?? 0, dueDate: v.due_date });
+              const amount = v.amount ?? 0;
+              const paidAmount = txActuals[subCat] ?? 0;
+              items.push({ 
+                mainCategory: mainCat, 
+                subCategory: subCat, 
+                amount, 
+                dueDate: v.due_date,
+                paidAmount,
+                isPaid: paidAmount >= amount && amount > 0,
+              });
             }
           }
         }
