@@ -743,8 +743,19 @@ const CalendarPage = () => {
                                               <RefreshCw className="h-3 w-3 text-primary shrink-0" />
                                             )}
                                             {item.isPaid && (
-                                              <Badge variant="outline" className="text-[9px] px-1 py-0 border-accent/40 text-accent shrink-0">
-                                                ชำระแล้ว
+                                              <Badge variant="outline" className={`text-[9px] px-1 py-0 shrink-0 ${
+                                                item.txDaysDiff !== undefined && item.txDaysDiff !== 0
+                                                  ? item.txDaysDiff < 0
+                                                    ? "border-primary/40 text-primary"
+                                                    : "border-orange-400 text-orange-500"
+                                                  : "border-accent/40 text-accent"
+                                              }`}>
+                                                {item.txDaysDiff !== undefined && item.txDaysDiff !== 0
+                                                  ? item.txDaysDiff < 0
+                                                    ? `จ่ายก่อน ${Math.abs(item.txDaysDiff)} วัน`
+                                                    : `จ่ายเลท ${item.txDaysDiff} วัน`
+                                                  : "ชำระแล้ว"
+                                                }
                                               </Badge>
                                             )}
                                           </div>
