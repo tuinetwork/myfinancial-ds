@@ -682,31 +682,43 @@ const CalendarPage = () => {
                             key={`${item.mainCategory}-${item.subCategory}-${idx}`}
                             onClick={() => setSelectedDate(item.dueDate)}
                             className={`flex items-center gap-3 p-3 rounded-lg transition-colors border cursor-pointer
-                              ${isOverdue
-                                ? "bg-destructive/5 border-destructive/20 hover:bg-destructive/10"
-                                : isUrgent
-                                  ? "bg-primary/5 border-primary/15 hover:bg-primary/10"
-                                  : "bg-card border-border/50 hover:bg-muted/30"
+                              ${item.isPaid
+                                ? "bg-accent/5 border-accent/20 hover:bg-accent/10"
+                                : isOverdue
+                                  ? "bg-destructive/5 border-destructive/20 hover:bg-destructive/10"
+                                  : isUrgent
+                                    ? "bg-primary/5 border-primary/15 hover:bg-primary/10"
+                                    : "bg-card border-border/50 hover:bg-muted/30"
                               }
                             `}
                           >
                             <div className={`p-2 rounded-lg shrink-0 ${
-                              isOverdue ? "bg-destructive/10" : "bg-primary/10"
+                              item.isPaid ? "bg-accent/10" : isOverdue ? "bg-destructive/10" : "bg-primary/10"
                             }`}>
-                              <IconComponent className={`h-4 w-4 ${
-                                isOverdue ? "text-destructive" : "text-primary"
-                              }`} />
+                              {item.isPaid
+                                ? <CheckCircle2 className="h-4 w-4 text-accent" />
+                                : <IconComponent className={`h-4 w-4 ${isOverdue ? "text-destructive" : "text-primary"}`} />
+                              }
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium text-sm truncate">{item.subCategory}</div>
+                              <div className="flex items-center gap-1.5">
+                                <span className={`font-medium text-sm truncate ${item.isPaid ? "line-through text-muted-foreground" : ""}`}>
+                                  {item.subCategory}
+                                </span>
+                                {item.isPaid && (
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0 border-accent/40 text-accent shrink-0">
+                                    ชำระแล้ว
+                                  </Badge>
+                                )}
+                              </div>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <span>{formatThaiDate(item.dueDate)}</span>
-                                {isOverdue && (
+                                {!item.isPaid && isOverdue && (
                                   <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
                                     เลยกำหนด {Math.abs(daysUntil)} วัน
                                   </Badge>
                                 )}
-                                {isUrgent && (
+                                {!item.isPaid && isUrgent && (
                                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/40 text-primary">
                                     อีก {daysUntil} วัน
                                   </Badge>
@@ -714,7 +726,7 @@ const CalendarPage = () => {
                               </div>
                             </div>
                             <div className={`text-sm font-bold tabular-nums ${
-                              isOverdue ? "text-destructive" : "text-foreground"
+                              item.isPaid ? "text-accent" : isOverdue ? "text-destructive" : "text-foreground"
                             }`}>
                               {formatCurrency(item.amount)}
                             </div>
