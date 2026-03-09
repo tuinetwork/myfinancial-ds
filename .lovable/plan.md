@@ -1,42 +1,26 @@
 
 
-## Plan: Auto-sync new subcategories to Budget and Savings Goals
+# แก้ไขปฏิทินให้แสดงสถานะ "ชำระแล้ว" + ขีดฆ่า
 
-### Problem
-When a new subcategory is added in Settings → Categories and saved, it doesn't appear in Settings → Budget or Settings → Savings Goals. Users must manually add entries, which is error-prone.
+## ปัญหา
+รายการซ้ำ (recurring) บนปฏิทินไม่แสดงสถานะ "ชำระแล้ว" แม้จะมีธุรกรรมจริงที่ตรงกัน เพราะ `extractDueDateItems` ตรวจสอบเฉพาะ `paid_dates` array สำหรับรายการซ้ำ โดยไม่ดูยอดธุรกรรมจริง (`txActuals`)
 
-### Solution
-Modify the `CategorySettings.handleSave()` function to, after saving categories, also update **all existing budget documents** to include any new subcategories (with budget amount = 0). This ensures:
+## การแก้ไข — 1 ไฟล์: `src/pages/CalendarPage.tsx`
 
-1. **Budget tab**: New subcategories appear immediately in the budget table for all periods
-2. **Savings Goals tab**: If the new subcategory belongs to "เงินออมและการลงทุน", it also appears in savings goals automatically
+### 1. แก้ `extractDueDateItems` (บรรทัด ~109-125)
+สำหรับรายการซ้ำ เพิ่มการตรวจสอบ `txActuals` ด้วย:
+- คำนวณจำนวน occurrences ที่ transaction amount ครอบคลุมได้: `coveredByTx = floor(paidAmount / perOccurrence)`
+- เรียงตามวันที่ — occurrence แรกๆ ที่ยังไม่มีใน `paid_dates` จะถูก mark เป็น paid จาก transaction
+- `isPaid = isPaidByDate || isPaidByTx`
 
-### Technical Changes
-
-**File: `src/pages/Settings.tsx` — `CategorySettings.handleSave()`**
-
-After saving categories to the `categories` collection, add a sync step:
-
-1. Fetch all budget documents from `users/{userId}/budgets`
-2. For each budget document:
-   - Compare `expense_budgets` keys/sub-keys against `expenseGroups`
-   - Compare `income_estimates` keys/sub-keys against `incomeGroups`
-   - Add any missing subcategories with value `0`
-   - Remove subcategories/groups that no longer exist in categories
-   - Write back updated budget document
-3. This automatically covers savings goals since they read from `expense_budgets["เงินออมและการลงทุน"]`
-
-### Key Logic
+### 2. แก้ Amount badge (บรรทัด ~577-588)
+เพิ่ม `line-through` เมื่อ `allPaid`:
 ```
-For each budget doc:
-  For each main_category in expenseGroups:
-    For each subcategory in that group:
-      If subcategory not in budget.expense_budgets[main_category]:
-        Add it with value 0
-  Same for incomeGroups → income_estimates
-  
-  Remove entries from budget that no longer exist in categories
+${allPaid ? "line-through bg-accent/15 text-accent" : ...}
 ```
 
-This is a single-file change to `src/pages/Settings.tsx`, modifying only the `handleSave` function in `CategorySettings`.
+### 3. แสดง "ชำระแล้ว" เมื่อบางรายการจ่ายแล้ว (บรรทัด ~590-595)
+เพิ่มกรณี `somePaid` (บางรายการจ่ายแล้ว) ให้แสดง "ชำระบางส่วน" ด้วย หรืออย่างน้อยแสดงสถานะจ่ายแล้วเมื่อ `allPaid`
+
+ผลลัพธ์: รายการซ้ำที่มีธุรกรรมจริงตรงกัน จะแสดง ✓ ชำระแล้ว + ขีดฆ่ายอดเงิน บนปฏิทินอัตโนมัติ
 
