@@ -366,6 +366,49 @@ export function useAvailableMonths() {
   });
 }
 
+/** Like useAvailableMonths but includes next month for budget planning */
+export function useAvailableMonthsWithNextMonth() {
+  const queryClient = useQueryClient();
+  const { userId } = useAuth();
+
+  useEffect(() => {
+    if (!userId) return;
+    const unsubscribe = onSnapshot(budgetsCollection(userId), (snapshot) => {
+      const options: MonthOption[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const period = (data.period as string) ?? doc.id;
+        const [year, monthNum] = period.split("-");
+        const monthName = periodToMonthName(period);
+        options.push({ year, month: monthNum, monthName, period, label: `${monthName} ${year}` });
+      });
+      options.sort((a, b) => b.period.localeCompare(a.period));
+      queryClient.setQueryData(["available-months-next", userId], ensureUpToNextMonth(options));
+    });
+    return () => unsubscribe();
+  }, [queryClient, userId]);
+
+  return useQuery<MonthOption[]>({
+    queryKey: ["available-months-next", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const snapshot = await getDocs(budgetsCollection(userId));
+      const options: MonthOption[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const period = (data.period as string) ?? doc.id;
+        const [year, monthNum] = period.split("-");
+        const monthName = periodToMonthName(period);
+        options.push({ year, month: monthNum, monthName, period, label: `${monthName} ${year}` });
+      });
+      options.sort((a, b) => b.period.localeCompare(a.period));
+      return ensureUpToNextMonth(options);
+    },
+    enabled: !!userId,
+    staleTime: Infinity,
+  });
+}
+
 /** Fetch budget data + transactions for a period */
 export function useBudgetData(period?: string) {
   const queryClient = useQueryClient();

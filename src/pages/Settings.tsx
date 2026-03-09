@@ -10,7 +10,7 @@ import { firestore } from "@/lib/firebase";
 import { format as fnsFormat, parse as fnsParse } from "date-fns";
 import { buildRRule, getFrequencyType, formatFrequencyThai, expandRecurrence, matchTxToOccurrences, type TxEntry } from "@/lib/recurrence";
 import { th } from "date-fns/locale";
-import { useAvailableMonths, createBudgetFromLatest } from "@/hooks/useBudgetData";
+import { useAvailableMonthsWithNextMonth, createBudgetFromLatest } from "@/hooks/useBudgetData";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
