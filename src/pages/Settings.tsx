@@ -983,6 +983,7 @@ const BudgetSettings = () => {
               onRecurrenceChange={updateExpenseRecurrence}
               onStartDateChange={updateStartDate}
               onEndDateChange={updateEndDate}
+              onOccurrencesChange={updateOccurrences}
               onToggleDueDate={handleToggleDueDate}
               dueDateEnabled={dueDateEnabled}
               txBySubDate={txBySubDate}
