@@ -525,6 +525,7 @@ const BudgetTable = ({
                         <DueDatePicker
                           value={dueDate}
                           onChange={(d) => onDueDateChange?.(selectedCategory, sub, d)}
+                          frequency={recurrence ? getFrequencyType(recurrence) : null}
                         />
                       </td>
                     )}
