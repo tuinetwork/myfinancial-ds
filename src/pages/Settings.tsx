@@ -879,10 +879,16 @@ const BudgetSettings = () => {
             </SelectContent>
           </Select>
         )}
-        <Button onClick={handleSave} disabled={saving || !budgetData} size="sm" className="ml-auto gap-1.5">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {saving ? "กำลังบันทึก..." : "บันทึก"}
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button onClick={handleCopyToNextMonth} disabled={copying || !budgetData} size="sm" variant="outline" className="gap-1.5">
+            {copying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+            {copying ? "กำลังคัดลอก..." : "คัดลอกไปเดือนหน้า"}
+          </Button>
+          <Button onClick={handleSave} disabled={saving || !budgetData} size="sm" className="gap-1.5">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {saving ? "กำลังบันทึก..." : "บันทึก"}
+          </Button>
+        </div>
       </div>
 
       {loading ? (
