@@ -145,6 +145,7 @@ const CalendarPage = () => {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
   const [expenseBudgets, setExpenseBudgets] = useState<Record<string, ExpenseBudgetValue>>({});
+  const [txActuals, setTxActuals] = useState<Record<string, number>>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -152,6 +153,7 @@ const CalendarPage = () => {
   const month = currentDate.getMonth();
   const period = `${year}-${String(month + 1).padStart(2, "0")}`;
 
+  // Fetch budget data
   useEffect(() => {
     if (!userId) return;
     setLoading(true);
@@ -167,7 +169,24 @@ const CalendarPage = () => {
     return () => unsub();
   }, [userId, period]);
 
-  const dueDateItems = useMemo(() => extractDueDateItems(expenseBudgets, period), [expenseBudgets, period]);
+  // Fetch transactions for actuals (to determine paid status)
+  useEffect(() => {
+    if (!userId || !period) return;
+    const txCol = collection(firestore, "users", userId, "transactions");
+    const txQ = query(txCol, where("month_year", "==", period));
+    getDocs(txQ).then((txSnap) => {
+      const map: Record<string, number> = {};
+      txSnap.forEach((d) => {
+        const data = d.data();
+        const subCat = (data.sub_category as string) ?? "";
+        const amount = (data.amount as number) ?? 0;
+        if (subCat) map[subCat] = (map[subCat] || 0) + amount;
+      });
+      setTxActuals(map);
+    });
+  }, [userId, period]);
+
+  const dueDateItems = useMemo(() => extractDueDateItems(expenseBudgets, txActuals, period), [expenseBudgets, txActuals, period]);
 
   const itemsByDate = useMemo(() => {
     const map: Record<string, DueDateItem[]> = {};
