@@ -727,10 +727,31 @@ const CalendarPage = () => {
                                           </div>
                                           <div className="text-[10px] text-muted-foreground truncate">{item.mainCategory}</div>
                                         </div>
-                                        <div className={`font-bold text-sm tabular-nums shrink-0 ${
-                                          item.isPaid ? "text-accent" : isOverdue ? "text-destructive" : ""
-                                        }`}>
-                                          {formatCurrency(item.amount)}
+                                        <div className="flex items-center gap-1 shrink-0">
+                                          <div className={`font-bold text-sm tabular-nums ${
+                                            item.isPaid ? "text-accent" : isOverdue ? "text-destructive" : ""
+                                          }`}>
+                                            {formatCurrency(item.amount)}
+                                          </div>
+                                          {item.isPaid ? (
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6"
+                                              onClick={(e) => { e.stopPropagation(); undoPaid(item.mainCategory, item.subCategory, item.dueDate); }}
+                                            >
+                                              <X className="h-3 w-3 text-muted-foreground" />
+                                            </Button>
+                                          ) : (
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6"
+                                              onClick={(e) => { e.stopPropagation(); markAsPaid(item.mainCategory, item.subCategory, item.dueDate); }}
+                                            >
+                                              <CheckCircle2 className="h-3.5 w-3.5 text-accent" />
+                                            </Button>
+                                          )}
                                         </div>
                                       </div>
                                     )}
