@@ -717,8 +717,33 @@ const BudgetSettings = () => {
     }
     setSaving(false);
   };
+  const getNextPeriod = (p: string) => {
+    const [y, m] = p.split("-").map(Number);
+    let ny = y, nm = m + 1;
+    if (nm > 12) { nm = 1; ny++; }
+    return `${ny}-${String(nm).padStart(2, "0")}`;
+  };
 
-  const updateExpense = (mainCat: string, subCat: string, value: number) => {
+  const handleCopyToNextMonth = async () => {
+    if (!userId || !period || !budgetData) return;
+    setCopying(true);
+    try {
+      const nextPeriod = getNextPeriod(period);
+      const nextDocRef = doc(firestore, "users", userId, "budgets", nextPeriod);
+      await setDoc(nextDocRef, {
+        period: nextPeriod,
+        carry_over: 0,
+        income_estimates: budgetData.income_estimates,
+        expense_budgets: budgetData.expense_budgets,
+      });
+      toast({ title: "คัดลอกสำเร็จ", description: `คัดลอกงบประมาณไปยัง ${nextPeriod}` });
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
+    }
+    setCopying(false);
+  };
+
+
     if (!budgetData) return;
     const existing = budgetData.expense_budgets[mainCat]?.[subCat];
     const newVal: BudgetValue = MAP_CATEGORIES.includes(mainCat)
