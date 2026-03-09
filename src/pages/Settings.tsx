@@ -8,7 +8,7 @@ import { collection, doc, getDoc, getDocs, updateDoc, setDoc, query, where } fro
 import { cn } from "@/lib/utils";
 import { firestore } from "@/lib/firebase";
 import { format as fnsFormat, parse as fnsParse } from "date-fns";
-import { buildRRule, getFrequencyType, formatFrequencyThai, expandRecurrence } from "@/lib/recurrence";
+import { buildRRule, getFrequencyType, formatFrequencyThai, expandRecurrence, matchTxToOccurrences, type TxEntry } from "@/lib/recurrence";
 import { th } from "date-fns/locale";
 import { useAvailableMonths, createBudgetFromLatest } from "@/hooks/useBudgetData";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -307,7 +307,7 @@ const BudgetTable = ({
   onEndDateChange,
   onToggleDueDate,
   dueDateEnabled,
-  actuals,
+  txBySubDate,
   isExpense,
   selectedPeriod,
 }: {
@@ -324,7 +324,7 @@ const BudgetTable = ({
   onEndDateChange?: (group: string, sub: string, date: string | null) => void;
   onToggleDueDate?: (group: string, enabled: boolean) => void;
   dueDateEnabled?: Record<string, boolean>;
-  actuals: Record<string, number>;
+  txBySubDate: Record<string, TxEntry[]>;
   isExpense?: boolean;
   selectedPeriod?: string;
 }) => {
@@ -366,8 +366,25 @@ const BudgetTable = ({
     return 1;
   };
 
+  // Compute actuals using tolerance matching
+  const computeActual = (sub: string, val: BudgetValue): number => {
+    const txList = txBySubDate[sub] ?? [];
+    const totalTx = txList.reduce((s, t) => s + t.amount, 0);
+    const recurrence = getRecurrence(val);
+    if (!recurrence || !selectedPeriod) return totalTx;
+    const dueDate = getDueDate(val);
+    const startDt = getStartDate(val);
+    const endDt = getEndDate(val);
+    const [py, pm] = selectedPeriod.split("-").map(Number);
+    if (!py || !pm) return totalTx;
+    const occDates = expandRecurrence(dueDate, recurrence, py, pm, startDt, endDt);
+    const matchMap = matchTxToOccurrences(txList, occDates, getAmount(val));
+    const paidCount = [...matchMap.values()].filter(Boolean).length;
+    return paidCount * getAmount(val);
+  };
+
   const totalBudget = entries.reduce((s, [, v]) => s + getAmount(v) * getOccurrences(v), 0);
-  const totalActual = entries.reduce((s, [sub]) => s + (actuals[sub] ?? 0), 0);
+  const totalActual = entries.reduce((s, [sub, val]) => s + computeActual(sub, val), 0);
   const totalRemaining = totalBudget - totalActual;
   const colSpan = showDueDate ? 8 : 4;
 
@@ -434,7 +451,7 @@ const BudgetTable = ({
                 const recurrence = getRecurrence(val);
                 const startDt = getStartDate(val);
                 const endDt = getEndDate(val);
-                const actual = actuals[sub] ?? 0;
+                const actual = computeActual(sub, val);
                 const occurrences = getOccurrences(val);
                 const totalForSub = amount * occurrences;
                 const remaining = totalForSub - actual;
@@ -530,7 +547,7 @@ const BudgetSettings = () => {
   const [saving, setSaving] = useState(false);
   const [selectedExpenseCat, setSelectedExpenseCat] = useState<string>("");
   const [selectedIncomeCat, setSelectedIncomeCat] = useState<string>("");
-  const [txActuals, setTxActuals] = useState<Record<string, number>>({});
+  const [txBySubDate, setTxBySubDate] = useState<Record<string, TxEntry[]>>({});
   const [dueDateEnabled, setDueDateEnabled] = useState<Record<string, boolean>>({});
 
   const years = useMemo(() => {
@@ -603,18 +620,22 @@ const BudgetSettings = () => {
       setLoading(false);
     });
 
-    // Fetch transactions for actuals
+    // Fetch transactions for actuals — store per-date entries
     const txCol = collection(firestore, "users", userId, "transactions");
     const txQ = query(txCol, where("month_year", "==", period));
     getDocs(txQ).then((txSnap) => {
-      const map: Record<string, number> = {};
+      const map: Record<string, TxEntry[]> = {};
       txSnap.forEach((d) => {
         const data = d.data();
         const subCat = (data.sub_category as string) ?? "";
         const amount = (data.amount as number) ?? 0;
-        if (subCat) map[subCat] = (map[subCat] || 0) + amount;
+        const date = (data.date as string) ?? "";
+        if (subCat && date) {
+          if (!map[subCat]) map[subCat] = [];
+          map[subCat].push({ date, amount });
+        }
       });
-      setTxActuals(map);
+      setTxBySubDate(map);
     });
   }, [userId, period]);
 
@@ -799,7 +820,7 @@ const BudgetSettings = () => {
               onEndDateChange={updateEndDate}
               onToggleDueDate={handleToggleDueDate}
               dueDateEnabled={dueDateEnabled}
-              actuals={txActuals}
+              txBySubDate={txBySubDate}
               isExpense
               selectedPeriod={selectedYear && selectedMonth ? `${selectedYear}-${selectedMonth}` : undefined}
             />
@@ -811,7 +832,7 @@ const BudgetSettings = () => {
               selectedCategory={selectedIncomeCat}
               onCategoryChange={setSelectedIncomeCat}
               onAmountChange={updateIncome}
-              actuals={txActuals}
+              txBySubDate={txBySubDate}
               selectedPeriod={selectedYear && selectedMonth ? `${selectedYear}-${selectedMonth}` : undefined}
             />
           </div>

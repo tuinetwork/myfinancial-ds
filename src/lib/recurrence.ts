@@ -142,3 +142,50 @@ export function getFrequencyType(rrule: string | null | undefined): string {
   if (parsed.freq === "MONTHLY") return "monthly";
   return "once";
 }
+
+export interface TxEntry {
+  date: string;
+  amount: number;
+}
+
+/**
+ * Match transactions to occurrence dates with ±3 day tolerance.
+ * Returns a Map of occurrence date → isPaid.
+ * Transactions are consumed (not reused across occurrences).
+ */
+export function matchTxToOccurrences(
+  txList: TxEntry[],
+  occurrenceDates: string[],
+  perOccurrence: number
+): Map<string, boolean> {
+  const result = new Map<string, boolean>();
+  if (perOccurrence <= 0) {
+    for (const d of occurrenceDates) result.set(d, false);
+    return result;
+  }
+
+  // Clone so we can mark as used
+  const pool = txList.map((tx, i) => ({ ...tx, used: false, idx: i }));
+
+  // Sort occurrences chronologically
+  const sorted = [...occurrenceDates].sort();
+
+  for (const occDate of sorted) {
+    const occTime = new Date(occDate).getTime();
+    // Find matching transactions within ±3 days
+    let matched = 0;
+    for (const tx of pool) {
+      if (tx.used) continue;
+      const txTime = new Date(tx.date).getTime();
+      const daysDiff = Math.abs(txTime - occTime) / (1000 * 60 * 60 * 24);
+      if (daysDiff <= 3) {
+        matched += tx.amount;
+        tx.used = true;
+        if (matched >= perOccurrence) break;
+      }
+    }
+    result.set(occDate, matched >= perOccurrence);
+  }
+
+  return result;
+}

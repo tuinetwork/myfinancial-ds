@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { doc, getDoc, updateDoc, onSnapshot, collection, query, where, getDocs, arrayUnion, arrayRemove } from "firebase/firestore";
-import { expandRecurrence, formatFrequencyThai } from "@/lib/recurrence";
+import { expandRecurrence, formatFrequencyThai, matchTxToOccurrences, type TxEntry } from "@/lib/recurrence";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -95,27 +95,25 @@ function isV2Format(val: unknown): val is { is_due_date_enabled?: boolean; sub_c
 
 function extractDueDateItems(
   expenseBudgets: Record<string, ExpenseBudgetValue>,
-  txActuals: Record<string, number>,
+  txBySubDate: Record<string, TxEntry[]>,
   filterMonth?: string
 ): DueDateItem[] {
   const items: DueDateItem[] = [];
   const [filterYear, filterMonthNum] = filterMonth ? filterMonth.split("-").map(Number) : [0, 0];
 
   const addItem = (mainCat: string, subCat: string, amount: number, dueDate: string, recurrence?: string | null, startDate?: string | null, endDate?: string | null, paidDates?: string[]) => {
-    const paidAmount = txActuals[subCat] ?? 0;
     const rrule = recurrence ?? null;
     const itemPaidDates = paidDates ?? [];
+    const txList = txBySubDate[subCat] ?? [];
 
     if (rrule && filterYear && filterMonthNum) {
       const expandedDates = expandRecurrence(dueDate, rrule, filterYear, filterMonthNum, startDate, endDate);
       const perOccurrence = amount;
-      const totalPaidFromTx = txActuals[subCat] ?? 0;
-      const coveredByTx = perOccurrence > 0 ? Math.floor(totalPaidFromTx / perOccurrence) : 0;
-      let txCoveredCount = 0;
+      // Use ±3 day tolerance matching
+      const txMatchMap = matchTxToOccurrences(txList, expandedDates, perOccurrence);
       for (const expDate of expandedDates) {
         const isPaidByDate = itemPaidDates.includes(expDate);
-        const isPaidByTx = !isPaidByDate && txCoveredCount < coveredByTx;
-        if (isPaidByTx) txCoveredCount++;
+        const isPaidByTx = !isPaidByDate && (txMatchMap.get(expDate) ?? false);
         const isPaid = isPaidByDate || isPaidByTx;
         items.push({
           mainCategory: mainCat,
@@ -132,13 +130,17 @@ function extractDueDateItems(
     } else {
       if (!filterMonth || dueDate.startsWith(filterMonth)) {
         const isPaidByDate = itemPaidDates.includes(dueDate);
-        const isPaid = isPaidByDate || (paidAmount >= amount && amount > 0);
+        // For non-recurring: check if any tx within ±3 days covers the amount
+        const txMatchMap = matchTxToOccurrences(txList, [dueDate], amount);
+        const isPaidByTx = txMatchMap.get(dueDate) ?? false;
+        const isPaid = isPaidByDate || isPaidByTx;
+        const totalTx = txList.reduce((s, t) => s + t.amount, 0);
         items.push({
           mainCategory: mainCat,
           subCategory: subCat,
           amount,
           dueDate,
-          paidAmount: isPaidByDate ? amount : paidAmount,
+          paidAmount: isPaidByDate ? amount : (isPaidByTx ? amount : totalTx),
           isPaid,
           isRecurring: false,
           recurrence: null,
@@ -175,7 +177,7 @@ const CalendarPage = () => {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
   const [expenseBudgets, setExpenseBudgets] = useState<Record<string, ExpenseBudgetValue>>({});
-  const [txActuals, setTxActuals] = useState<Record<string, number>>({});
+  const [txBySubDate, setTxBySubDate] = useState<Record<string, TxEntry[]>>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -199,24 +201,28 @@ const CalendarPage = () => {
     return () => unsub();
   }, [userId, period]);
 
-  // Fetch transactions for actuals (to determine paid status)
+  // Fetch transactions for actuals (to determine paid status) — store per-date entries
   useEffect(() => {
     if (!userId || !period) return;
     const txCol = collection(firestore, "users", userId, "transactions");
     const txQ = query(txCol, where("month_year", "==", period));
     getDocs(txQ).then((txSnap) => {
-      const map: Record<string, number> = {};
+      const map: Record<string, TxEntry[]> = {};
       txSnap.forEach((d) => {
         const data = d.data();
         const subCat = (data.sub_category as string) ?? "";
         const amount = (data.amount as number) ?? 0;
-        if (subCat) map[subCat] = (map[subCat] || 0) + amount;
+        const date = (data.date as string) ?? "";
+        if (subCat && date) {
+          if (!map[subCat]) map[subCat] = [];
+          map[subCat].push({ date, amount });
+        }
       });
-      setTxActuals(map);
+      setTxBySubDate(map);
     });
   }, [userId, period]);
 
-  const dueDateItems = useMemo(() => extractDueDateItems(expenseBudgets, txActuals, period), [expenseBudgets, txActuals, period]);
+  const dueDateItems = useMemo(() => extractDueDateItems(expenseBudgets, txBySubDate, period), [expenseBudgets, txBySubDate, period]);
 
   const itemsByDate = useMemo(() => {
     const map: Record<string, DueDateItem[]> = {};
