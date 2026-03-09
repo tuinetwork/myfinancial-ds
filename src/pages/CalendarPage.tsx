@@ -109,15 +109,21 @@ function extractDueDateItems(
     if (rrule && filterYear && filterMonthNum) {
       const expandedDates = expandRecurrence(dueDate, rrule, filterYear, filterMonthNum, startDate, endDate);
       const perOccurrence = amount;
+      const totalPaidFromTx = txActuals[subCat] ?? 0;
+      const coveredByTx = perOccurrence > 0 ? Math.floor(totalPaidFromTx / perOccurrence) : 0;
+      let txCoveredCount = 0;
       for (const expDate of expandedDates) {
         const isPaidByDate = itemPaidDates.includes(expDate);
+        const isPaidByTx = !isPaidByDate && txCoveredCount < coveredByTx;
+        if (isPaidByTx) txCoveredCount++;
+        const isPaid = isPaidByDate || isPaidByTx;
         items.push({
           mainCategory: mainCat,
           subCategory: subCat,
           amount: perOccurrence,
           dueDate: expDate,
-          paidAmount: isPaidByDate ? perOccurrence : 0,
-          isPaid: isPaidByDate,
+          paidAmount: isPaid ? perOccurrence : 0,
+          isPaid,
           isRecurring: true,
           recurrence: rrule,
           paidDates: itemPaidDates,
