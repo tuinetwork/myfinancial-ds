@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { CalendarClock, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { formatCurrency, type BudgetData } from "@/hooks/useBudgetData";
 import { expandRecurrence, formatFrequencyThai, matchTxToOccurrences, type TxEntry } from "@/lib/recurrence";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface UpcomingBillsProps {
   data: BudgetData;
@@ -41,7 +42,9 @@ function getDaysUntil(dateStr: string): number {
 }
 
 export function UpcomingBills({ data }: UpcomingBillsProps) {
-  const bills = useMemo(() => {
+  const [filter, setFilter] = useState<"unpaid" | "paid">("unpaid");
+
+  const allBills = useMemo(() => {
     const items: BillItem[] = [];
     const categories = ["bills", "debts", "subscriptions", "savings"] as const;
     const categoryNames: Record<typeof categories[number], string> = {
@@ -51,7 +54,6 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
       savings: "เงินออม",
     };
 
-    // Build a map of transactions per sub-category with dates for tolerance matching
     const txBySubDate: Record<string, TxEntry[]> = {};
     for (const tx of data.transactions || []) {
       if (tx.type !== "รายรับ") {
@@ -64,7 +66,6 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
       }
     }
 
-    // Expand for current month AND next month
     const now = new Date();
     const months: { year: number; month: number }[] = [
       { year: now.getFullYear(), month: now.getMonth() + 1 },
@@ -111,7 +112,6 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
             }
           }
         } else {
-          // One-time payment
           const daysUntil = getDaysUntil(item.dueDate);
           const paidDates = item.paidDates ?? [];
           const isPaidByDate = paidDates.includes(item.dueDate ?? "");
@@ -138,72 +138,101 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
       }
     }
 
-    // Filter out paid items and sort by due date ascending
-    const unpaidItems = items.filter(item => !item.isPaid);
-    unpaidItems.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-
-    return unpaidItems.slice(0, 8);
+    items.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+    return items;
   }, [data.expenses, data.transactions]);
 
-  if (bills.length === 0) {
+  const filteredBills = useMemo(() => {
+    if (filter === "paid") {
+      return allBills.filter(item => item.isPaid);
+    }
+    return allBills.filter(item => !item.isPaid).slice(0, 8);
+  }, [allBills, filter]);
+
+  const paidCount = useMemo(() => allBills.filter(b => b.isPaid).length, [allBills]);
+
+  if (allBills.length === 0) {
     return null;
   }
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <CalendarClock className="h-4 w-4 text-primary" />
-          บิลที่ต้องชำระ
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-primary" />
+            บิลที่ต้องชำระ
+          </CardTitle>
+          <Tabs value={filter} onValueChange={(v) => setFilter(v as "unpaid" | "paid")}>
+            <TabsList className="h-7">
+              <TabsTrigger value="unpaid" className="text-[11px] px-2.5 h-5">
+                ค้างชำระ
+              </TabsTrigger>
+              <TabsTrigger value="paid" className="text-[11px] px-2.5 h-5">
+                ชำระแล้ว {paidCount > 0 && `(${paidCount})`}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        {bills.map((bill, idx) => (
-          <div
-            key={`${bill.label}-${idx}`}
-            className="flex items-center justify-between py-2 border-b border-border last:border-0"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm truncate">
-                {bill.isRecurring && <RefreshCw className="h-3 w-3 inline-block mr-1 text-primary" />}
-                {bill.label}
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>{formatThaiDate(bill.dueDate)}</span>
-                {bill.isOverdue ? (
-                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    เลยกำหนด {Math.abs(bill.daysUntil)} วัน
-                  </Badge>
-                ) : bill.daysUntil === 0 ? (
-                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    วันนี้!
-                  </Badge>
-                ) : bill.daysUntil <= 3 ? (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-destructive text-destructive">
-                    อีก {bill.daysUntil} วัน
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-muted-foreground/50 text-muted-foreground">
-                    อีก {bill.daysUntil} วัน
-                  </Badge>
+        {filteredBills.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-4">
+            {filter === "paid" ? "ยังไม่มีรายการที่ชำระแล้ว" : "ไม่มีบิลค้างชำระ 🎉"}
+          </p>
+        ) : (
+          filteredBills.map((bill, idx) => (
+            <div
+              key={`${bill.label}-${bill.dueDate}-${idx}`}
+              className="flex items-center justify-between py-2 border-b border-border last:border-0"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm truncate">
+                  {bill.isRecurring && <RefreshCw className="h-3 w-3 inline-block mr-1 text-primary" />}
+                  {bill.isPaid && <CheckCircle2 className="h-3 w-3 inline-block mr-1 text-green-500" />}
+                  {bill.label}
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>{formatThaiDate(bill.dueDate)}</span>
+                  {bill.isPaid ? (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-500/50 text-green-600">
+                      ชำระแล้ว
+                    </Badge>
+                  ) : bill.isOverdue ? (
+                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      เลยกำหนด {Math.abs(bill.daysUntil)} วัน
+                    </Badge>
+                  ) : bill.daysUntil === 0 ? (
+                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      วันนี้!
+                    </Badge>
+                  ) : bill.daysUntil <= 3 ? (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-destructive text-destructive">
+                      อีก {bill.daysUntil} วัน
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-muted-foreground/50 text-muted-foreground">
+                      อีก {bill.daysUntil} วัน
+                    </Badge>
+                  )}
+                </div>
+                {bill.paidAmount > 0 && !bill.isPaid && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Progress value={bill.paidPercent} className="h-1.5 flex-1" />
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                      {formatCurrency(bill.paidAmount)}/{formatCurrency(bill.amount)}
+                    </span>
+                  </div>
                 )}
               </div>
-              {bill.paidAmount > 0 && (
-                <div className="flex items-center gap-2 mt-1">
-                  <Progress value={bill.paidPercent} className="h-1.5 flex-1" />
-                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                    {formatCurrency(bill.paidAmount)}/{formatCurrency(bill.amount)}
-                  </span>
-                </div>
-              )}
+              <div className="text-sm font-semibold text-right">
+                {formatCurrency(bill.amount)}
+              </div>
             </div>
-            <div className="text-sm font-semibold text-right">
-              {formatCurrency(bill.amount)}
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </CardContent>
     </Card>
   );
