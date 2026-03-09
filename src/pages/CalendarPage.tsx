@@ -423,7 +423,9 @@ const CalendarPage = () => {
                           const total = totalByDate[dateStr] || 0;
                           const isToday = dateStr === todayStr;
                           const hasItems = dayItems.length > 0;
-                          const isOverdue = hasItems && getDaysUntil(dateStr) < 0;
+                          const allPaid = paidByDate[dateStr] ?? false;
+                          const somePaid = hasItems && dayItems.some(i => i.isPaid);
+                          const isOverdue = hasItems && !allPaid && getDaysUntil(dateStr) < 0;
                           const isSunday = d.getDay() === 0;
                           const isSaturday = d.getDay() === 6;
                           const isSelected = dateStr === selectedDate;
@@ -438,11 +440,13 @@ const CalendarPage = () => {
                                   className={`h-20 sm:h-24 p-1 sm:p-1.5 rounded-lg border text-xs transition-all duration-200 relative group
                                     ${isSelected
                                       ? "border-primary ring-2 ring-primary/30 bg-primary/10 shadow-md"
-                                      : isToday
-                                        ? "border-primary/50 bg-primary/5 shadow-sm"
-                                        : hasItems
-                                          ? "border-border bg-card hover:shadow-md hover:border-primary/30"
-                                          : "border-border/50 bg-card/50 hover:bg-card"
+                                      : allPaid
+                                        ? "border-accent/50 bg-accent/5"
+                                        : isToday
+                                          ? "border-primary/50 bg-primary/5 shadow-sm"
+                                          : hasItems
+                                            ? "border-border bg-card hover:shadow-md hover:border-primary/30"
+                                            : "border-border/50 bg-card/50 hover:bg-card"
                                     }
                                     ${snapshot.isDraggingOver ? "bg-accent/30 border-accent ring-2 ring-accent/40 scale-[1.03]" : ""}
                                     ${hasItems ? "cursor-pointer" : ""}
@@ -458,29 +462,40 @@ const CalendarPage = () => {
                                     `}>
                                       {d.getDate()}
                                     </span>
-                                    {isOverdue && (
+                                    {allPaid ? (
+                                      <CheckCircle2 className="h-3 w-3 text-accent" />
+                                    ) : isOverdue ? (
                                       <AlertTriangle className="h-3 w-3 text-destructive animate-pulse" />
-                                    )}
+                                    ) : null}
                                   </div>
 
                                   {/* Amount badge */}
                                   {total > 0 && (
                                     <div className={`mt-0.5 px-1 py-0.5 rounded text-[9px] sm:text-[10px] font-medium truncate text-center
-                                      ${isOverdue
-                                        ? "bg-destructive/15 text-destructive"
-                                        : "bg-primary/10 text-primary"
+                                      ${allPaid
+                                        ? "bg-accent/15 text-accent"
+                                        : isOverdue
+                                          ? "bg-destructive/15 text-destructive"
+                                          : "bg-primary/10 text-primary"
                                       }
                                     `}>
                                       {formatCurrency(total)}
                                     </div>
                                   )}
 
-                                  {/* Item count dots */}
-                                  {dayItems.length > 0 && (
+                                  {/* Paid status */}
+                                  {allPaid && (
+                                    <div className="text-[9px] text-accent font-medium text-center mt-0.5">
+                                      ชำระแล้ว
+                                    </div>
+                                  )}
+
+                                  {/* Item count dots (show only if not all paid) */}
+                                  {dayItems.length > 0 && !allPaid && (
                                     <div className="flex items-center justify-center gap-0.5 mt-1">
-                                      {dayItems.slice(0, 3).map((_, idx) => (
+                                      {dayItems.slice(0, 3).map((item, idx) => (
                                         <div key={idx} className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${
-                                          isOverdue ? "bg-destructive/60" : "bg-primary/50"
+                                          item.isPaid ? "bg-accent/60" : isOverdue ? "bg-destructive/60" : "bg-primary/50"
                                         }`} />
                                       ))}
                                       {dayItems.length > 3 && (
