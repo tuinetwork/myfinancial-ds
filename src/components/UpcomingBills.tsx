@@ -65,6 +65,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
           const daysUntil = getDaysUntil(item.dueDate);
           const paidAmount = txActuals[item.label] ?? 0;
           const isPaid = paidAmount >= item.budget && item.budget > 0;
+          const paidPercent = item.budget > 0 ? Math.min(100, Math.round((paidAmount / item.budget) * 100)) : 0;
           items.push({
             label: item.label,
             category: categoryNames[cat],
@@ -73,6 +74,8 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
             isOverdue: daysUntil < 0,
             daysUntil,
             isPaid,
+            paidAmount,
+            paidPercent,
           });
         }
       }
