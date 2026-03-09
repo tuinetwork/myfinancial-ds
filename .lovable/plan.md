@@ -1,42 +1,51 @@
 
 
-## Plan: Auto-sync new subcategories to Budget and Savings Goals
+# เพิ่มระบบ Tolerance ±3 วัน สำหรับจับคู่ธุรกรรมกับวันกำหนดชำระ
 
-### Problem
-When a new subcategory is added in Settings → Categories and saved, it doesn't appear in Settings → Budget or Settings → Savings Goals. Users must manually add entries, which is error-prone.
+## ปัญหา
+ปัจจุบันระบบรวมยอดธุรกรรมตาม subcategory ทั้งเดือนแล้วหารด้วยจำนวนเงินต่อครั้ง → ไม่สามารถจับคู่ธุรกรรมเฉพาะวันกับ occurrence เฉพาะวันได้ เช่น กำหนดจ่ายวันเสาร์แต่จ่ายจริงวันพฤหัสบดี (ก่อน 2 วัน) ระบบไม่รู้ว่าจ่ายแล้ว
 
-### Solution
-Modify the `CategorySettings.handleSave()` function to, after saving categories, also update **all existing budget documents** to include any new subcategories (with budget amount = 0). This ensures:
+## แนวทางแก้ไข
 
-1. **Budget tab**: New subcategories appear immediately in the budget table for all periods
-2. **Savings Goals tab**: If the new subcategory belongs to "เงินออมและการลงทุน", it also appears in savings goals automatically
+เปลี่ยนจากการรวมยอดรวม (`txActuals: Record<string, number>`) เป็นเก็บรายการแยกวัน (`txBySubAndDate: Record<string, {date: string, amount: number}[]>`) แล้วจับคู่แต่ละ occurrence กับธุรกรรมที่อยู่ในช่วง ±3 วัน
 
-### Technical Changes
+## การแก้ไข — 2 ไฟล์
 
-**File: `src/pages/Settings.tsx` — `CategorySettings.handleSave()`**
+### 1. `src/pages/CalendarPage.tsx`
 
-After saving categories to the `categories` collection, add a sync step:
+**เปลี่ยน txActuals state** จาก `Record<string, number>` เป็น `Record<string, {date: string, amount: number}[]>` (รายการธุรกรรมแยกตามวัน)
 
-1. Fetch all budget documents from `users/{userId}/budgets`
-2. For each budget document:
-   - Compare `expense_budgets` keys/sub-keys against `expenseGroups`
-   - Compare `income_estimates` keys/sub-keys against `incomeGroups`
-   - Add any missing subcategories with value `0`
-   - Remove subcategories/groups that no longer exist in categories
-   - Write back updated budget document
-3. This automatically covers savings goals since they read from `expense_budgets["เงินออมและการลงทุน"]`
+**แก้ fetch transactions** (บรรทัด ~202-217): เก็บ array ของ `{date, amount}` แทนการรวมยอด
 
-### Key Logic
+**แก้ `extractDueDateItems`**: เปลี่ยน parameter จาก `txActuals: Record<string, number>` เป็น `txBySubDate: Record<string, {date: string, amount: number}[]>` แล้วใช้ logic ใหม่:
+- สำหรับแต่ละ occurrence date → หา transactions ที่ `|txDate - occurrenceDate| <= 3 วัน`
+- ถ้ารวมยอดได้ >= amount ของ occurrence → ถือว่า paid
+- Transaction ที่ถูกจับคู่แล้วจะไม่ถูกใช้ซ้ำกับ occurrence อื่น
+
+### 2. `src/pages/Settings.tsx`
+
+**เปลี่ยน txActuals state** เป็น `Record<string, {date: string, amount: number}[]>` เช่นเดียวกัน
+
+**แก้ fetch transactions** (บรรทัด ~607-618): เก็บ array แยกวัน
+
+**แก้ BudgetTable**: ส่ง txByDate ลงไป เพื่อคำนวณ actual ตาม tolerance — สำหรับแต่ละ occurrence date ของ recurring item ให้นับ transactions ที่อยู่ในช่วง ±3 วัน
+
+### Logic จับคู่ ±3 วัน (ใช้ร่วมกัน)
+```text
+function matchTxToOccurrences(
+  txList: {date, amount}[],
+  occurrenceDates: string[],
+  perOccurrence: number
+): Map<string, boolean>  // occurrence date → isPaid
+
+สำหรับแต่ละ occurrence (เรียงตามวันที่):
+  1. หา tx ที่ |txDate - occDate| <= 3 วัน
+  2. ถ้ารวมยอด tx ที่จับคู่ได้ >= perOccurrence → isPaid = true
+  3. ลบ tx ที่ใช้แล้วออกจาก pool (ไม่ซ้ำกับ occurrence อื่น)
 ```
-For each budget doc:
-  For each main_category in expenseGroups:
-    For each subcategory in that group:
-      If subcategory not in budget.expense_budgets[main_category]:
-        Add it with value 0
-  Same for incomeGroups → income_estimates
-  
-  Remove entries from budget that no longer exist in categories
-```
 
-This is a single-file change to `src/pages/Settings.tsx`, modifying only the `handleSave` function in `CategorySettings`.
+### ผลลัพธ์
+- จ่ายก่อนกำหนด 1-3 วัน → แสดง ✓ ชำระแล้ว
+- จ่ายเลท 1-3 วัน → แสดง ✓ ชำระแล้ว
+- ไม่กระทบ `paid_dates` (manual) ที่มีอยู่เดิม — ยังทำงานเหมือนเดิม
 
