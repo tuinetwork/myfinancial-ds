@@ -605,7 +605,15 @@ const CalendarPage = () => {
                                   {/* Paid status */}
                                   {allPaid && (
                                     <div className="text-[9px] text-accent font-medium text-center mt-0.5">
-                                      ชำระแล้ว
+                                      {(() => {
+                                        // Check if any item was paid early/late via tolerance
+                                        const toleranceItem = dayItems.find(i => i.isPaid && i.txDaysDiff !== undefined && i.txDaysDiff !== 0);
+                                        if (toleranceItem && toleranceItem.txDaysDiff !== undefined) {
+                                          if (toleranceItem.txDaysDiff < 0) return `จ่ายก่อน ${Math.abs(toleranceItem.txDaysDiff)} วัน`;
+                                          if (toleranceItem.txDaysDiff > 0) return `จ่ายเลท ${toleranceItem.txDaysDiff} วัน`;
+                                        }
+                                        return "ชำระแล้ว";
+                                      })()}
                                     </div>
                                   )}
 
