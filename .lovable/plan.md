@@ -1,40 +1,42 @@
 
 
-## Plan: Allow Budget Settings 1 Month Ahead, Limit Other Pages to Current Month
+## Plan: Auto-sync new subcategories to Budget and Savings Goals
 
 ### Problem
-Currently all pages share the same `useAvailableMonths()` hook which shows all existing budget periods plus the current month. The user wants:
-- **Settings page (Budget & Savings Goals)**: Allow selecting up to 1 month ahead (next month)
-- **Other pages (Dashboard, Transactions, Analysis, Calendar)**: Only show months up to the current month
+When a new subcategory is added in Settings → Categories and saved, it doesn't appear in Settings → Budget or Settings → Savings Goals. Users must manually add entries, which is error-prone.
+
+### Solution
+Modify the `CategorySettings.handleSave()` function to, after saving categories, also update **all existing budget documents** to include any new subcategories (with budget amount = 0). This ensures:
+
+1. **Budget tab**: New subcategories appear immediately in the budget table for all periods
+2. **Savings Goals tab**: If the new subcategory belongs to "เงินออมและการลงทุน", it also appears in savings goals automatically
 
 ### Technical Changes
 
-**File: `src/hooks/useBudgetData.ts`**
+**File: `src/pages/Settings.tsx` — `CategorySettings.handleSave()`**
 
-1. Add a `getNextMonthOption()` helper (similar to `getCurrentMonthOption()` but +1 month)
-2. Add a new `ensureUpToNextMonth()` function that ensures both current and next month are in the options
-3. Export a new hook `useAvailableMonthsWithNextMonth()` that uses `ensureUpToNextMonth` instead of `ensureCurrentMonth`
-4. In the existing `ensureCurrentMonth`, add filtering to exclude future months (months after the current month) — this ensures other pages never see next month even if a budget doc exists for it
+After saving categories to the `categories` collection, add a sync step:
 
-**File: `src/pages/Settings.tsx`**
-
-5. In `BudgetSettings` and `SavingsGoalSettings` components, change `useAvailableMonths()` to `useAvailableMonthsWithNextMonth()`
+1. Fetch all budget documents from `users/{userId}/budgets`
+2. For each budget document:
+   - Compare `expense_budgets` keys/sub-keys against `expenseGroups`
+   - Compare `income_estimates` keys/sub-keys against `incomeGroups`
+   - Add any missing subcategories with value `0`
+   - Remove subcategories/groups that no longer exist in categories
+   - Write back updated budget document
+3. This automatically covers savings goals since they read from `expense_budgets["เงินออมและการลงทุน"]`
 
 ### Key Logic
-
-```text
-ensureCurrentMonth (existing, modified):
-  - Add current month if missing
-  - Filter OUT any months with period > currentPeriod
+```
+For each budget doc:
+  For each main_category in expenseGroups:
+    For each subcategory in that group:
+      If subcategory not in budget.expense_budgets[main_category]:
+        Add it with value 0
+  Same for incomeGroups → income_estimates
   
-ensureUpToNextMonth (new):
-  - Add current month if missing
-  - Add next month if missing
-  - Keep all months (no future filtering)
-
-useAvailableMonthsWithNextMonth (new hook):
-  - Same as useAvailableMonths but uses ensureUpToNextMonth
+  Remove entries from budget that no longer exist in categories
 ```
 
-This is a 2-file change affecting `useBudgetData.ts` and `Settings.tsx`.
+This is a single-file change to `src/pages/Settings.tsx`, modifying only the `handleSave` function in `CategorySettings`.
 

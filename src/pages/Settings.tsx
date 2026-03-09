@@ -10,7 +10,7 @@ import { firestore } from "@/lib/firebase";
 import { format as fnsFormat, parse as fnsParse } from "date-fns";
 import { buildRRule, getFrequencyType, formatFrequencyThai, expandRecurrence, matchTxToOccurrences, type TxEntry } from "@/lib/recurrence";
 import { th } from "date-fns/locale";
-import { useAvailableMonths, createBudgetFromLatest } from "@/hooks/useBudgetData";
+import { useAvailableMonthsWithNextMonth, createBudgetFromLatest } from "@/hooks/useBudgetData";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -593,7 +593,7 @@ const BudgetTable = ({
 // ─── Budget Settings Tab ───
 const BudgetSettings = () => {
   const { userId } = useAuth();
-  const { data: months } = useAvailableMonths();
+  const { data: months } = useAvailableMonthsWithNextMonth();
   const [selectedYear, setSelectedYear] = useState<string>();
   const [selectedMonth, setSelectedMonth] = useState<string>();
   const [budgetData, setBudgetData] = useState<BudgetTreeData | null>(null);
@@ -1548,7 +1548,7 @@ const CategorySettings = () => {
 // ─── Savings Goal Settings Tab ───
 const SavingsGoalSettings = () => {
   const { userId } = useAuth();
-  const { data: months } = useAvailableMonths();
+  const { data: months } = useAvailableMonthsWithNextMonth();
   const [selectedYear, setSelectedYear] = useState<string>();
   const [selectedMonth, setSelectedMonth] = useState<string>();
   const [savingsTargets, setSavingsTargets] = useState<Record<string, number>>({});
