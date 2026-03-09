@@ -20,6 +20,9 @@ export interface BudgetItem {
   budget: number;
   dueDate?: string | null;
   recurrence?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  paidDates?: string[];
 }
 
 export interface Transaction {
