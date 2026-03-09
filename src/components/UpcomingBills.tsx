@@ -144,9 +144,9 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
 
   const filteredBills = useMemo(() => {
     if (filter === "paid") {
-      return allBills.filter(item => item.isPaid);
+      return allBills.filter(item => item.isPaid).slice(0, 4);
     }
-    return allBills.filter(item => !item.isPaid).slice(0, 5);
+    return allBills.filter(item => !item.isPaid).slice(0, 4);
   }, [allBills, filter]);
 
   const paidCount = useMemo(() => allBills.filter(b => b.isPaid).length, [allBills]);
