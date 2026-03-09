@@ -254,6 +254,8 @@ const BudgetTable = ({
   onCategoryChange,
   onAmountChange,
   onDueDateChange,
+  onToggleDueDate,
+  dueDateEnabled,
   actuals,
   isExpense,
 }: {
@@ -265,12 +267,15 @@ const BudgetTable = ({
   onCategoryChange: (cat: string) => void;
   onAmountChange: (group: string, sub: string, value: number) => void;
   onDueDateChange?: (group: string, sub: string, date: string | null) => void;
+  onToggleDueDate?: (group: string, enabled: boolean) => void;
+  dueDateEnabled?: Record<string, boolean>;
   actuals: Record<string, number>;
   isExpense?: boolean;
 }) => {
   const currentGroup = categories[selectedCategory] ?? {};
   const entries = Object.entries(currentGroup);
-  const showDueDate = isExpense && MAP_CATEGORIES.includes(selectedCategory);
+  const isMapCategory = isExpense && MAP_CATEGORIES.includes(selectedCategory);
+  const showDueDate = isMapCategory && (dueDateEnabled?.[selectedCategory] ?? false);
   const totalBudget = entries.reduce((s, [, v]) => s + getAmount(v), 0);
   const totalActual = entries.reduce((s, [sub]) => s + (actuals[sub] ?? 0), 0);
   const totalRemaining = totalBudget - totalActual;
