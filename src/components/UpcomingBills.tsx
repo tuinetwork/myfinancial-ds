@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { CalendarClock, AlertCircle, CheckCircle2 } from "lucide-react";
 import { formatCurrency, type BudgetData } from "@/hooks/useBudgetData";
 
@@ -16,6 +17,8 @@ interface BillItem {
   isOverdue: boolean;
   daysUntil: number;
   isPaid: boolean;
+  paidAmount: number;
+  paidPercent: number;
 }
 
 function formatThaiDate(dateStr: string): string {
@@ -62,6 +65,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
           const daysUntil = getDaysUntil(item.dueDate);
           const paidAmount = txActuals[item.label] ?? 0;
           const isPaid = paidAmount >= item.budget && item.budget > 0;
+          const paidPercent = item.budget > 0 ? Math.min(100, Math.round((paidAmount / item.budget) * 100)) : 0;
           items.push({
             label: item.label,
             category: categoryNames[cat],
@@ -70,6 +74,8 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
             isOverdue: daysUntil < 0,
             daysUntil,
             isPaid,
+            paidAmount,
+            paidPercent,
           });
         }
       }
@@ -133,6 +139,14 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
                   </Badge>
                 )}
               </div>
+              {!bill.isPaid && bill.paidAmount > 0 && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Progress value={bill.paidPercent} className="h-1.5 flex-1" />
+                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                    {formatCurrency(bill.paidAmount)}/{formatCurrency(bill.amount)}
+                  </span>
+                </div>
+              )}
             </div>
             <div className={`text-sm font-semibold text-right ${bill.isPaid ? "line-through text-muted-foreground" : ""}`}>
               {formatCurrency(bill.amount)}
