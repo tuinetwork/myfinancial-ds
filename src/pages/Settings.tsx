@@ -457,6 +457,15 @@ const BudgetSettings = () => {
         period: (d.period as string) ?? period,
       };
       setBudgetData(data);
+      // Initialize dueDateEnabled from existing data (check if any subcategory has a due_date)
+      const enabledMap: Record<string, boolean> = {};
+      for (const [mainCat, subs] of Object.entries(data.expense_budgets)) {
+        if (MAP_CATEGORIES.includes(mainCat)) {
+          const hasAnyDueDate = Object.values(subs).some((v) => getDueDate(v) !== null);
+          enabledMap[mainCat] = hasAnyDueDate;
+        }
+      }
+      setDueDateEnabled(enabledMap);
       const expKeys = Object.keys(data.expense_budgets);
       if (expKeys.length > 0 && !selectedExpenseCat) setSelectedExpenseCat(expKeys[0]);
       const incKeys = Object.keys(data.income_estimates);
