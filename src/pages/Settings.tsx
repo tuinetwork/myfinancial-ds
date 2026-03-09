@@ -586,7 +586,7 @@ const BudgetSettings = () => {
   const updateExpenseDueDate = (mainCat: string, subCat: string, date: string | null) => {
     if (!budgetData) return;
     const existing = budgetData.expense_budgets[mainCat]?.[subCat];
-    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: date, recurrence: getRecurrence(existing ?? 0) };
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: date, recurrence: getRecurrence(existing ?? 0), start_date: getStartDate(existing ?? 0), end_date: getEndDate(existing ?? 0), paid_dates: getPaidDates(existing ?? 0) };
     setBudgetData({
       ...budgetData,
       expense_budgets: {
@@ -599,7 +599,33 @@ const BudgetSettings = () => {
   const updateExpenseRecurrence = (mainCat: string, subCat: string, rrule: string | null) => {
     if (!budgetData) return;
     const existing = budgetData.expense_budgets[mainCat]?.[subCat];
-    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: getDueDate(existing ?? 0), recurrence: rrule };
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: getDueDate(existing ?? 0), recurrence: rrule, start_date: getStartDate(existing ?? 0), end_date: getEndDate(existing ?? 0), paid_dates: getPaidDates(existing ?? 0) };
+    setBudgetData({
+      ...budgetData,
+      expense_budgets: {
+        ...budgetData.expense_budgets,
+        [mainCat]: { ...budgetData.expense_budgets[mainCat], [subCat]: newVal },
+      },
+    });
+  };
+
+  const updateStartDate = (mainCat: string, subCat: string, date: string | null) => {
+    if (!budgetData) return;
+    const existing = budgetData.expense_budgets[mainCat]?.[subCat];
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: getDueDate(existing ?? 0), recurrence: getRecurrence(existing ?? 0), start_date: date, end_date: getEndDate(existing ?? 0), paid_dates: getPaidDates(existing ?? 0) };
+    setBudgetData({
+      ...budgetData,
+      expense_budgets: {
+        ...budgetData.expense_budgets,
+        [mainCat]: { ...budgetData.expense_budgets[mainCat], [subCat]: newVal },
+      },
+    });
+  };
+
+  const updateEndDate = (mainCat: string, subCat: string, date: string | null) => {
+    if (!budgetData) return;
+    const existing = budgetData.expense_budgets[mainCat]?.[subCat];
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: getDueDate(existing ?? 0), recurrence: getRecurrence(existing ?? 0), start_date: getStartDate(existing ?? 0), end_date: date, paid_dates: getPaidDates(existing ?? 0) };
     setBudgetData({
       ...budgetData,
       expense_budgets: {
