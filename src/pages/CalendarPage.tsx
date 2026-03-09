@@ -146,15 +146,15 @@ function extractDueDateItems(
     if (isV2Format(val)) {
       for (const [subCat, subVal] of Object.entries(val.sub_categories)) {
         if (subVal?.due_date) {
-          addItem(mainCat, subCat, subVal.amount ?? 0, subVal.due_date, (subVal as any)?.recurrence);
+          addItem(mainCat, subCat, subVal.amount ?? 0, subVal.due_date, (subVal as any)?.recurrence, (subVal as any)?.start_date, (subVal as any)?.end_date, (subVal as any)?.paid_dates);
         }
       }
     } else if (typeof val === "object" && val !== null && !Array.isArray(val)) {
       for (const [subCat, subVal] of Object.entries(val as Record<string, unknown>)) {
         if (typeof subVal === "object" && subVal !== null && "due_date" in subVal) {
-          const v = subVal as { amount?: number; due_date?: string | null; recurrence?: string | null };
+          const v = subVal as { amount?: number; due_date?: string | null; recurrence?: string | null; start_date?: string | null; end_date?: string | null; paid_dates?: string[] };
           if (v.due_date) {
-            addItem(mainCat, subCat, v.amount ?? 0, v.due_date, v.recurrence);
+            addItem(mainCat, subCat, v.amount ?? 0, v.due_date, v.recurrence, v.start_date, v.end_date, v.paid_dates);
           }
         }
       }
