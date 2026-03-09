@@ -303,6 +303,8 @@ const BudgetTable = ({
   onAmountChange,
   onDueDateChange,
   onRecurrenceChange,
+  onStartDateChange,
+  onEndDateChange,
   onToggleDueDate,
   dueDateEnabled,
   actuals,
@@ -317,6 +319,8 @@ const BudgetTable = ({
   onAmountChange: (group: string, sub: string, value: number) => void;
   onDueDateChange?: (group: string, sub: string, date: string | null) => void;
   onRecurrenceChange?: (group: string, sub: string, rrule: string | null) => void;
+  onStartDateChange?: (group: string, sub: string, date: string | null) => void;
+  onEndDateChange?: (group: string, sub: string, date: string | null) => void;
   onToggleDueDate?: (group: string, enabled: boolean) => void;
   dueDateEnabled?: Record<string, boolean>;
   actuals: Record<string, number>;
@@ -329,7 +333,7 @@ const BudgetTable = ({
   const totalBudget = entries.reduce((s, [, v]) => s + getAmount(v), 0);
   const totalActual = entries.reduce((s, [sub]) => s + (actuals[sub] ?? 0), 0);
   const totalRemaining = totalBudget - totalActual;
-  const colSpan = showDueDate ? 6 : 4;
+  const colSpan = showDueDate ? 8 : 4;
 
   const fmt = (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 2 });
 
@@ -381,6 +385,8 @@ const BudgetTable = ({
                 <th className="text-right px-3 py-2.5 font-medium">งบประมาณ</th>
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันกำหนดชำระ</th>}
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">ความถี่</th>}
+                {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันเริ่ม</th>}
+                {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันสิ้นสุด</th>}
                 <th className="text-right px-3 py-2.5 font-medium">จ่ายแล้ว</th>
                 <th className="text-right px-3 py-2.5 font-medium">คงเหลือ</th>
               </tr>
@@ -390,8 +396,11 @@ const BudgetTable = ({
                 const amount = getAmount(val);
                 const dueDate = getDueDate(val);
                 const recurrence = getRecurrence(val);
+                const startDt = getStartDate(val);
+                const endDt = getEndDate(val);
                 const actual = actuals[sub] ?? 0;
                 const remaining = amount - actual;
+                const hasRecurrence = recurrence !== null && recurrence !== undefined;
                 return (
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="px-3 py-2.5 text-muted-foreground">{sub}</td>
@@ -420,6 +429,24 @@ const BudgetTable = ({
                         />
                       </td>
                     )}
+                    {showDueDate && (
+                      <td className="px-3 py-2.5 text-center">
+                        {hasRecurrence ? (
+                          <DueDatePicker value={startDt} onChange={(d) => onStartDateChange?.(selectedCategory, sub, d)} />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </td>
+                    )}
+                    {showDueDate && (
+                      <td className="px-3 py-2.5 text-center">
+                        {hasRecurrence ? (
+                          <DueDatePicker value={endDt} onChange={(d) => onEndDateChange?.(selectedCategory, sub, d)} />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       {actual > 0 ? fmt(actual) : "-"}
                     </td>
@@ -439,6 +466,8 @@ const BudgetTable = ({
               <tr className="bg-muted/50 font-medium">
                 <td className="px-3 py-2.5">รวม</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalBudget)}</td>
+                {showDueDate && <td />}
+                {showDueDate && <td />}
                 {showDueDate && <td />}
                 {showDueDate && <td />}
                 <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalActual)}</td>
