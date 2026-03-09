@@ -434,7 +434,9 @@ const BudgetTable = ({
                 const startDt = getStartDate(val);
                 const endDt = getEndDate(val);
                 const actual = actuals[sub] ?? 0;
-                const remaining = amount - actual;
+                const occurrences = getOccurrences(val);
+                const totalForSub = amount * occurrences;
+                const remaining = totalForSub - actual;
                 const hasRecurrence = recurrence !== null && recurrence !== undefined;
                 return (
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
