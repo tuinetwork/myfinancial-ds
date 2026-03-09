@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { doc, getDoc, updateDoc, onSnapshot, collection, query, where, getDocs } from "firebase/firestore";
+import { expandRecurrence, formatFrequencyThai } from "@/lib/recurrence";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -21,7 +22,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   CalendarDays, ChevronLeft, ChevronRight, Home, GripVertical,
-  Banknote, Clock, AlertTriangle, CircleDollarSign, Receipt, Landmark, X, Move, CheckCircle2,
+  Banknote, Clock, AlertTriangle, CircleDollarSign, Receipt, Landmark, X, Move, CheckCircle2, RefreshCw,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
@@ -34,6 +35,8 @@ interface DueDateItem {
   dueDate: string;
   paidAmount: number;
   isPaid: boolean;
+  isRecurring: boolean;
+  recurrence?: string | null;
 }
 
 const THAI_MONTHS = [
@@ -82,8 +85,8 @@ function getStartPadding(year: number, month: number): number {
 
 type ExpenseBudgetValue =
   | number
-  | { amount: number; due_date?: string | null }
-  | { is_due_date_enabled?: boolean; sub_categories: Record<string, { amount: number; due_date?: string | null }> };
+  | { amount: number; due_date?: string | null; recurrence?: string | null }
+  | { is_due_date_enabled?: boolean; sub_categories: Record<string, { amount: number; due_date?: string | null; recurrence?: string | null }> };
 
 function isV2Format(val: unknown): val is { is_due_date_enabled?: boolean; sub_categories: Record<string, { amount: number; due_date?: string | null }> } {
   return typeof val === "object" && val !== null && "sub_categories" in val;
@@ -95,42 +98,58 @@ function extractDueDateItems(
   filterMonth?: string
 ): DueDateItem[] {
   const items: DueDateItem[] = [];
+  const [filterYear, filterMonthNum] = filterMonth ? filterMonth.split("-").map(Number) : [0, 0];
+
+  const addItem = (mainCat: string, subCat: string, amount: number, dueDate: string, recurrence?: string | null) => {
+    const paidAmount = txActuals[subCat] ?? 0;
+    const rrule = recurrence ?? null;
+
+    if (rrule && filterYear && filterMonthNum) {
+      // Expand recurring dates within the month
+      const expandedDates = expandRecurrence(dueDate, rrule, filterYear, filterMonthNum);
+      const perOccurrence = amount; // Each occurrence has the full budget amount
+      for (const expDate of expandedDates) {
+        items.push({
+          mainCategory: mainCat,
+          subCategory: subCat,
+          amount: perOccurrence,
+          dueDate: expDate,
+          paidAmount: 0, // Recurring items: individual paid tracking not yet supported
+          isPaid: false,
+          isRecurring: true,
+          recurrence: rrule,
+        });
+      }
+    } else {
+      // One-time payment
+      if (!filterMonth || dueDate.startsWith(filterMonth)) {
+        items.push({
+          mainCategory: mainCat,
+          subCategory: subCat,
+          amount,
+          dueDate,
+          paidAmount,
+          isPaid: paidAmount >= amount && amount > 0,
+          isRecurring: false,
+          recurrence: null,
+        });
+      }
+    }
+  };
 
   for (const [mainCat, val] of Object.entries(expenseBudgets)) {
     if (isV2Format(val)) {
       for (const [subCat, subVal] of Object.entries(val.sub_categories)) {
         if (subVal?.due_date) {
-          if (!filterMonth || subVal.due_date.startsWith(filterMonth)) {
-            const amount = subVal.amount ?? 0;
-            const paidAmount = txActuals[subCat] ?? 0;
-            items.push({ 
-              mainCategory: mainCat, 
-              subCategory: subCat, 
-              amount, 
-              dueDate: subVal.due_date,
-              paidAmount,
-              isPaid: paidAmount >= amount && amount > 0,
-            });
-          }
+          addItem(mainCat, subCat, subVal.amount ?? 0, subVal.due_date, (subVal as any)?.recurrence);
         }
       }
     } else if (typeof val === "object" && val !== null && !Array.isArray(val)) {
       for (const [subCat, subVal] of Object.entries(val as Record<string, unknown>)) {
         if (typeof subVal === "object" && subVal !== null && "due_date" in subVal) {
-          const v = subVal as { amount?: number; due_date?: string | null };
+          const v = subVal as { amount?: number; due_date?: string | null; recurrence?: string | null };
           if (v.due_date) {
-            if (!filterMonth || v.due_date.startsWith(filterMonth)) {
-              const amount = v.amount ?? 0;
-              const paidAmount = txActuals[subCat] ?? 0;
-              items.push({ 
-                mainCategory: mainCat, 
-                subCategory: subCat, 
-                amount, 
-                dueDate: v.due_date,
-                paidAmount,
-                isPaid: paidAmount >= amount && amount > 0,
-              });
-            }
+            addItem(mainCat, subCat, v.amount ?? 0, v.due_date, v.recurrence);
           }
         }
       }
@@ -207,6 +226,7 @@ const CalendarPage = () => {
 
   const monthTotal = useMemo(() => dueDateItems.reduce((s, i) => s + i.amount, 0), [dueDateItems]);
   const paidCount = useMemo(() => dueDateItems.filter(i => i.isPaid).length, [dueDateItems]);
+  const recurringCount = useMemo(() => dueDateItems.filter(i => i.isRecurring).length, [dueDateItems]);
   const paidByDate = useMemo(() => {
     const map: Record<string, boolean> = {};
     for (const [date, items] of Object.entries(itemsByDate)) {
@@ -322,7 +342,7 @@ const CalendarPage = () => {
               </Breadcrumb>
 
               {/* Summary Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
                   <CardContent className="p-4 flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-primary/15">
@@ -367,6 +387,17 @@ const CalendarPage = () => {
                         {dueDateItems.filter(i => getDaysUntil(i.dueDate) < 0 && !i.isPaid).length}
                         <span className="text-sm font-normal text-muted-foreground"> รายการ</span>
                       </p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/15">
+                      <RefreshCw className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground font-medium">รายการซ้ำ</p>
+                      <p className="text-lg font-bold text-foreground">{recurringCount} <span className="text-sm font-normal text-muted-foreground">รายการ</span></p>
                     </div>
                   </CardContent>
                 </Card>
@@ -612,6 +643,9 @@ const CalendarPage = () => {
                                             <span className={`font-medium text-sm truncate ${item.isPaid ? "line-through text-muted-foreground" : ""}`}>
                                               {item.subCategory}
                                             </span>
+                                            {item.isRecurring && (
+                                              <RefreshCw className="h-3 w-3 text-primary shrink-0" />
+                                            )}
                                             {item.isPaid && (
                                               <Badge variant="outline" className="text-[9px] px-1 py-0 border-accent/40 text-accent shrink-0">
                                                 ชำระแล้ว
@@ -705,6 +739,9 @@ const CalendarPage = () => {
                                 <span className={`font-medium text-sm truncate ${item.isPaid ? "line-through text-muted-foreground" : ""}`}>
                                   {item.subCategory}
                                 </span>
+                                {item.isRecurring && (
+                                  <RefreshCw className="h-3 w-3 text-primary shrink-0" />
+                                )}
                                 {item.isPaid && (
                                   <Badge variant="outline" className="text-[9px] px-1 py-0 border-accent/40 text-accent shrink-0">
                                     ชำระแล้ว

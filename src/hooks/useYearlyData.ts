@@ -83,7 +83,8 @@ function parseBudgetDocForYear(budgetDoc: any, period: string, transactions: Tra
       expenses[key] = Object.entries(subs).map(([label, val]) => {
         const budget = typeof val === "number" ? val : (val as any)?.amount ?? 0;
         const dueDate = typeof val === "object" && val !== null ? (val as any)?.due_date ?? null : null;
-        return { label, budget, dueDate };
+        const recurrence = typeof val === "object" && val !== null ? (val as any)?.recurrence ?? null : null;
+        return { label, budget, dueDate, recurrence };
       });
     }
   }

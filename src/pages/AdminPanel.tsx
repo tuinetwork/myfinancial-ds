@@ -129,7 +129,7 @@ const MigrationCard = () => {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          แปลงข้อมูล expense_budgets ของหมวด บิล, หนี้สิน, เงินออม, ค่าสมาชิก จาก number → {"{"} amount, due_date {"}"} สำหรับทุกผู้ใช้
+          แปลงข้อมูล expense_budgets ของหมวด บิล, หนี้สิน, เงินออม, ค่าสมาชิก จาก number → {"{"} amount, due_date, recurrence {"}"} สำหรับทุกผู้ใช้
         </p>
         {progress && (
           <div className="text-xs space-y-1 p-3 rounded-md bg-muted">

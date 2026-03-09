@@ -2,8 +2,9 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CalendarClock, AlertCircle, CheckCircle2 } from "lucide-react";
+import { CalendarClock, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { formatCurrency, type BudgetData } from "@/hooks/useBudgetData";
+import { expandRecurrence, formatFrequencyThai } from "@/lib/recurrence";
 
 interface UpcomingBillsProps {
   data: BudgetData;
@@ -19,6 +20,7 @@ interface BillItem {
   isPaid: boolean;
   paidAmount: number;
   paidPercent: number;
+  isRecurring: boolean;
 }
 
 function formatThaiDate(dateStr: string): string {
@@ -61,7 +63,32 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
     for (const cat of categories) {
       const catItems = data.expenses[cat] || [];
       for (const item of catItems) {
-        if (item.dueDate) {
+        if (!item.dueDate) continue;
+        const rrule = item.recurrence ?? null;
+
+        if (rrule) {
+          // Expand recurring items for the current month
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = now.getMonth() + 1;
+          const expandedDates = expandRecurrence(item.dueDate, rrule, year, month);
+          for (const expDate of expandedDates) {
+            const daysUntil = getDaysUntil(expDate);
+            items.push({
+              label: item.label,
+              category: categoryNames[cat],
+              amount: item.budget,
+              dueDate: expDate,
+              isOverdue: daysUntil < 0,
+              daysUntil,
+              isPaid: false,
+              paidAmount: 0,
+              paidPercent: 0,
+              isRecurring: true,
+            });
+          }
+        } else {
+          // One-time payment
           const daysUntil = getDaysUntil(item.dueDate);
           const paidAmount = txActuals[item.label] ?? 0;
           const isPaid = paidAmount >= item.budget && item.budget > 0;
@@ -76,6 +103,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
             isPaid,
             paidAmount,
             paidPercent,
+            isRecurring: false,
           });
         }
       }
@@ -110,6 +138,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
           >
             <div className="flex-1 min-w-0">
               <div className={`font-medium text-sm truncate ${bill.isPaid ? "line-through text-muted-foreground" : ""}`}>
+                {bill.isRecurring && <RefreshCw className="h-3 w-3 inline-block mr-1 text-primary" />}
                 {bill.label}
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">

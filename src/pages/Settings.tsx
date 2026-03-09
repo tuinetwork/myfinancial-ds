@@ -8,6 +8,7 @@ import { collection, doc, getDoc, getDocs, updateDoc, setDoc, query, where } fro
 import { cn } from "@/lib/utils";
 import { firestore } from "@/lib/firebase";
 import { format as fnsFormat, parse as fnsParse } from "date-fns";
+import { buildRRule, getFrequencyType, formatFrequencyThai } from "@/lib/recurrence";
 import { th } from "date-fns/locale";
 import { useAvailableMonths, createBudgetFromLatest } from "@/hooks/useBudgetData";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -54,7 +55,7 @@ type SettingsTab = "budget" | "categories" | "savings" | "user";
 
 // ─── Budget tree types ───
 // Budget value can be a number (general) or {amount, due_date} (bills, debts, savings, subscriptions)
-type BudgetValue = number | { amount: number; due_date: string | null };
+type BudgetValue = number | { amount: number; due_date: string | null; recurrence?: string | null };
 
 interface BudgetTreeData {
   income_estimates: Record<string, Record<string, number>>;
@@ -76,6 +77,10 @@ function getAmount(val: BudgetValue): number {
 
 function getDueDate(val: BudgetValue): string | null {
   return typeof val === "object" && val !== null ? val?.due_date ?? null : null;
+}
+
+function getRecurrence(val: BudgetValue): string | null {
+  return typeof val === "object" && val !== null ? (val as any)?.recurrence ?? null : null;
 }
 
 // Format date string to Thai Buddhist Era display
@@ -244,6 +249,37 @@ const DueDatePicker = ({
   );
 };
 
+// ─── Frequency Picker ───
+const FrequencyPicker = ({
+  value,
+  dueDate,
+  onChange,
+}: {
+  value: string | null;
+  dueDate: string | null;
+  onChange: (rrule: string | null) => void;
+}) => {
+  const freqType = getFrequencyType(value);
+
+  const handleChange = (type: string) => {
+    onChange(buildRRule(type, dueDate));
+  };
+
+  return (
+    <Select value={freqType} onValueChange={handleChange}>
+      <SelectTrigger className="h-8 w-32 text-xs">
+        <SelectValue placeholder="ความถี่" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="once" className="text-xs">จ่ายครั้งเดียว</SelectItem>
+        <SelectItem value="daily" className="text-xs">รายวัน</SelectItem>
+        <SelectItem value="weekly" className="text-xs">รายสัปดาห์</SelectItem>
+        <SelectItem value="monthly" className="text-xs">รายเดือน</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+};
+
 // ─── Budget Table for a category group ───
 const BudgetTable = ({
   title,
@@ -254,6 +290,7 @@ const BudgetTable = ({
   onCategoryChange,
   onAmountChange,
   onDueDateChange,
+  onRecurrenceChange,
   onToggleDueDate,
   dueDateEnabled,
   actuals,
@@ -267,6 +304,7 @@ const BudgetTable = ({
   onCategoryChange: (cat: string) => void;
   onAmountChange: (group: string, sub: string, value: number) => void;
   onDueDateChange?: (group: string, sub: string, date: string | null) => void;
+  onRecurrenceChange?: (group: string, sub: string, rrule: string | null) => void;
   onToggleDueDate?: (group: string, enabled: boolean) => void;
   dueDateEnabled?: Record<string, boolean>;
   actuals: Record<string, number>;
@@ -279,6 +317,7 @@ const BudgetTable = ({
   const totalBudget = entries.reduce((s, [, v]) => s + getAmount(v), 0);
   const totalActual = entries.reduce((s, [sub]) => s + (actuals[sub] ?? 0), 0);
   const totalRemaining = totalBudget - totalActual;
+  const colSpan = showDueDate ? 6 : 4;
 
   const fmt = (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 2 });
 
@@ -329,6 +368,7 @@ const BudgetTable = ({
                 <th className="text-left px-3 py-2.5 font-medium">หมวดหมู่</th>
                 <th className="text-right px-3 py-2.5 font-medium">งบประมาณ</th>
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันกำหนดชำระ</th>}
+                {showDueDate && <th className="text-center px-3 py-2.5 font-medium">ความถี่</th>}
                 <th className="text-right px-3 py-2.5 font-medium">จ่ายแล้ว</th>
                 <th className="text-right px-3 py-2.5 font-medium">คงเหลือ</th>
               </tr>
@@ -337,6 +377,7 @@ const BudgetTable = ({
               {entries.map(([sub, val]) => {
                 const amount = getAmount(val);
                 const dueDate = getDueDate(val);
+                const recurrence = getRecurrence(val);
                 const actual = actuals[sub] ?? 0;
                 const remaining = amount - actual;
                 return (
@@ -358,6 +399,15 @@ const BudgetTable = ({
                         />
                       </td>
                     )}
+                    {showDueDate && (
+                      <td className="px-3 py-2.5 text-center">
+                        <FrequencyPicker
+                          value={recurrence}
+                          dueDate={dueDate}
+                          onChange={(rrule) => onRecurrenceChange?.(selectedCategory, sub, rrule)}
+                        />
+                      </td>
+                    )}
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       {actual > 0 ? fmt(actual) : "-"}
                     </td>
@@ -369,7 +419,7 @@ const BudgetTable = ({
               })}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={showDueDate ? 5 : 4} className="px-3 py-4 text-center text-muted-foreground">ไม่มีรายการ</td>
+                  <td colSpan={colSpan} className="px-3 py-4 text-center text-muted-foreground">ไม่มีรายการ</td>
                 </tr>
               )}
             </tbody>
@@ -377,6 +427,7 @@ const BudgetTable = ({
               <tr className="bg-muted/50 font-medium">
                 <td className="px-3 py-2.5">รวม</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalBudget)}</td>
+                {showDueDate && <td />}
                 {showDueDate && <td />}
                 <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalActual)}</td>
                 <td className={`px-3 py-2.5 text-right tabular-nums ${remainingColor(totalBudget, totalActual)}`}>{fmt(totalRemaining)}</td>
@@ -509,7 +560,7 @@ const BudgetSettings = () => {
     if (!budgetData) return;
     const existing = budgetData.expense_budgets[mainCat]?.[subCat];
     const newVal: BudgetValue = MAP_CATEGORIES.includes(mainCat)
-      ? { amount: value, due_date: getDueDate(existing ?? 0) }
+      ? { amount: value, due_date: getDueDate(existing ?? 0), recurrence: getRecurrence(existing ?? 0) }
       : value;
     setBudgetData({
       ...budgetData,
@@ -523,7 +574,20 @@ const BudgetSettings = () => {
   const updateExpenseDueDate = (mainCat: string, subCat: string, date: string | null) => {
     if (!budgetData) return;
     const existing = budgetData.expense_budgets[mainCat]?.[subCat];
-    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: date };
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: date, recurrence: getRecurrence(existing ?? 0) };
+    setBudgetData({
+      ...budgetData,
+      expense_budgets: {
+        ...budgetData.expense_budgets,
+        [mainCat]: { ...budgetData.expense_budgets[mainCat], [subCat]: newVal },
+      },
+    });
+  };
+
+  const updateExpenseRecurrence = (mainCat: string, subCat: string, rrule: string | null) => {
+    if (!budgetData) return;
+    const existing = budgetData.expense_budgets[mainCat]?.[subCat];
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: getDueDate(existing ?? 0), recurrence: rrule };
     setBudgetData({
       ...budgetData,
       expense_budgets: {
@@ -540,7 +604,7 @@ const BudgetSettings = () => {
       const updatedSubs = { ...budgetData.expense_budgets[mainCat] };
       for (const [sub, val] of Object.entries(updatedSubs)) {
         if (typeof val === "object" && val !== null) {
-          updatedSubs[sub] = { ...val, due_date: null };
+          updatedSubs[sub] = { ...val, due_date: null, recurrence: null };
         }
       }
       setBudgetData({
@@ -618,6 +682,7 @@ const BudgetSettings = () => {
               onCategoryChange={setSelectedExpenseCat}
               onAmountChange={updateExpense}
               onDueDateChange={updateExpenseDueDate}
+              onRecurrenceChange={updateExpenseRecurrence}
               onToggleDueDate={handleToggleDueDate}
               dueDateEnabled={dueDateEnabled}
               actuals={txActuals}
