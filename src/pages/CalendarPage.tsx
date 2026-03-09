@@ -150,6 +150,7 @@ function extractDueDateItems(
           recurrence: null,
           paidDates: itemPaidDates,
           txDaysDiff: isPaidByTx ? matchResult?.daysDiff : undefined,
+          txDate: isPaidByTx ? matchResult?.txDate : undefined,
         });
       }
     }
