@@ -15,6 +15,8 @@ import { RecentTransactions } from "@/components/RecentTransactions";
 import { TopSpendingCategories } from "@/components/TopSpendingCategories";
 import { FinancialHealthCard } from "@/components/FinancialHealthCard";
 import { SavingsGoalCard } from "@/components/SavingsGoalCard";
+import { UpcomingBills } from "@/components/UpcomingBills";
+import { FinancialCalendar } from "@/components/FinancialCalendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -180,9 +182,16 @@ const Index = () => {
               <>
                 <SummaryCards data={data} carryOver={carryOver} />
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                   <FinancialHealthCard data={data} carryOver={carryOver} />
                   <SavingsGoalCard data={data} />
+                  <UpcomingBills data={data} />
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                  <div className="xl:col-span-2">
+                    <FinancialCalendar data={data} />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
