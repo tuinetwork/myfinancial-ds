@@ -787,9 +787,10 @@ const CalendarPage = () => {
                                 
                                 return (
                                   <Draggable
-                                    key={`${item.mainCategory}-${item.subCategory}`}
-                                    draggableId={`${item.mainCategory}-${item.subCategory}`}
+                                    key={`${item.mainCategory}-${item.subCategory}-${item.dueDate}`}
+                                    draggableId={`${item.mainCategory}-${item.subCategory}-${item.dueDate}`}
                                     index={index}
+                                    isDragDisabled={item.isRecurring}
                                   >
                                     {(provided, snapshot) => (
                                       <div
@@ -806,12 +807,18 @@ const CalendarPage = () => {
                                           }
                                         `}
                                       >
-                                        <div 
-                                          {...provided.dragHandleProps} 
-                                          className="cursor-grab active:cursor-grabbing p-1 -ml-1 rounded hover:bg-muted/50"
-                                        >
-                                          <GripVertical className="h-4 w-4 text-muted-foreground/50" />
-                                        </div>
+                                        {!item.isRecurring ? (
+                                          <div 
+                                            {...provided.dragHandleProps} 
+                                            className="cursor-grab active:cursor-grabbing p-1 -ml-1 rounded hover:bg-muted/50"
+                                          >
+                                            <GripVertical className="h-4 w-4 text-muted-foreground/50" />
+                                          </div>
+                                        ) : (
+                                          <div {...provided.dragHandleProps} className="p-1 -ml-1">
+                                            <RefreshCw className="h-4 w-4 text-muted-foreground/30" />
+                                          </div>
+                                        )}
                                         <div className={`p-1.5 rounded-md shrink-0 ${
                                           item.isPaid ? "bg-accent/15" : isOverdue ? "bg-destructive/10" : "bg-primary/10"
                                         }`}>
