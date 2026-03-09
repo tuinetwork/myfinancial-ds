@@ -71,9 +71,13 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
           const now = new Date();
           const year = now.getFullYear();
           const month = now.getMonth() + 1;
-          const expandedDates = expandRecurrence(item.dueDate, rrule, year, month);
+          const startDate = item.startDate ?? null;
+          const endDate = item.endDate ?? null;
+          const paidDates = item.paidDates ?? [];
+          const expandedDates = expandRecurrence(item.dueDate, rrule, year, month, startDate, endDate);
           for (const expDate of expandedDates) {
             const daysUntil = getDaysUntil(expDate);
+            const isPaidByDate = paidDates.includes(expDate);
             items.push({
               label: item.label,
               category: categoryNames[cat],
@@ -81,9 +85,9 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
               dueDate: expDate,
               isOverdue: daysUntil < 0,
               daysUntil,
-              isPaid: false,
-              paidAmount: 0,
-              paidPercent: 0,
+              isPaid: isPaidByDate,
+              paidAmount: isPaidByDate ? item.budget : 0,
+              paidPercent: isPaidByDate ? 100 : 0,
               isRecurring: true,
             });
           }
