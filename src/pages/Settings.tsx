@@ -606,6 +606,7 @@ const BudgetSettings = () => {
   const [budgetData, setBudgetData] = useState<BudgetTreeData | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [copying, setCopying] = useState(false);
   const [selectedExpenseCat, setSelectedExpenseCat] = useState<string>("");
   const [selectedIncomeCat, setSelectedIncomeCat] = useState<string>("");
   const [txBySubDate, setTxBySubDate] = useState<Record<string, TxEntry[]>>({});
