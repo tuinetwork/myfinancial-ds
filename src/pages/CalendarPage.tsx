@@ -186,12 +186,13 @@ const CalendarPage = () => {
   const [txBySubDate, setTxBySubDate] = useState<Record<string, TxEntry[]>>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [crossMonthBudgets, setCrossMonthBudgets] = useState<Record<string, ExpenseBudgetValue>>({});
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const period = `${year}-${String(month + 1).padStart(2, "0")}`;
 
-  // Fetch budget data
+  // Fetch budget data for current period
   useEffect(() => {
     if (!userId) return;
     setLoading(true);
@@ -206,6 +207,56 @@ const CalendarPage = () => {
     });
     return () => unsub();
   }, [userId, period]);
+
+  // Fetch ALL budget docs to find recurring items from other months that overlap current view
+  useEffect(() => {
+    if (!userId) return;
+    const budgetsCol = collection(firestore, "users", userId, "budgets");
+    getDocs(budgetsCol).then((snap) => {
+      const viewStart = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const viewEnd = `${year}-${String(month + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
+      const merged: Record<string, ExpenseBudgetValue> = {};
+
+      snap.forEach((docSnap) => {
+        const docPeriod = docSnap.id;
+        if (docPeriod === period) return; // skip current period (already loaded via onSnapshot)
+        const data = docSnap.data();
+        const eb = (data.expense_budgets ?? {}) as Record<string, ExpenseBudgetValue>;
+
+        for (const [mainCat, val] of Object.entries(eb)) {
+          const processSubItem = (subCat: string, subVal: any) => {
+            if (!subVal || typeof subVal !== "object" || !subVal.recurrence || !subVal.due_date) return;
+            const startDate = subVal.start_date || subVal.due_date;
+            const endDate = subVal.end_date || null;
+            // Check if this recurring item's range overlaps with the viewed month
+            if (startDate > viewEnd) return; // starts after viewed month
+            if (endDate && endDate < viewStart) return; // ended before viewed month
+            // Include this item — merge into crossMonthBudgets
+            if (!merged[mainCat]) merged[mainCat] = {} as any;
+            const cat = merged[mainCat] as Record<string, any>;
+            if (isV2Format(cat)) {
+              cat.sub_categories[subCat] = subVal;
+            } else {
+              cat[subCat] = subVal;
+            }
+          };
+
+          if (isV2Format(val)) {
+            for (const [subCat, subVal] of Object.entries(val.sub_categories)) {
+              processSubItem(subCat, subVal);
+            }
+          } else if (typeof val === "object" && val !== null && !Array.isArray(val) && !("amount" in val)) {
+            for (const [subCat, subVal] of Object.entries(val as Record<string, unknown>)) {
+              processSubItem(subCat, subVal);
+            }
+          }
+        }
+      });
+
+      setCrossMonthBudgets(merged);
+    });
+  }, [userId, period, year, month]);
 
   // Fetch transactions for actuals (to determine paid status) — store per-date entries
   useEffect(() => {
@@ -228,7 +279,38 @@ const CalendarPage = () => {
     });
   }, [userId, period]);
 
-  const dueDateItems = useMemo(() => extractDueDateItems(expenseBudgets, txBySubDate, period), [expenseBudgets, txBySubDate, period]);
+  // Merge current period budgets with cross-month recurring items (deduplicate by subCategory)
+  const mergedBudgets = useMemo(() => {
+    const result = { ...expenseBudgets };
+    for (const [mainCat, val] of Object.entries(crossMonthBudgets)) {
+      if (!result[mainCat]) {
+        result[mainCat] = val;
+      } else {
+        // Merge sub-items, but current period takes priority
+        const existing = result[mainCat];
+        if (typeof val === "object" && val !== null && typeof existing === "object" && existing !== null) {
+          if (isV2Format(existing) && isV2Format(val)) {
+            const mergedSubs = { ...existing.sub_categories };
+            for (const [subCat, subVal] of Object.entries(val.sub_categories)) {
+              if (!mergedSubs[subCat]) mergedSubs[subCat] = subVal;
+            }
+            result[mainCat] = { ...existing, sub_categories: mergedSubs };
+          } else if (!isV2Format(existing) && !isV2Format(val) && !("amount" in existing)) {
+            const existingFlat = existing as Record<string, any>;
+            const valFlat = val as Record<string, any>;
+            const merged = { ...existingFlat };
+            for (const [subCat, subVal] of Object.entries(valFlat)) {
+              if (!merged[subCat]) merged[subCat] = subVal;
+            }
+            result[mainCat] = merged as ExpenseBudgetValue;
+          }
+        }
+      }
+    }
+    return result;
+  }, [expenseBudgets, crossMonthBudgets]);
+
+  const dueDateItems = useMemo(() => extractDueDateItems(mergedBudgets, txBySubDate, period), [mergedBudgets, txBySubDate, period]);
 
   const itemsByDate = useMemo(() => {
     const map: Record<string, DueDateItem[]> = {};
