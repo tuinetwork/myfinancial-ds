@@ -604,7 +604,7 @@ const BudgetSettings = () => {
       const updatedSubs = { ...budgetData.expense_budgets[mainCat] };
       for (const [sub, val] of Object.entries(updatedSubs)) {
         if (typeof val === "object" && val !== null) {
-          updatedSubs[sub] = { ...val, due_date: null };
+          updatedSubs[sub] = { ...val, due_date: null, recurrence: null };
         }
       }
       setBudgetData({
