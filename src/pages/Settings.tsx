@@ -309,6 +309,7 @@ const BudgetTable = ({
   dueDateEnabled,
   actuals,
   isExpense,
+  selectedPeriod,
 }: {
   title: string;
   titleColor: string;
