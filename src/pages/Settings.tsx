@@ -682,6 +682,7 @@ const BudgetSettings = () => {
               onCategoryChange={setSelectedExpenseCat}
               onAmountChange={updateExpense}
               onDueDateChange={updateExpenseDueDate}
+              onRecurrenceChange={updateExpenseRecurrence}
               onToggleDueDate={handleToggleDueDate}
               dueDateEnabled={dueDateEnabled}
               actuals={txActuals}
