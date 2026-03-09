@@ -106,7 +106,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
           const isPaidByDate = paidDates.includes(item.dueDate ?? "");
           const txList = txBySubDate[item.label] ?? [];
           const txMatchMap = matchTxToOccurrences(txList, [item.dueDate], item.budget);
-          const isPaidByTx = txMatchMap.get(item.dueDate) ?? false;
+          const isPaidByTx = txMatchMap.get(item.dueDate)?.isPaid ?? false;
           const isPaid = isPaidByDate || isPaidByTx;
           const totalTx = txList.reduce((s, t) => s + t.amount, 0);
           const paidAmount = isPaid ? item.budget : totalTx;
