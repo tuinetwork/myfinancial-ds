@@ -800,6 +800,7 @@ const BudgetSettings = () => {
               dueDateEnabled={dueDateEnabled}
               actuals={txActuals}
               isExpense
+              selectedPeriod={selectedYear && selectedMonth ? `${selectedYear}-${selectedMonth}` : undefined}
             />
             <BudgetTable
               title="รายรับ"
@@ -810,6 +811,7 @@ const BudgetSettings = () => {
               onCategoryChange={setSelectedIncomeCat}
               onAmountChange={updateIncome}
               actuals={txActuals}
+              selectedPeriod={selectedYear && selectedMonth ? `${selectedYear}-${selectedMonth}` : undefined}
             />
           </div>
         </>
