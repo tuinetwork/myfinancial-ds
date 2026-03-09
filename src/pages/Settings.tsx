@@ -820,7 +820,7 @@ const BudgetSettings = () => {
               onEndDateChange={updateEndDate}
               onToggleDueDate={handleToggleDueDate}
               dueDateEnabled={dueDateEnabled}
-              actuals={txActuals}
+              txBySubDate={txBySubDate}
               isExpense
               selectedPeriod={selectedYear && selectedMonth ? `${selectedYear}-${selectedMonth}` : undefined}
             />
