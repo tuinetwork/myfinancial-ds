@@ -39,6 +39,7 @@ interface DueDateItem {
   recurrence?: string | null;
   paidDates?: string[];
   txDaysDiff?: number; // positive = late, negative = early, 0 = on time, undefined = not matched by tx
+  txDate?: string; // actual transaction date that matched
 }
 
 const THAI_MONTHS = [
@@ -127,6 +128,7 @@ function extractDueDateItems(
           recurrence: rrule,
           paidDates: itemPaidDates,
           txDaysDiff: isPaidByTx ? matchResult?.daysDiff : undefined,
+          txDate: isPaidByTx ? matchResult?.txDate : undefined,
         });
       }
     } else {
@@ -148,6 +150,7 @@ function extractDueDateItems(
           recurrence: null,
           paidDates: itemPaidDates,
           txDaysDiff: isPaidByTx ? matchResult?.daysDiff : undefined,
+          txDate: isPaidByTx ? matchResult?.txDate : undefined,
         });
       }
     }
@@ -607,10 +610,11 @@ const CalendarPage = () => {
                                     <div className="text-[9px] text-accent font-medium text-center mt-0.5">
                                       {(() => {
                                         // Check if any item was paid early/late via tolerance
-                                        const toleranceItem = dayItems.find(i => i.isPaid && i.txDaysDiff !== undefined && i.txDaysDiff !== 0);
-                                        if (toleranceItem && toleranceItem.txDaysDiff !== undefined) {
-                                          if (toleranceItem.txDaysDiff < 0) return `จ่ายก่อน ${Math.abs(toleranceItem.txDaysDiff)} วัน`;
-                                          if (toleranceItem.txDaysDiff > 0) return `จ่ายเลท ${toleranceItem.txDaysDiff} วัน`;
+                                        const toleranceItem = dayItems.find(i => i.isPaid && i.txDaysDiff !== undefined && i.txDaysDiff !== 0 && i.txDate);
+                                        if (toleranceItem && toleranceItem.txDaysDiff !== undefined && toleranceItem.txDate) {
+                                          const txDateFormatted = formatThaiDate(toleranceItem.txDate).split(" ").slice(0, 2).join(" ");
+                                          if (toleranceItem.txDaysDiff < 0) return `จ่ายก่อน ${Math.abs(toleranceItem.txDaysDiff)} วัน (${txDateFormatted})`;
+                                          if (toleranceItem.txDaysDiff > 0) return `จ่ายเลท ${toleranceItem.txDaysDiff} วัน (${txDateFormatted})`;
                                         }
                                         return "ชำระแล้ว";
                                       })()}
@@ -750,10 +754,10 @@ const CalendarPage = () => {
                                                     : "border-orange-400 text-orange-500"
                                                   : "border-accent/40 text-accent"
                                               }`}>
-                                                {item.txDaysDiff !== undefined && item.txDaysDiff !== 0
+                                                {item.txDaysDiff !== undefined && item.txDaysDiff !== 0 && item.txDate
                                                   ? item.txDaysDiff < 0
-                                                    ? `จ่ายก่อน ${Math.abs(item.txDaysDiff)} วัน`
-                                                    : `จ่ายเลท ${item.txDaysDiff} วัน`
+                                                    ? `จ่ายก่อน ${Math.abs(item.txDaysDiff)} วัน (${formatThaiDate(item.txDate).split(" ").slice(0, 2).join(" ")})`
+                                                    : `จ่ายเลท ${item.txDaysDiff} วัน (${formatThaiDate(item.txDate).split(" ").slice(0, 2).join(" ")})`
                                                   : "ชำระแล้ว"
                                                 }
                                               </Badge>
