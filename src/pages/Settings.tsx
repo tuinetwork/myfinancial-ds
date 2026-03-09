@@ -560,8 +560,21 @@ const BudgetTable = ({
                       </td>
                     )}
                     {showDueDate && (
-                      <td className="px-3 py-2.5 text-center tabular-nums text-muted-foreground">
-                        {hasRecurrence && occurrences > 1 ? `${occurrences} ครั้ง` : "-"}
+                      <td className="px-3 py-2.5 text-center">
+                        {hasRecurrence && startDt ? (
+                          <Input
+                            type="number"
+                            min={1}
+                            value={occurrences}
+                            onChange={(e) => {
+                              const count = Math.max(1, Number(e.target.value) || 1);
+                              onOccurrencesChange?.(selectedCategory, sub, count);
+                            }}
+                            className="h-8 w-20 text-sm text-center mx-auto [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                          />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
                       </td>
                     )}
                     <td className="px-3 py-2.5 text-right tabular-nums">
