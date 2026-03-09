@@ -98,7 +98,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-            <CheckCircle2 className="h-10 w-10 mb-2 text-emerald-500/50" />
+            <CheckCircle2 className="h-10 w-10 mb-2 text-primary/50" />
             <p className="text-sm">ไม่มีบิลที่ต้องชำระในช่วงนี้</p>
           </div>
         </CardContent>
