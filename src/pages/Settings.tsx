@@ -83,6 +83,18 @@ function getRecurrence(val: BudgetValue): string | null {
   return typeof val === "object" && val !== null ? (val as any)?.recurrence ?? null : null;
 }
 
+function getStartDate(val: BudgetValue): string | null {
+  return typeof val === "object" && val !== null ? (val as any)?.start_date ?? null : null;
+}
+
+function getEndDate(val: BudgetValue): string | null {
+  return typeof val === "object" && val !== null ? (val as any)?.end_date ?? null : null;
+}
+
+function getPaidDates(val: BudgetValue): string[] {
+  return typeof val === "object" && val !== null ? (val as any)?.paid_dates ?? [] : [];
+}
+
 // Format date string to Thai Buddhist Era display
 function formatThaiDate(dateStr: string | null): string {
   if (!dateStr) return "-";
