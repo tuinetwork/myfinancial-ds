@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { doc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, updateDoc, onSnapshot, collection, query, where, getDocs } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   CalendarDays, ChevronLeft, ChevronRight, Home, GripVertical,
-  Banknote, Clock, AlertTriangle, CircleDollarSign, Receipt, Landmark, X, Move,
+  Banknote, Clock, AlertTriangle, CircleDollarSign, Receipt, Landmark, X, Move, CheckCircle2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
@@ -32,6 +32,8 @@ interface DueDateItem {
   subCategory: string;
   amount: number;
   dueDate: string;
+  paidAmount: number;
+  isPaid: boolean;
 }
 
 const THAI_MONTHS = [
@@ -89,6 +91,7 @@ function isV2Format(val: unknown): val is { is_due_date_enabled?: boolean; sub_c
 
 function extractDueDateItems(
   expenseBudgets: Record<string, ExpenseBudgetValue>,
+  txActuals: Record<string, number>,
   filterMonth?: string
 ): DueDateItem[] {
   const items: DueDateItem[] = [];
@@ -98,7 +101,16 @@ function extractDueDateItems(
       for (const [subCat, subVal] of Object.entries(val.sub_categories)) {
         if (subVal?.due_date) {
           if (!filterMonth || subVal.due_date.startsWith(filterMonth)) {
-            items.push({ mainCategory: mainCat, subCategory: subCat, amount: subVal.amount ?? 0, dueDate: subVal.due_date });
+            const amount = subVal.amount ?? 0;
+            const paidAmount = txActuals[subCat] ?? 0;
+            items.push({ 
+              mainCategory: mainCat, 
+              subCategory: subCat, 
+              amount, 
+              dueDate: subVal.due_date,
+              paidAmount,
+              isPaid: paidAmount >= amount && amount > 0,
+            });
           }
         }
       }
@@ -108,7 +120,16 @@ function extractDueDateItems(
           const v = subVal as { amount?: number; due_date?: string | null };
           if (v.due_date) {
             if (!filterMonth || v.due_date.startsWith(filterMonth)) {
-              items.push({ mainCategory: mainCat, subCategory: subCat, amount: v.amount ?? 0, dueDate: v.due_date });
+              const amount = v.amount ?? 0;
+              const paidAmount = txActuals[subCat] ?? 0;
+              items.push({ 
+                mainCategory: mainCat, 
+                subCategory: subCat, 
+                amount, 
+                dueDate: v.due_date,
+                paidAmount,
+                isPaid: paidAmount >= amount && amount > 0,
+              });
             }
           }
         }
@@ -124,6 +145,7 @@ const CalendarPage = () => {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
   const [expenseBudgets, setExpenseBudgets] = useState<Record<string, ExpenseBudgetValue>>({});
+  const [txActuals, setTxActuals] = useState<Record<string, number>>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -131,6 +153,7 @@ const CalendarPage = () => {
   const month = currentDate.getMonth();
   const period = `${year}-${String(month + 1).padStart(2, "0")}`;
 
+  // Fetch budget data
   useEffect(() => {
     if (!userId) return;
     setLoading(true);
@@ -146,7 +169,24 @@ const CalendarPage = () => {
     return () => unsub();
   }, [userId, period]);
 
-  const dueDateItems = useMemo(() => extractDueDateItems(expenseBudgets, period), [expenseBudgets, period]);
+  // Fetch transactions for actuals (to determine paid status)
+  useEffect(() => {
+    if (!userId || !period) return;
+    const txCol = collection(firestore, "users", userId, "transactions");
+    const txQ = query(txCol, where("month_year", "==", period));
+    getDocs(txQ).then((txSnap) => {
+      const map: Record<string, number> = {};
+      txSnap.forEach((d) => {
+        const data = d.data();
+        const subCat = (data.sub_category as string) ?? "";
+        const amount = (data.amount as number) ?? 0;
+        if (subCat) map[subCat] = (map[subCat] || 0) + amount;
+      });
+      setTxActuals(map);
+    });
+  }, [userId, period]);
+
+  const dueDateItems = useMemo(() => extractDueDateItems(expenseBudgets, txActuals, period), [expenseBudgets, txActuals, period]);
 
   const itemsByDate = useMemo(() => {
     const map: Record<string, DueDateItem[]> = {};
@@ -166,6 +206,14 @@ const CalendarPage = () => {
   }, [itemsByDate]);
 
   const monthTotal = useMemo(() => dueDateItems.reduce((s, i) => s + i.amount, 0), [dueDateItems]);
+  const paidCount = useMemo(() => dueDateItems.filter(i => i.isPaid).length, [dueDateItems]);
+  const paidByDate = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const [date, items] of Object.entries(itemsByDate)) {
+      map[date] = items.every(i => i.isPaid);
+    }
+    return map;
+  }, [itemsByDate]);
 
   const days = getDaysInMonth(year, month);
   const startPadding = getStartPadding(year, month);
@@ -274,7 +322,7 @@ const CalendarPage = () => {
               </Breadcrumb>
 
               {/* Summary Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
                   <CardContent className="p-4 flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-primary/15">
@@ -289,15 +337,26 @@ const CalendarPage = () => {
                 <Card className="bg-gradient-to-br from-accent/10 to-accent/5 border-accent/20">
                   <CardContent className="p-4 flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-accent/15">
-                      <CalendarDays className="h-5 w-5 text-accent" />
+                      <CheckCircle2 className="h-5 w-5 text-accent" />
                     </div>
                     <div>
-                      <p className="text-[11px] text-muted-foreground font-medium">จำนวนรายการ</p>
-                      <p className="text-lg font-bold text-foreground">{dueDateItems.length} <span className="text-sm font-normal text-muted-foreground">รายการ</span></p>
+                      <p className="text-[11px] text-muted-foreground font-medium">ชำระแล้ว</p>
+                      <p className="text-lg font-bold text-foreground">{paidCount} <span className="text-sm font-normal text-muted-foreground">/ {dueDateItems.length}</span></p>
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20 col-span-2 sm:col-span-1">
+                <Card className="bg-gradient-to-br from-muted/50 to-muted/20 border-border">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <Clock className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground font-medium">รอชำระ</p>
+                      <p className="text-lg font-bold text-foreground">{dueDateItems.length - paidCount} <span className="text-sm font-normal text-muted-foreground">รายการ</span></p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20">
                   <CardContent className="p-4 flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-destructive/15">
                       <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -305,7 +364,7 @@ const CalendarPage = () => {
                     <div>
                       <p className="text-[11px] text-muted-foreground font-medium">เลยกำหนด</p>
                       <p className="text-lg font-bold text-foreground">
-                        {dueDateItems.filter(i => getDaysUntil(i.dueDate) < 0).length}
+                        {dueDateItems.filter(i => getDaysUntil(i.dueDate) < 0 && !i.isPaid).length}
                         <span className="text-sm font-normal text-muted-foreground"> รายการ</span>
                       </p>
                     </div>
@@ -364,7 +423,9 @@ const CalendarPage = () => {
                           const total = totalByDate[dateStr] || 0;
                           const isToday = dateStr === todayStr;
                           const hasItems = dayItems.length > 0;
-                          const isOverdue = hasItems && getDaysUntil(dateStr) < 0;
+                          const allPaid = paidByDate[dateStr] ?? false;
+                          const somePaid = hasItems && dayItems.some(i => i.isPaid);
+                          const isOverdue = hasItems && !allPaid && getDaysUntil(dateStr) < 0;
                           const isSunday = d.getDay() === 0;
                           const isSaturday = d.getDay() === 6;
                           const isSelected = dateStr === selectedDate;
@@ -379,11 +440,13 @@ const CalendarPage = () => {
                                   className={`h-20 sm:h-24 p-1 sm:p-1.5 rounded-lg border text-xs transition-all duration-200 relative group
                                     ${isSelected
                                       ? "border-primary ring-2 ring-primary/30 bg-primary/10 shadow-md"
-                                      : isToday
-                                        ? "border-primary/50 bg-primary/5 shadow-sm"
-                                        : hasItems
-                                          ? "border-border bg-card hover:shadow-md hover:border-primary/30"
-                                          : "border-border/50 bg-card/50 hover:bg-card"
+                                      : allPaid
+                                        ? "border-accent/50 bg-accent/5"
+                                        : isToday
+                                          ? "border-primary/50 bg-primary/5 shadow-sm"
+                                          : hasItems
+                                            ? "border-border bg-card hover:shadow-md hover:border-primary/30"
+                                            : "border-border/50 bg-card/50 hover:bg-card"
                                     }
                                     ${snapshot.isDraggingOver ? "bg-accent/30 border-accent ring-2 ring-accent/40 scale-[1.03]" : ""}
                                     ${hasItems ? "cursor-pointer" : ""}
@@ -399,29 +462,40 @@ const CalendarPage = () => {
                                     `}>
                                       {d.getDate()}
                                     </span>
-                                    {isOverdue && (
+                                    {allPaid ? (
+                                      <CheckCircle2 className="h-3 w-3 text-accent" />
+                                    ) : isOverdue ? (
                                       <AlertTriangle className="h-3 w-3 text-destructive animate-pulse" />
-                                    )}
+                                    ) : null}
                                   </div>
 
                                   {/* Amount badge */}
                                   {total > 0 && (
                                     <div className={`mt-0.5 px-1 py-0.5 rounded text-[9px] sm:text-[10px] font-medium truncate text-center
-                                      ${isOverdue
-                                        ? "bg-destructive/15 text-destructive"
-                                        : "bg-primary/10 text-primary"
+                                      ${allPaid
+                                        ? "bg-accent/15 text-accent"
+                                        : isOverdue
+                                          ? "bg-destructive/15 text-destructive"
+                                          : "bg-primary/10 text-primary"
                                       }
                                     `}>
                                       {formatCurrency(total)}
                                     </div>
                                   )}
 
-                                  {/* Item count dots */}
-                                  {dayItems.length > 0 && (
+                                  {/* Paid status */}
+                                  {allPaid && (
+                                    <div className="text-[9px] text-accent font-medium text-center mt-0.5">
+                                      ชำระแล้ว
+                                    </div>
+                                  )}
+
+                                  {/* Item count dots (show only if not all paid) */}
+                                  {dayItems.length > 0 && !allPaid && (
                                     <div className="flex items-center justify-center gap-0.5 mt-1">
-                                      {dayItems.slice(0, 3).map((_, idx) => (
+                                      {dayItems.slice(0, 3).map((item, idx) => (
                                         <div key={idx} className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${
-                                          isOverdue ? "bg-destructive/60" : "bg-primary/50"
+                                          item.isPaid ? "bg-accent/60" : isOverdue ? "bg-destructive/60" : "bg-primary/50"
                                         }`} />
                                       ))}
                                       {dayItems.length > 3 && (
@@ -511,9 +585,11 @@ const CalendarPage = () => {
                                         className={`flex items-center gap-2 p-3 rounded-lg border transition-all
                                           ${snapshot.isDragging
                                             ? "shadow-2xl bg-card border-primary ring-2 ring-primary/30 scale-105 z-50"
-                                            : isOverdue
-                                              ? "bg-destructive/5 border-destructive/20 hover:bg-destructive/10"
-                                              : "bg-muted/20 border-border/50 hover:bg-muted/40"
+                                            : item.isPaid
+                                              ? "bg-accent/5 border-accent/30 hover:bg-accent/10"
+                                              : isOverdue
+                                                ? "bg-destructive/5 border-destructive/20 hover:bg-destructive/10"
+                                                : "bg-muted/20 border-border/50 hover:bg-muted/40"
                                           }
                                         `}
                                       >
@@ -523,14 +599,30 @@ const CalendarPage = () => {
                                         >
                                           <GripVertical className="h-4 w-4 text-muted-foreground/50" />
                                         </div>
-                                        <div className={`p-1.5 rounded-md shrink-0 ${isOverdue ? "bg-destructive/10" : "bg-primary/10"}`}>
-                                          <IconComponent className={`h-4 w-4 ${isOverdue ? "text-destructive" : "text-primary"}`} />
+                                        <div className={`p-1.5 rounded-md shrink-0 ${
+                                          item.isPaid ? "bg-accent/15" : isOverdue ? "bg-destructive/10" : "bg-primary/10"
+                                        }`}>
+                                          {item.isPaid 
+                                            ? <CheckCircle2 className="h-4 w-4 text-accent" />
+                                            : <IconComponent className={`h-4 w-4 ${isOverdue ? "text-destructive" : "text-primary"}`} />
+                                          }
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <div className="font-medium text-sm truncate">{item.subCategory}</div>
+                                          <div className="flex items-center gap-1.5">
+                                            <span className={`font-medium text-sm truncate ${item.isPaid ? "line-through text-muted-foreground" : ""}`}>
+                                              {item.subCategory}
+                                            </span>
+                                            {item.isPaid && (
+                                              <Badge variant="outline" className="text-[9px] px-1 py-0 border-accent/40 text-accent shrink-0">
+                                                ชำระแล้ว
+                                              </Badge>
+                                            )}
+                                          </div>
                                           <div className="text-[10px] text-muted-foreground truncate">{item.mainCategory}</div>
                                         </div>
-                                        <div className={`font-bold text-sm tabular-nums shrink-0 ${isOverdue ? "text-destructive" : ""}`}>
+                                        <div className={`font-bold text-sm tabular-nums shrink-0 ${
+                                          item.isPaid ? "text-accent" : isOverdue ? "text-destructive" : ""
+                                        }`}>
                                           {formatCurrency(item.amount)}
                                         </div>
                                       </div>
@@ -590,31 +682,43 @@ const CalendarPage = () => {
                             key={`${item.mainCategory}-${item.subCategory}-${idx}`}
                             onClick={() => setSelectedDate(item.dueDate)}
                             className={`flex items-center gap-3 p-3 rounded-lg transition-colors border cursor-pointer
-                              ${isOverdue
-                                ? "bg-destructive/5 border-destructive/20 hover:bg-destructive/10"
-                                : isUrgent
-                                  ? "bg-primary/5 border-primary/15 hover:bg-primary/10"
-                                  : "bg-card border-border/50 hover:bg-muted/30"
+                              ${item.isPaid
+                                ? "bg-accent/5 border-accent/20 hover:bg-accent/10"
+                                : isOverdue
+                                  ? "bg-destructive/5 border-destructive/20 hover:bg-destructive/10"
+                                  : isUrgent
+                                    ? "bg-primary/5 border-primary/15 hover:bg-primary/10"
+                                    : "bg-card border-border/50 hover:bg-muted/30"
                               }
                             `}
                           >
                             <div className={`p-2 rounded-lg shrink-0 ${
-                              isOverdue ? "bg-destructive/10" : "bg-primary/10"
+                              item.isPaid ? "bg-accent/10" : isOverdue ? "bg-destructive/10" : "bg-primary/10"
                             }`}>
-                              <IconComponent className={`h-4 w-4 ${
-                                isOverdue ? "text-destructive" : "text-primary"
-                              }`} />
+                              {item.isPaid
+                                ? <CheckCircle2 className="h-4 w-4 text-accent" />
+                                : <IconComponent className={`h-4 w-4 ${isOverdue ? "text-destructive" : "text-primary"}`} />
+                              }
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium text-sm truncate">{item.subCategory}</div>
+                              <div className="flex items-center gap-1.5">
+                                <span className={`font-medium text-sm truncate ${item.isPaid ? "line-through text-muted-foreground" : ""}`}>
+                                  {item.subCategory}
+                                </span>
+                                {item.isPaid && (
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0 border-accent/40 text-accent shrink-0">
+                                    ชำระแล้ว
+                                  </Badge>
+                                )}
+                              </div>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <span>{formatThaiDate(item.dueDate)}</span>
-                                {isOverdue && (
+                                {!item.isPaid && isOverdue && (
                                   <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
                                     เลยกำหนด {Math.abs(daysUntil)} วัน
                                   </Badge>
                                 )}
-                                {isUrgent && (
+                                {!item.isPaid && isUrgent && (
                                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/40 text-primary">
                                     อีก {daysUntil} วัน
                                   </Badge>
@@ -622,7 +726,7 @@ const CalendarPage = () => {
                               </div>
                             </div>
                             <div className={`text-sm font-bold tabular-nums ${
-                              isOverdue ? "text-destructive" : "text-foreground"
+                              item.isPaid ? "text-accent" : isOverdue ? "text-destructive" : "text-foreground"
                             }`}>
                               {formatCurrency(item.amount)}
                             </div>
