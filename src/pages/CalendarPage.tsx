@@ -32,6 +32,8 @@ interface DueDateItem {
   subCategory: string;
   amount: number;
   dueDate: string;
+  paidAmount: number;
+  isPaid: boolean;
 }
 
 const THAI_MONTHS = [
