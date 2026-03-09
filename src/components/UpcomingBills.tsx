@@ -130,7 +130,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
               className={cn(
                 "flex items-center justify-between p-2.5 rounded-lg transition-colors",
                 bill.daysUntil <= 0 ? "bg-destructive/10" : 
-                bill.daysUntil <= 3 ? "bg-orange-500/10" : "bg-muted/50"
+                bill.daysUntil <= 3 ? "bg-accent" : "bg-muted/50"
               )}
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
