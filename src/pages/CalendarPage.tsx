@@ -206,6 +206,14 @@ const CalendarPage = () => {
   }, [itemsByDate]);
 
   const monthTotal = useMemo(() => dueDateItems.reduce((s, i) => s + i.amount, 0), [dueDateItems]);
+  const paidCount = useMemo(() => dueDateItems.filter(i => i.isPaid).length, [dueDateItems]);
+  const paidByDate = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const [date, items] of Object.entries(itemsByDate)) {
+      map[date] = items.every(i => i.isPaid);
+    }
+    return map;
+  }, [itemsByDate]);
 
   const days = getDaysInMonth(year, month);
   const startPadding = getStartPadding(year, month);
