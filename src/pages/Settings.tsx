@@ -439,7 +439,7 @@ const BudgetTable = ({
   const totalBudget = entries.reduce((s, [, v]) => s + getAmount(v) * getOccurrences(v), 0);
   const totalActual = entries.reduce((s, [sub, val]) => s + computeActual(sub, val), 0);
   const totalRemaining = totalBudget - totalActual;
-  const colSpan = showDueDate ? 8 : 4;
+  const colSpan = showDueDate ? 9 : 4;
 
   const fmt = (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 2 });
 
