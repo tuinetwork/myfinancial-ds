@@ -17,6 +17,8 @@ interface BillItem {
   isOverdue: boolean;
   daysUntil: number;
   isPaid: boolean;
+  paidAmount: number;
+  paidPercent: number;
 }
 
 function formatThaiDate(dateStr: string): string {
