@@ -1749,8 +1749,19 @@ const SavingsGoalSettings = () => {
       const snap = await getDoc(docRef);
       if (!snap.exists()) throw new Error("ไม่พบเอกสาร");
       const d = snap.data();
-      const expBudgets = { ...(d.expense_budgets ?? {}) } as Record<string, Record<string, number>>;
-      expBudgets["เงินออมและการลงทุน"] = { ...savingsTargets };
+      const expBudgets = { ...(d.expense_budgets ?? {}) } as Record<string, Record<string, BudgetValue>>;
+      // Merge amounts back into existing BudgetValue structures (preserve due_date, recurrence, etc.)
+      const existingSavings = expBudgets["เงินออมและการลงทุน"] ?? {};
+      const updatedSavings: Record<string, BudgetValue> = {};
+      for (const [key, amount] of Object.entries(savingsTargets)) {
+        const existing = existingSavings[key];
+        if (typeof existing === "object" && existing !== null) {
+          updatedSavings[key] = { ...existing, amount };
+        } else {
+          updatedSavings[key] = { amount, due_date: null };
+        }
+      }
+      expBudgets["เงินออมและการลงทุน"] = updatedSavings;
       await updateDoc(docRef, { expense_budgets: expBudgets });
       toast({ title: "บันทึกสำเร็จ", description: `อัปเดตเป้าหมายการออม ${period}` });
     } catch (err: any) {
