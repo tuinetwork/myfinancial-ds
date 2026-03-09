@@ -1548,7 +1548,7 @@ const CategorySettings = () => {
 // ─── Savings Goal Settings Tab ───
 const SavingsGoalSettings = () => {
   const { userId } = useAuth();
-  const { data: months } = useAvailableMonths();
+  const { data: months } = useAvailableMonthsWithNextMonth();
   const [selectedYear, setSelectedYear] = useState<string>();
   const [selectedMonth, setSelectedMonth] = useState<string>();
   const [savingsTargets, setSavingsTargets] = useState<Record<string, number>>({});
