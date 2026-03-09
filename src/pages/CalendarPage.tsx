@@ -85,8 +85,8 @@ function getStartPadding(year: number, month: number): number {
 
 type ExpenseBudgetValue =
   | number
-  | { amount: number; due_date?: string | null }
-  | { is_due_date_enabled?: boolean; sub_categories: Record<string, { amount: number; due_date?: string | null }> };
+  | { amount: number; due_date?: string | null; recurrence?: string | null }
+  | { is_due_date_enabled?: boolean; sub_categories: Record<string, { amount: number; due_date?: string | null; recurrence?: string | null }> };
 
 function isV2Format(val: unknown): val is { is_due_date_enabled?: boolean; sub_categories: Record<string, { amount: number; due_date?: string | null }> } {
   return typeof val === "object" && val !== null && "sub_categories" in val;
