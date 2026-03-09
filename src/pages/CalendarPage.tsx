@@ -38,6 +38,7 @@ interface DueDateItem {
   isRecurring: boolean;
   recurrence?: string | null;
   paidDates?: string[];
+  txDaysDiff?: number; // positive = late, negative = early, 0 = on time, undefined = not matched by tx
 }
 
 const THAI_MONTHS = [
