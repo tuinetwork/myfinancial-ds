@@ -322,7 +322,7 @@ const CalendarPage = () => {
               </Breadcrumb>
 
               {/* Summary Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
                   <CardContent className="p-4 flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-primary/15">
@@ -337,15 +337,26 @@ const CalendarPage = () => {
                 <Card className="bg-gradient-to-br from-accent/10 to-accent/5 border-accent/20">
                   <CardContent className="p-4 flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-accent/15">
-                      <CalendarDays className="h-5 w-5 text-accent" />
+                      <CheckCircle2 className="h-5 w-5 text-accent" />
                     </div>
                     <div>
-                      <p className="text-[11px] text-muted-foreground font-medium">จำนวนรายการ</p>
-                      <p className="text-lg font-bold text-foreground">{dueDateItems.length} <span className="text-sm font-normal text-muted-foreground">รายการ</span></p>
+                      <p className="text-[11px] text-muted-foreground font-medium">ชำระแล้ว</p>
+                      <p className="text-lg font-bold text-foreground">{paidCount} <span className="text-sm font-normal text-muted-foreground">/ {dueDateItems.length}</span></p>
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20 col-span-2 sm:col-span-1">
+                <Card className="bg-gradient-to-br from-muted/50 to-muted/20 border-border">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <Clock className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground font-medium">รอชำระ</p>
+                      <p className="text-lg font-bold text-foreground">{dueDateItems.length - paidCount} <span className="text-sm font-normal text-muted-foreground">รายการ</span></p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20">
                   <CardContent className="p-4 flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-destructive/15">
                       <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -353,7 +364,7 @@ const CalendarPage = () => {
                     <div>
                       <p className="text-[11px] text-muted-foreground font-medium">เลยกำหนด</p>
                       <p className="text-lg font-bold text-foreground">
-                        {dueDateItems.filter(i => getDaysUntil(i.dueDate) < 0).length}
+                        {dueDateItems.filter(i => getDaysUntil(i.dueDate) < 0 && !i.isPaid).length}
                         <span className="text-sm font-normal text-muted-foreground"> รายการ</span>
                       </p>
                     </div>
