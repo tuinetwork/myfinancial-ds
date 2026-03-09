@@ -51,12 +51,16 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
       savings: "เงินออม",
     };
 
-    // Build a map of actual spending per sub-category from transactions
-    const txActuals: Record<string, number> = {};
+    // Build a map of transactions per sub-category with dates for tolerance matching
+    const txBySubDate: Record<string, TxEntry[]> = {};
     for (const tx of data.transactions || []) {
       if (tx.type !== "รายรับ") {
         const key = tx.category;
-        if (key) txActuals[key] = (txActuals[key] || 0) + tx.amount;
+        const date = (tx as any).date ?? "";
+        if (key && date) {
+          if (!txBySubDate[key]) txBySubDate[key] = [];
+          txBySubDate[key].push({ date, amount: tx.amount });
+        }
       }
     }
 
