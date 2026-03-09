@@ -110,11 +110,11 @@ function extractDueDateItems(
     if (rrule && filterYear && filterMonthNum) {
       const expandedDates = expandRecurrence(dueDate, rrule, filterYear, filterMonthNum, startDate, endDate);
       const perOccurrence = amount;
-      // Use ±3 day tolerance matching
       const txMatchMap = matchTxToOccurrences(txList, expandedDates, perOccurrence);
       for (const expDate of expandedDates) {
         const isPaidByDate = itemPaidDates.includes(expDate);
-        const isPaidByTx = !isPaidByDate && (txMatchMap.get(expDate) ?? false);
+        const matchResult = txMatchMap.get(expDate);
+        const isPaidByTx = !isPaidByDate && (matchResult?.isPaid ?? false);
         const isPaid = isPaidByDate || isPaidByTx;
         items.push({
           mainCategory: mainCat,
@@ -126,6 +126,7 @@ function extractDueDateItems(
           isRecurring: true,
           recurrence: rrule,
           paidDates: itemPaidDates,
+          txDaysDiff: isPaidByTx ? matchResult?.daysDiff : undefined,
         });
       }
     } else {
