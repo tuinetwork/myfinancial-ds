@@ -585,9 +585,11 @@ const CalendarPage = () => {
                                         className={`flex items-center gap-2 p-3 rounded-lg border transition-all
                                           ${snapshot.isDragging
                                             ? "shadow-2xl bg-card border-primary ring-2 ring-primary/30 scale-105 z-50"
-                                            : isOverdue
-                                              ? "bg-destructive/5 border-destructive/20 hover:bg-destructive/10"
-                                              : "bg-muted/20 border-border/50 hover:bg-muted/40"
+                                            : item.isPaid
+                                              ? "bg-accent/5 border-accent/30 hover:bg-accent/10"
+                                              : isOverdue
+                                                ? "bg-destructive/5 border-destructive/20 hover:bg-destructive/10"
+                                                : "bg-muted/20 border-border/50 hover:bg-muted/40"
                                           }
                                         `}
                                       >
@@ -597,14 +599,30 @@ const CalendarPage = () => {
                                         >
                                           <GripVertical className="h-4 w-4 text-muted-foreground/50" />
                                         </div>
-                                        <div className={`p-1.5 rounded-md shrink-0 ${isOverdue ? "bg-destructive/10" : "bg-primary/10"}`}>
-                                          <IconComponent className={`h-4 w-4 ${isOverdue ? "text-destructive" : "text-primary"}`} />
+                                        <div className={`p-1.5 rounded-md shrink-0 ${
+                                          item.isPaid ? "bg-accent/15" : isOverdue ? "bg-destructive/10" : "bg-primary/10"
+                                        }`}>
+                                          {item.isPaid 
+                                            ? <CheckCircle2 className="h-4 w-4 text-accent" />
+                                            : <IconComponent className={`h-4 w-4 ${isOverdue ? "text-destructive" : "text-primary"}`} />
+                                          }
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <div className="font-medium text-sm truncate">{item.subCategory}</div>
+                                          <div className="flex items-center gap-1.5">
+                                            <span className={`font-medium text-sm truncate ${item.isPaid ? "line-through text-muted-foreground" : ""}`}>
+                                              {item.subCategory}
+                                            </span>
+                                            {item.isPaid && (
+                                              <Badge variant="outline" className="text-[9px] px-1 py-0 border-accent/40 text-accent shrink-0">
+                                                ชำระแล้ว
+                                              </Badge>
+                                            )}
+                                          </div>
                                           <div className="text-[10px] text-muted-foreground truncate">{item.mainCategory}</div>
                                         </div>
-                                        <div className={`font-bold text-sm tabular-nums shrink-0 ${isOverdue ? "text-destructive" : ""}`}>
+                                        <div className={`font-bold text-sm tabular-nums shrink-0 ${
+                                          item.isPaid ? "text-accent" : isOverdue ? "text-destructive" : ""
+                                        }`}>
                                           {formatCurrency(item.amount)}
                                         </div>
                                       </div>
