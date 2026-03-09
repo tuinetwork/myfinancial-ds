@@ -238,11 +238,13 @@ export function FinancialCalendar({ data, onUpdateDueDate }: FinancialCalendarPr
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>{selectedDate && formatThaiDateLong(selectedDate)}</span>
-              <span className="text-sm font-normal text-muted-foreground">
-                รวม {selectedDateItems.reduce((s, i) => s + i.amount, 0).toLocaleString("th-TH")} ฿
-              </span>
+            <DialogTitle>
+              <div className="flex items-center justify-between">
+                <span>{selectedDate && formatThaiDateLong(selectedDate)}</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  รวม {selectedDateItems.reduce((s, i) => s + i.amount, 0).toLocaleString("th-TH")} ฿
+                </span>
+              </div>
             </DialogTitle>
           </DialogHeader>
           
