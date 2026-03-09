@@ -1,42 +1,22 @@
 
 
-## Plan: Auto-sync new subcategories to Budget and Savings Goals
+# แก้ไขการคำนวณ "คงเหลือ" สำหรับรายการซ้ำที่มี start_date/end_date
 
-### Problem
-When a new subcategory is added in Settings → Categories and saved, it doesn't appear in Settings → Budget or Settings → Savings Goals. Users must manually add entries, which is error-prone.
+## ปัญหา
+ปัจจุบัน `remaining = amount - actual` ซึ่งไม่ถูกต้องสำหรับรายการซ้ำ เช่น จ่ายรายสัปดาห์ 580 บาท ตั้งแต่ 7 มี.ค. - 14 มี.ค. (2 ครั้ง) ควรคำนวณเป็น `580 × 2 - actual`
 
-### Solution
-Modify the `CategorySettings.handleSave()` function to, after saving categories, also update **all existing budget documents** to include any new subcategories (with budget amount = 0). This ensures:
+## การแก้ไข — 1 ไฟล์: `src/pages/Settings.tsx`
 
-1. **Budget tab**: New subcategories appear immediately in the budget table for all periods
-2. **Savings Goals tab**: If the new subcategory belongs to "เงินออมและการลงทุน", it also appears in savings goals automatically
+### แก้ไขใน BudgetTable component
 
-### Technical Changes
+1. Import `expandRecurrence` จาก `src/lib/recurrence.ts`
+2. เพิ่มฟังก์ชันคำนวณจำนวน occurrences:
+   - ถ้ามี `recurrence` + `startDate` + `endDate` → ใช้ `expandRecurrence` นับจำนวนวันทั้งหมดในช่วง start-end
+   - ถ้ามี `recurrence` แต่ไม่มี start/end → ใช้ `expandRecurrence` กับเดือนที่เลือกอยู่
+   - ถ้าไม่มี `recurrence` → occurrences = 1
+3. เปลี่ยนสูตร: `remaining = (amount × occurrences) - actual`
+4. อัปเดต totalBudget ใน footer ให้ใช้สูตรเดียวกัน
 
-**File: `src/pages/Settings.tsx` — `CategorySettings.handleSave()`**
-
-After saving categories to the `categories` collection, add a sync step:
-
-1. Fetch all budget documents from `users/{userId}/budgets`
-2. For each budget document:
-   - Compare `expense_budgets` keys/sub-keys against `expenseGroups`
-   - Compare `income_estimates` keys/sub-keys against `incomeGroups`
-   - Add any missing subcategories with value `0`
-   - Remove subcategories/groups that no longer exist in categories
-   - Write back updated budget document
-3. This automatically covers savings goals since they read from `expense_budgets["เงินออมและการลงทุน"]`
-
-### Key Logic
-```
-For each budget doc:
-  For each main_category in expenseGroups:
-    For each subcategory in that group:
-      If subcategory not in budget.expense_budgets[main_category]:
-        Add it with value 0
-  Same for incomeGroups → income_estimates
-  
-  Remove entries from budget that no longer exist in categories
-```
-
-This is a single-file change to `src/pages/Settings.tsx`, modifying only the `handleSave` function in `CategorySettings`.
+### Props ที่ต้องเพิ่มใน BudgetTable
+- `selectedPeriod: string` (เช่น "2026-03") เพื่อใช้ในการ expand recurrence สำหรับเดือนปัจจุบัน
 
