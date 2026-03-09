@@ -239,12 +239,39 @@ function getCurrentMonthOption(): MonthOption {
   return { year, month, monthName, period, label: `${monthName} ${year}` };
 }
 
+function getNextMonthOption(): MonthOption {
+  const now = new Date();
+  let y = now.getFullYear();
+  let m = now.getMonth() + 2; // +2 because getMonth() is 0-based
+  if (m > 12) { m = 1; y += 1; }
+  const year = String(y);
+  const month = String(m).padStart(2, "0");
+  const period = `${year}-${month}`;
+  const monthName = THAI_MONTHS[m - 1];
+  return { year, month, monthName, period, label: `${monthName} ${year}` };
+}
+
 function ensureCurrentMonth(options: MonthOption[]): MonthOption[] {
   const current = getCurrentMonthOption();
-  if (!options.some((o) => o.period === current.period)) {
-    return [current, ...options].sort((a, b) => b.period.localeCompare(a.period));
+  let result = options.slice();
+  if (!result.some((o) => o.period === current.period)) {
+    result = [current, ...result];
   }
-  return options;
+  // Filter out future months
+  return result.filter((o) => o.period <= current.period).sort((a, b) => b.period.localeCompare(a.period));
+}
+
+function ensureUpToNextMonth(options: MonthOption[]): MonthOption[] {
+  const current = getCurrentMonthOption();
+  const next = getNextMonthOption();
+  let result = options.slice();
+  if (!result.some((o) => o.period === current.period)) {
+    result.push(current);
+  }
+  if (!result.some((o) => o.period === next.period)) {
+    result.push(next);
+  }
+  return result.sort((a, b) => b.period.localeCompare(a.period));
 }
 
 /** Auto-create a new budget document by copying the latest budget (including amounts) */
