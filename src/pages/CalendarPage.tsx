@@ -892,11 +892,11 @@ const CalendarPage = () => {
                       </ScrollArea>
                     )}
 
-                    {selectedDate && selectedItems.length > 0 && (
+                    {selectedDate && selectedItems.some(i => !i.isRecurring) && (
                       <div className="flex items-center gap-2 mt-3 p-2 rounded-md bg-primary/5 border border-primary/10">
                         <Move className="h-3.5 w-3.5 text-primary" />
                         <p className="text-[11px] text-primary/80">
-                          ลากรายการไปวางบนวันอื่นในปฏิทินเพื่อเปลี่ยนวันชำระ
+                          ลากรายการที่ไม่ใช่รายการซ้ำไปวางบนวันอื่นเพื่อเปลี่ยนวันชำระ
                         </p>
                       </div>
                     )}
