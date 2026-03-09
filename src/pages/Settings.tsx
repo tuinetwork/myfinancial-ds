@@ -743,7 +743,7 @@ const BudgetSettings = () => {
     setCopying(false);
   };
 
-
+  const updateExpense = (mainCat: string, subCat: string, value: number) => {
     if (!budgetData) return;
     const existing = budgetData.expense_budgets[mainCat]?.[subCat];
     const newVal: BudgetValue = MAP_CATEGORIES.includes(mainCat)
