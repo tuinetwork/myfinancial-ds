@@ -52,9 +52,9 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
     // Build a map of actual spending per sub-category from transactions
     const txActuals: Record<string, number> = {};
     for (const tx of data.transactions || []) {
-      if (tx.type !== "รายรับ") {
-        const key = tx.category;
-        if (key) txActuals[key] = (txActuals[key] || 0) + tx.amount;
+      if (tx.type === "expense") {
+        const key = tx.description || tx.category;
+        txActuals[key] = (txActuals[key] || 0) + tx.amount;
       }
     }
 
