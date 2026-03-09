@@ -55,7 +55,7 @@ type SettingsTab = "budget" | "categories" | "savings" | "user";
 
 // ─── Budget tree types ───
 // Budget value can be a number (general) or {amount, due_date} (bills, debts, savings, subscriptions)
-type BudgetValue = number | { amount: number; due_date: string | null; recurrence?: string | null };
+type BudgetValue = number | { amount: number; due_date: string | null; recurrence?: string | null; start_date?: string | null; end_date?: string | null; paid_dates?: string[] };
 
 interface BudgetTreeData {
   income_estimates: Record<string, Record<string, number>>;
