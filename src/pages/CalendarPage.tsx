@@ -37,6 +37,7 @@ interface DueDateItem {
   isPaid: boolean;
   isRecurring: boolean;
   recurrence?: string | null;
+  paidDates?: string[];
 }
 
 const THAI_MONTHS = [
