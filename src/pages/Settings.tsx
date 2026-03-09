@@ -358,6 +358,7 @@ const BudgetTable = ({
   onRecurrenceChange,
   onStartDateChange,
   onEndDateChange,
+  onOccurrencesChange,
   onToggleDueDate,
   dueDateEnabled,
   txBySubDate,
@@ -375,6 +376,7 @@ const BudgetTable = ({
   onRecurrenceChange?: (group: string, sub: string, rrule: string | null) => void;
   onStartDateChange?: (group: string, sub: string, date: string | null) => void;
   onEndDateChange?: (group: string, sub: string, date: string | null) => void;
+  onOccurrencesChange?: (group: string, sub: string, count: number) => void;
   onToggleDueDate?: (group: string, enabled: boolean) => void;
   dueDateEnabled?: Record<string, boolean>;
   txBySubDate: Record<string, TxEntry[]>;
