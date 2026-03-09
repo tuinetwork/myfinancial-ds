@@ -182,9 +182,16 @@ const Index = () => {
               <>
                 <SummaryCards data={data} carryOver={carryOver} />
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                   <FinancialHealthCard data={data} carryOver={carryOver} />
                   <SavingsGoalCard data={data} />
+                  <UpcomingBills data={data} />
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                  <div className="xl:col-span-2">
+                    <FinancialCalendar data={data} />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
