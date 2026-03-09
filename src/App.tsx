@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Transactions from "./pages/Transactions";
 import Analysis from "./pages/Analysis";
+import CalendarPage from "./pages/CalendarPage";
 import Settings from "./pages/Settings";
 import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
@@ -40,6 +41,7 @@ const AppContent = () => {
             <Route path="/" element={<Index />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/analysis" element={<Analysis />} />
+            <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="*" element={<NotFound />} />
