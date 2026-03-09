@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { doc, getDoc, updateDoc, onSnapshot, collection, query, where, getDocs, arrayUnion, arrayRemove } from "firebase/firestore";
-import { expandRecurrence, formatFrequencyThai, matchTxToOccurrences, type TxEntry } from "@/lib/recurrence";
+import { expandRecurrence, formatFrequencyThai, matchTxToOccurrences, type TxEntry, type TxMatchResult } from "@/lib/recurrence";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -38,6 +38,7 @@ interface DueDateItem {
   isRecurring: boolean;
   recurrence?: string | null;
   paidDates?: string[];
+  txDaysDiff?: number; // positive = late, negative = early, 0 = on time, undefined = not matched by tx
 }
 
 const THAI_MONTHS = [
@@ -109,11 +110,11 @@ function extractDueDateItems(
     if (rrule && filterYear && filterMonthNum) {
       const expandedDates = expandRecurrence(dueDate, rrule, filterYear, filterMonthNum, startDate, endDate);
       const perOccurrence = amount;
-      // Use ±3 day tolerance matching
       const txMatchMap = matchTxToOccurrences(txList, expandedDates, perOccurrence);
       for (const expDate of expandedDates) {
         const isPaidByDate = itemPaidDates.includes(expDate);
-        const isPaidByTx = !isPaidByDate && (txMatchMap.get(expDate) ?? false);
+        const matchResult = txMatchMap.get(expDate);
+        const isPaidByTx = !isPaidByDate && (matchResult?.isPaid ?? false);
         const isPaid = isPaidByDate || isPaidByTx;
         items.push({
           mainCategory: mainCat,
@@ -125,14 +126,15 @@ function extractDueDateItems(
           isRecurring: true,
           recurrence: rrule,
           paidDates: itemPaidDates,
+          txDaysDiff: isPaidByTx ? matchResult?.daysDiff : undefined,
         });
       }
     } else {
       if (!filterMonth || dueDate.startsWith(filterMonth)) {
         const isPaidByDate = itemPaidDates.includes(dueDate);
-        // For non-recurring: check if any tx within ±3 days covers the amount
         const txMatchMap = matchTxToOccurrences(txList, [dueDate], amount);
-        const isPaidByTx = txMatchMap.get(dueDate) ?? false;
+        const matchResult = txMatchMap.get(dueDate);
+        const isPaidByTx = matchResult?.isPaid ?? false;
         const isPaid = isPaidByDate || isPaidByTx;
         const totalTx = txList.reduce((s, t) => s + t.amount, 0);
         items.push({
@@ -145,6 +147,7 @@ function extractDueDateItems(
           isRecurring: false,
           recurrence: null,
           paidDates: itemPaidDates,
+          txDaysDiff: isPaidByTx ? matchResult?.daysDiff : undefined,
         });
       }
     }
@@ -602,7 +605,15 @@ const CalendarPage = () => {
                                   {/* Paid status */}
                                   {allPaid && (
                                     <div className="text-[9px] text-accent font-medium text-center mt-0.5">
-                                      ชำระแล้ว
+                                      {(() => {
+                                        // Check if any item was paid early/late via tolerance
+                                        const toleranceItem = dayItems.find(i => i.isPaid && i.txDaysDiff !== undefined && i.txDaysDiff !== 0);
+                                        if (toleranceItem && toleranceItem.txDaysDiff !== undefined) {
+                                          if (toleranceItem.txDaysDiff < 0) return `จ่ายก่อน ${Math.abs(toleranceItem.txDaysDiff)} วัน`;
+                                          if (toleranceItem.txDaysDiff > 0) return `จ่ายเลท ${toleranceItem.txDaysDiff} วัน`;
+                                        }
+                                        return "ชำระแล้ว";
+                                      })()}
                                     </div>
                                   )}
 
@@ -732,8 +743,19 @@ const CalendarPage = () => {
                                               <RefreshCw className="h-3 w-3 text-primary shrink-0" />
                                             )}
                                             {item.isPaid && (
-                                              <Badge variant="outline" className="text-[9px] px-1 py-0 border-accent/40 text-accent shrink-0">
-                                                ชำระแล้ว
+                                              <Badge variant="outline" className={`text-[9px] px-1 py-0 shrink-0 ${
+                                                item.txDaysDiff !== undefined && item.txDaysDiff !== 0
+                                                  ? item.txDaysDiff < 0
+                                                    ? "border-primary/40 text-primary"
+                                                    : "border-orange-400 text-orange-500"
+                                                  : "border-accent/40 text-accent"
+                                              }`}>
+                                                {item.txDaysDiff !== undefined && item.txDaysDiff !== 0
+                                                  ? item.txDaysDiff < 0
+                                                    ? `จ่ายก่อน ${Math.abs(item.txDaysDiff)} วัน`
+                                                    : `จ่ายเลท ${item.txDaysDiff} วัน`
+                                                  : "ชำระแล้ว"
+                                                }
                                               </Badge>
                                             )}
                                           </div>

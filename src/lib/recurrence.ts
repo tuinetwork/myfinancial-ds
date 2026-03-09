@@ -148,43 +148,54 @@ export interface TxEntry {
   amount: number;
 }
 
+export interface TxMatchResult {
+  isPaid: boolean;
+  txDate?: string;    // actual transaction date that matched
+  daysDiff?: number;   // positive = late, negative = early
+}
+
 /**
  * Match transactions to occurrence dates with ±3 day tolerance.
- * Returns a Map of occurrence date → isPaid.
+ * Returns a Map of occurrence date → match result (isPaid, txDate, daysDiff).
  * Transactions are consumed (not reused across occurrences).
  */
 export function matchTxToOccurrences(
   txList: TxEntry[],
   occurrenceDates: string[],
   perOccurrence: number
-): Map<string, boolean> {
-  const result = new Map<string, boolean>();
+): Map<string, TxMatchResult> {
+  const result = new Map<string, TxMatchResult>();
   if (perOccurrence <= 0) {
-    for (const d of occurrenceDates) result.set(d, false);
+    for (const d of occurrenceDates) result.set(d, { isPaid: false });
     return result;
   }
 
-  // Clone so we can mark as used
   const pool = txList.map((tx, i) => ({ ...tx, used: false, idx: i }));
-
-  // Sort occurrences chronologically
   const sorted = [...occurrenceDates].sort();
 
   for (const occDate of sorted) {
     const occTime = new Date(occDate).getTime();
-    // Find matching transactions within ±3 days
     let matched = 0;
+    let firstTxDate: string | undefined;
     for (const tx of pool) {
       if (tx.used) continue;
       const txTime = new Date(tx.date).getTime();
       const daysDiff = Math.abs(txTime - occTime) / (1000 * 60 * 60 * 24);
       if (daysDiff <= 3) {
+        if (!firstTxDate) firstTxDate = tx.date;
         matched += tx.amount;
         tx.used = true;
         if (matched >= perOccurrence) break;
       }
     }
-    result.set(occDate, matched >= perOccurrence);
+    if (matched >= perOccurrence && firstTxDate) {
+      const occD = new Date(occDate);
+      const txD = new Date(firstTxDate);
+      const diff = Math.round((txD.getTime() - occD.getTime()) / (1000 * 60 * 60 * 24));
+      result.set(occDate, { isPaid: true, txDate: firstTxDate, daysDiff: diff });
+    } else {
+      result.set(occDate, { isPaid: false });
+    }
   }
 
   return result;

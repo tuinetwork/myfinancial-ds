@@ -379,7 +379,7 @@ const BudgetTable = ({
     if (!py || !pm) return totalTx;
     const occDates = expandRecurrence(dueDate, recurrence, py, pm, startDt, endDt);
     const matchMap = matchTxToOccurrences(txList, occDates, getAmount(val));
-    const paidCount = [...matchMap.values()].filter(Boolean).length;
+    const paidCount = [...matchMap.values()].filter(r => r.isPaid).length;
     return paidCount * getAmount(val);
   };
 
