@@ -63,7 +63,32 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
     for (const cat of categories) {
       const catItems = data.expenses[cat] || [];
       for (const item of catItems) {
-        if (item.dueDate) {
+        if (!item.dueDate) continue;
+        const rrule = item.recurrence ?? null;
+
+        if (rrule) {
+          // Expand recurring items for the current month
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = now.getMonth() + 1;
+          const expandedDates = expandRecurrence(item.dueDate, rrule, year, month);
+          for (const expDate of expandedDates) {
+            const daysUntil = getDaysUntil(expDate);
+            items.push({
+              label: item.label,
+              category: categoryNames[cat],
+              amount: item.budget,
+              dueDate: expDate,
+              isOverdue: daysUntil < 0,
+              daysUntil,
+              isPaid: false,
+              paidAmount: 0,
+              paidPercent: 0,
+              isRecurring: true,
+            });
+          }
+        } else {
+          // One-time payment
           const daysUntil = getDaysUntil(item.dueDate);
           const paidAmount = txActuals[item.label] ?? 0;
           const isPaid = paidAmount >= item.budget && item.budget > 0;
@@ -78,6 +103,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
             isPaid,
             paidAmount,
             paidPercent,
+            isRecurring: false,
           });
         }
       }
