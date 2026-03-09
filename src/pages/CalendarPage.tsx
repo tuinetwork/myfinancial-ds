@@ -390,6 +390,18 @@ const CalendarPage = () => {
                     </div>
                   </CardContent>
                 </Card>
+                </Card>
+                <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/15">
+                      <RefreshCw className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground font-medium">รายการซ้ำ</p>
+                      <p className="text-lg font-bold text-foreground">{recurringCount} <span className="text-sm font-normal text-muted-foreground">รายการ</span></p>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
               {/* Calendar + Side Panel Layout */}
