@@ -643,6 +643,9 @@ const CalendarPage = () => {
                                             <span className={`font-medium text-sm truncate ${item.isPaid ? "line-through text-muted-foreground" : ""}`}>
                                               {item.subCategory}
                                             </span>
+                                            {item.isRecurring && (
+                                              <RefreshCw className="h-3 w-3 text-primary shrink-0" />
+                                            )}
                                             {item.isPaid && (
                                               <Badge variant="outline" className="text-[9px] px-1 py-0 border-accent/40 text-accent shrink-0">
                                                 ชำระแล้ว
