@@ -177,7 +177,7 @@ const CalendarPage = () => {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
   const [expenseBudgets, setExpenseBudgets] = useState<Record<string, ExpenseBudgetValue>>({});
-  const [txActuals, setTxActuals] = useState<Record<string, number>>({});
+  const [txBySubDate, setTxBySubDate] = useState<Record<string, TxEntry[]>>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
