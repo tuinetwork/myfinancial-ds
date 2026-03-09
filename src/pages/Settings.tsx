@@ -533,6 +533,26 @@ const BudgetSettings = () => {
     });
   };
 
+  const handleToggleDueDate = (mainCat: string, enabled: boolean) => {
+    setDueDateEnabled((prev) => ({ ...prev, [mainCat]: enabled }));
+    if (!enabled && budgetData) {
+      // Null-ify all due_dates for this category
+      const updatedSubs = { ...budgetData.expense_budgets[mainCat] };
+      for (const [sub, val] of Object.entries(updatedSubs)) {
+        if (typeof val === "object" && val !== null) {
+          updatedSubs[sub] = { ...val, due_date: null };
+        }
+      }
+      setBudgetData({
+        ...budgetData,
+        expense_budgets: {
+          ...budgetData.expense_budgets,
+          [mainCat]: updatedSubs,
+        },
+      });
+    }
+  };
+
   const updateIncome = (group: string, sub: string, value: number) => {
     if (!budgetData) return;
     setBudgetData({
