@@ -358,6 +358,7 @@ const BudgetTable = ({
   onRecurrenceChange,
   onStartDateChange,
   onEndDateChange,
+  onOccurrencesChange,
   onToggleDueDate,
   dueDateEnabled,
   txBySubDate,
@@ -375,6 +376,7 @@ const BudgetTable = ({
   onRecurrenceChange?: (group: string, sub: string, rrule: string | null) => void;
   onStartDateChange?: (group: string, sub: string, date: string | null) => void;
   onEndDateChange?: (group: string, sub: string, date: string | null) => void;
+  onOccurrencesChange?: (group: string, sub: string, count: number) => void;
   onToggleDueDate?: (group: string, enabled: boolean) => void;
   dueDateEnabled?: Record<string, boolean>;
   txBySubDate: Record<string, TxEntry[]>;
@@ -558,8 +560,21 @@ const BudgetTable = ({
                       </td>
                     )}
                     {showDueDate && (
-                      <td className="px-3 py-2.5 text-center tabular-nums text-muted-foreground">
-                        {hasRecurrence && occurrences > 1 ? `${occurrences} ครั้ง` : "-"}
+                      <td className="px-3 py-2.5 text-center">
+                        {hasRecurrence && startDt ? (
+                          <Input
+                            type="number"
+                            min={1}
+                            value={occurrences}
+                            onChange={(e) => {
+                              const count = Math.max(1, Number(e.target.value) || 1);
+                              onOccurrencesChange?.(selectedCategory, sub, count);
+                            }}
+                            className="h-8 w-20 text-sm text-center mx-auto [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                          />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
                       </td>
                     )}
                     <td className="px-3 py-2.5 text-right tabular-nums">
@@ -730,13 +745,34 @@ const BudgetSettings = () => {
     try {
       const nextPeriod = getNextPeriod(period);
       const nextDocRef = doc(firestore, "users", userId, "budgets", nextPeriod);
+
+      // Reset dates in expense_budgets (keep only amounts and recurrence rules)
+      const resetExpenseBudgets: Record<string, Record<string, any>> = {};
+      for (const [mainCat, subs] of Object.entries(budgetData.expense_budgets)) {
+        resetExpenseBudgets[mainCat] = {};
+        for (const [sub, val] of Object.entries(subs)) {
+          if (typeof val === "object" && val !== null) {
+            resetExpenseBudgets[mainCat][sub] = {
+              amount: getAmount(val),
+              due_date: null,
+              recurrence: getRecurrence(val),
+              start_date: null,
+              end_date: null,
+              paid_dates: [],
+            };
+          } else {
+            resetExpenseBudgets[mainCat][sub] = val;
+          }
+        }
+      }
+
       await setDoc(nextDocRef, {
         period: nextPeriod,
         carry_over: 0,
         income_estimates: budgetData.income_estimates,
-        expense_budgets: budgetData.expense_budgets,
+        expense_budgets: resetExpenseBudgets,
       });
-      toast({ title: "คัดลอกสำเร็จ", description: `คัดลอกงบประมาณไปยัง ${nextPeriod}` });
+      toast({ title: "คัดลอกสำเร็จ", description: `คัดลอกงบประมาณไปยัง ${nextPeriod} (รีเซตวันที่แล้ว)` });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
     }
@@ -809,6 +845,42 @@ const BudgetSettings = () => {
     if (!budgetData) return;
     const existing = budgetData.expense_budgets[mainCat]?.[subCat];
     const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: getDueDate(existing ?? 0), recurrence: getRecurrence(existing ?? 0), start_date: getStartDate(existing ?? 0), end_date: date, paid_dates: getPaidDates(existing ?? 0) };
+    setBudgetData({
+      ...budgetData,
+      expense_budgets: {
+        ...budgetData.expense_budgets,
+        [mainCat]: { ...budgetData.expense_budgets[mainCat], [subCat]: newVal },
+      },
+    });
+  };
+
+  const updateOccurrences = (mainCat: string, subCat: string, count: number) => {
+    if (!budgetData) return;
+    const existing = budgetData.expense_budgets[mainCat]?.[subCat];
+    const recurrence = getRecurrence(existing ?? 0);
+    const startDt = getStartDate(existing ?? 0);
+    if (!recurrence || !startDt) return;
+
+    const freqType = getFrequencyType(recurrence);
+    const start = new Date(startDt);
+    let endDate: Date;
+
+    if (freqType === "daily") {
+      endDate = new Date(start);
+      endDate.setDate(start.getDate() + count - 1);
+    } else if (freqType === "weekly") {
+      endDate = new Date(start);
+      endDate.setDate(start.getDate() + (count - 1) * 7);
+    } else if (freqType === "monthly") {
+      endDate = new Date(start);
+      endDate.setMonth(start.getMonth() + count - 1);
+    } else {
+      return;
+    }
+
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const endStr = `${endDate.getFullYear()}-${pad(endDate.getMonth() + 1)}-${pad(endDate.getDate())}`;
+    const newVal: BudgetValue = { amount: getAmount(existing ?? 0), due_date: getDueDate(existing ?? 0), recurrence, start_date: startDt, end_date: endStr, paid_dates: getPaidDates(existing ?? 0) };
     setBudgetData({
       ...budgetData,
       expense_budgets: {
@@ -911,6 +983,7 @@ const BudgetSettings = () => {
               onRecurrenceChange={updateExpenseRecurrence}
               onStartDateChange={updateStartDate}
               onEndDateChange={updateEndDate}
+              onOccurrencesChange={updateOccurrences}
               onToggleDueDate={handleToggleDueDate}
               dueDateEnabled={dueDateEnabled}
               txBySubDate={txBySubDate}
