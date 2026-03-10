@@ -1,60 +1,41 @@
 
 
-## แผน: ซิงค์ข้อมูลรายการซ้ำจากเดือนต้นทาง
+## Redesign Add Transaction Modal — Glassmorphism + Two-Step Category Selection
 
-### ปัญหา
-เมื่อตั้งค่ารายการซ้ำ (เช่น "ออมแชร์") ในเดือนหนึ่ง แต่เปลี่ยนไปดูเดือนอื่น ข้อมูลจะไม่ตรงกัน เพราะแต่ละเดือนเก็บสำเนาข้อมูลแยกกัน ทำให้:
-- วันกำหนดชำระ, วันสิ้นสุด, จำนวนงวด ต่างกันระหว่างเดือน
-- แก้ไขข้อมูลในเดือนหนึ่งไม่กระทบเดือนอื่น
+### What Changes
 
-### แนวทางแก้ไข
-กำหนดให้ **เดือนที่ start_date ตกอยู่** เป็น "เดือนต้นทาง" (Source Month) ที่เป็นแหล่งข้อมูลหลัก:
+Rewrite `src/components/AddTransactionFAB.tsx` modal interior with:
 
-1. **แก้ไขได้เฉพาะเดือนต้นทาง** — รายการซ้ำที่มี start_date จะแก้ไขได้เฉพาะในเดือนที่ start_date ตกอยู่เท่านั้น
-2. **เดือนอื่นดึงข้อมูลจากเดือนต้นทาง** — เมื่อโหลดงบเดือนอื่น ระบบจะตรวจสอบรายการซ้ำที่มี start_date ต่างเดือน แล้วดึงข้อมูล (amount, due_date, recurrence, start_date, end_date) จากเอกสารงบของเดือนต้นทาง
-3. **บันทึกแบบกระจาย** — เมื่อแก้ไขและบันทึกในเดือนต้นทาง ระบบจะอัปเดตเอกสารงบของเดือนอื่น ๆ ที่อยู่ในช่วง start_date → end_date ด้วย
+1. **Glassmorphism styling**: Modal uses `bg-slate-800/60 backdrop-blur-xl border-white/10` instead of solid `bg-card`. All inputs use transparent backgrounds (`bg-white/10 border-white/10`).
 
-### รายละเอียดทางเทคนิค
+2. **Dynamic theme colors**: Active state uses `red-500` for expense, `emerald-500` for income — applied to toggle buttons, amount text, category highlights, and submit button.
 
-**ไฟล์: `src/pages/Settings.tsx`**
+3. **Single-screen layout (no scroll on outer modal)**:
+   - Header + close button
+   - Type toggle (expense/income)
+   - Amount input (large, transparent) + Date picker (inline row)
+   - Category area (fixed height ~200px, `overflow-y-auto` inside):
+     - **Step 1**: 2-column grid of main categories as clickable cards
+     - **Step 2**: Animated slide-in list of sub-categories (1 column) with back button
+   - Note textarea (compact)
+   - Submit button — `disabled` + `opacity-50` until `subCategory` is selected
 
-#### 1. ฟังก์ชัน `getSourcePeriod(startDate)` (ใหม่)
-- คำนวณ period (YYYY-MM) จาก start_date เพื่อระบุเดือนต้นทาง
+4. **New state**: `categoryStep: 1 | 2` to manage two-step flow. Reset to step 1 when type changes.
 
-#### 2. แก้ไข `useEffect` สำหรับโหลดข้อมูลงบ
-- หลังโหลดข้อมูลงบของเดือนที่เลือก
-- สำหรับแต่ละรายการซ้ำที่มี start_date:
-  - คำนวณ sourcePeriod = `YYYY-MM` ของ start_date
-  - ถ้า sourcePeriod ≠ เดือนที่เลือก → ดึงเอกสารงบจาก sourcePeriod
-  - แทนที่ข้อมูล (amount, due_date, recurrence, start_date, end_date) ด้วยค่าจากเดือนต้นทาง
+5. **Transition**: Category area uses CSS transition (`transform + opacity`) to slide between steps.
 
-#### 3. แก้ไขเงื่อนไข `isLocked`
-- เพิ่มเงื่อนไข: ล็อคแก้ไขเมื่อ sourcePeriod ≠ เดือนที่กำลังดู
-- เดือนต้นทาง → ใช้ปุ่มล็อค/ปลดล็อคปกติ
-- เดือนอื่น → ล็อคถาวร (ไม่มีปุ่มปลดล็อค)
+### Files to Edit
 
-#### 4. แก้ไข `handleSave`
-- เมื่อบันทึกในเดือนต้นทาง:
-  - สำหรับแต่ละรายการซ้ำที่มี start_date + end_date
-  - คำนวณเดือนทั้งหมดในช่วง (start → end)
-  - อัปเดตเอกสารงบของแต่ละเดือนด้วยข้อมูลล่าสุด
+- **`src/components/AddTransactionFAB.tsx`** — Full modal UI rewrite (logic/data unchanged)
 
-### ลำดับการทำงาน
-```
-โหลดงบเดือน X:
-  สำหรับแต่ละรายการย่อย:
-    ถ้ามี start_date:
-      sourcePeriod = YYYY-MM ของ start_date
-      ถ้า sourcePeriod ≠ X:
-        ดึงข้อมูลจากเอกสาร budgets/sourcePeriod
-        แทนที่ค่า amount, due_date, recurrence, start_date, end_date
+### Technical Details
 
-บันทึกงบเดือน X:
-  สำหรับแต่ละรายการซ้ำ:
-    ถ้า X = sourcePeriod:
-      อัปเดตเอกสารงบทุกเดือนในช่วง start → end
-```
+- Remove `Select` components for categories, replace with custom grid/list UI
+- Add `categoryStep` state, default `1`
+- Step 1: `grid grid-cols-2 gap-2`, each main category as a button with border highlight on type color
+- Step 2: `flex flex-col gap-1`, each sub-category as a row button; back button at top using `ChevronLeft`
+- Category container: `h-[200px] overflow-y-auto relative overflow-hidden` with inner divs positioned via `translate-x` or conditional render with `transition-all duration-200`
+- Submit button: `disabled={!subCategory || saving}`
+- Amount + Date on same row: amount `flex-1`, date button `w-auto`
+- All text in Thai
 
-### ขอบเขตการแก้ไข
-- 1 ไฟล์: `src/pages/Settings.tsx`
-- เพิ่ม ~50 บรรทัด (ฟังก์ชัน sync + แก้ไข useEffect + แก้ไข handleSave)
