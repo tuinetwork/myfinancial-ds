@@ -1743,11 +1743,14 @@ const CategorySettings = () => {
                           </div>
                         ) : (
                           <>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground flex-1">
                               <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground">
                                 <GripVertical className="h-3 w-3" />
                               </div>
-                              <Tag className="h-3 w-3" />
+                              <IconPicker
+                                value={categoryIcons[sub]}
+                                onChange={(icon) => setCategoryIcons((prev) => ({ ...prev, [sub]: icon }))}
+                              />
                               {sub}
                             </div>
                             <div className="flex items-center gap-0.5">
