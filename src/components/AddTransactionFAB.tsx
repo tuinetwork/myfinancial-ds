@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, X, CalendarIcon, ChevronLeft, Landmark, TrendingUp, CalendarCheck, ShoppingBag, Baby, Zap, CircleDot, Briefcase, Gift, Coins, type LucideIcon } from "lucide-react";
+import { Plus, X, CalendarIcon, ChevronLeft, Landmark, TrendingUp, CalendarCheck, ShoppingBag, Baby, Zap, CircleDot, Briefcase, Gift, Coins, Lightbulb, Droplets, Wifi, Phone, Home, Car, CreditCard, Fuel, GraduationCap, Heart, Utensils, Shirt, Plane, Gamepad2, PiggyBank, Banknote, Building2, HandCoins, Wallet, DollarSign, Receipt, Store, Wrench, Stethoscope, Bus, Dog, Cigarette, type LucideIcon } from "lucide-react";
 import { collection, doc, getDocs, setDoc, query, where, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
