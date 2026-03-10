@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   LogOut, User, Mail, Shield, ChevronRight, ChevronDown, Settings as SettingsIcon,
-  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical, CalendarIcon, Copy,
+  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical, CalendarIcon, Copy, Lock,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -435,15 +435,14 @@ const BudgetTable = ({
   const isMapCategory = isExpense && MAP_CATEGORIES.includes(selectedCategory);
   const showDueDate = isMapCategory && (dueDateEnabled?.[selectedCategory] ?? false);
 
-  // Calculate occurrences for recurring items
-  const getOccurrences = (val: BudgetValue): number => {
+  // Calculate total occurrences for recurring items
+  const getTotalOccurrences = (val: BudgetValue): number => {
     const recurrence = getRecurrence(val);
     if (!recurrence) return 1;
     const dueDate = getDueDate(val);
     const startDt = getStartDate(val);
     const endDt = getEndDate(val);
     if (startDt && endDt) {
-      // Count all occurrences across all months in the range
       const start = new Date(startDt);
       const end = new Date(endDt);
       let total = 0;
@@ -466,6 +465,36 @@ const BudgetTable = ({
       }
     }
     return 1;
+  };
+
+  // Calculate remaining occurrences from viewed month onward
+  const getRemainingOccurrences = (val: BudgetValue): number => {
+    const recurrence = getRecurrence(val);
+    if (!recurrence) return 1;
+    const dueDate = getDueDate(val);
+    const startDt = getStartDate(val);
+    const endDt = getEndDate(val);
+    if (!startDt || !endDt || !selectedPeriod) return getTotalOccurrences(val);
+    const [py, pm] = selectedPeriod.split("-").map(Number);
+    if (!py || !pm) return getTotalOccurrences(val);
+    // Count occurrences from the viewed month to end_date
+    const end = new Date(endDt);
+    let total = 0;
+    let y = py;
+    let m = pm;
+    const endY = end.getFullYear();
+    const endM = end.getMonth() + 1;
+    while (y < endY || (y === endY && m <= endM)) {
+      total += expandRecurrence(dueDate, recurrence, y, m, startDt, endDt).length;
+      m++;
+      if (m > 12) { m = 1; y++; }
+    }
+    return Math.max(total, 0);
+  };
+
+  // Backward-compatible alias used for budget total calculation
+  const getOccurrences = (val: BudgetValue): number => {
+    return getRemainingOccurrences(val);
   };
 
   // Compute actuals using tolerance matching
@@ -555,42 +584,63 @@ const BudgetTable = ({
                 const startDt = getStartDate(val);
                 const endDt = getEndDate(val);
                 const actual = computeActual(sub, val);
-                const occurrences = getOccurrences(val);
-                const totalForSub = amount * occurrences;
+                const remainingOcc = getRemainingOccurrences(val);
+                const totalOcc = getTotalOccurrences(val);
+                const totalForSub = amount * remainingOcc;
                 const remaining = totalForSub - actual;
                 const hasRecurrence = recurrence !== null && recurrence !== undefined;
+                const isLocked = hasRecurrence && !!startDt && !!endDt;
                 return (
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                    <td className="px-3 py-2.5 text-muted-foreground">{sub}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        {isLocked && <Lock className="h-3 w-3 text-muted-foreground/60 shrink-0" />}
+                        {sub}
+                      </div>
+                    </td>
                     <td className="px-3 py-2.5 text-right">
-                      <Input
-                        type="number"
-                        value={amount}
-                        onChange={(e) => onAmountChange(selectedCategory, sub, Number(e.target.value) || 0)}
-                        className="h-8 w-28 text-sm text-right ml-auto [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
-                      />
+                      {isLocked ? (
+                        <span className="text-sm tabular-nums">{amount.toLocaleString("th-TH")}</span>
+                      ) : (
+                        <Input
+                          type="number"
+                          value={amount}
+                          onChange={(e) => onAmountChange(selectedCategory, sub, Number(e.target.value) || 0)}
+                          className="h-8 w-28 text-sm text-right ml-auto [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                        />
+                      )}
                     </td>
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        <DueDatePicker
-                          value={dueDate}
-                          onChange={(d) => onDueDateChange?.(selectedCategory, sub, d)}
-                          frequency={recurrence ? getFrequencyType(recurrence) : null}
-                        />
+                        {isLocked ? (
+                          <span className="text-xs text-muted-foreground">{formatThaiDate(dueDate)}</span>
+                        ) : (
+                          <DueDatePicker
+                            value={dueDate}
+                            onChange={(d) => onDueDateChange?.(selectedCategory, sub, d)}
+                            frequency={recurrence ? getFrequencyType(recurrence) : null}
+                          />
+                        )}
                       </td>
                     )}
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        <FrequencyPicker
-                          value={recurrence}
-                          dueDate={dueDate}
-                          onChange={(rrule) => onRecurrenceChange?.(selectedCategory, sub, rrule)}
-                        />
+                        {isLocked ? (
+                          <span className="text-xs text-muted-foreground">{formatFrequencyThai(recurrence)}</span>
+                        ) : (
+                          <FrequencyPicker
+                            value={recurrence}
+                            dueDate={dueDate}
+                            onChange={(rrule) => onRecurrenceChange?.(selectedCategory, sub, rrule)}
+                          />
+                        )}
                       </td>
                     )}
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        {hasRecurrence ? (
+                        {isLocked ? (
+                          <span className="text-xs text-muted-foreground">{formatThaiDate(startDt)}</span>
+                        ) : hasRecurrence ? (
                           <DueDatePicker value={startDt} onChange={(d) => onStartDateChange?.(selectedCategory, sub, d)} />
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
@@ -599,7 +649,9 @@ const BudgetTable = ({
                     )}
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        {hasRecurrence ? (
+                        {isLocked ? (
+                          <span className="text-xs text-muted-foreground">{formatThaiDate(endDt)}</span>
+                        ) : hasRecurrence ? (
                           <DueDatePicker value={endDt} onChange={(d) => onEndDateChange?.(selectedCategory, sub, d)} />
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
@@ -608,11 +660,13 @@ const BudgetTable = ({
                     )}
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        {hasRecurrence && startDt ? (
+                        {isLocked ? (
+                          <span className="text-xs tabular-nums">{remainingOcc} / {totalOcc}</span>
+                        ) : hasRecurrence && startDt ? (
                           <Input
                             type="number"
                             min={1}
-                            value={occurrences}
+                            value={totalOcc}
                             onChange={(e) => {
                               const count = Math.max(1, Number(e.target.value) || 1);
                               onOccurrencesChange?.(selectedCategory, sub, count);
@@ -628,7 +682,7 @@ const BudgetTable = ({
                       {actual > 0 ? fmt(actual) : "-"}
                     </td>
                     <td className={`px-3 py-2.5 text-right tabular-nums ${remainingColor(totalForSub, actual)}`}>
-                      {actual > 0 ? fmt(remaining) : "-"}
+                      {(isLocked || actual > 0) ? fmt(remaining) : "-"}
                     </td>
                   </tr>
                 );
