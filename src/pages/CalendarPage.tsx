@@ -1068,6 +1068,8 @@ const CalendarPage = () => {
                               <TableHead className="text-xs hidden xl:table-cell">วันสิ้นสุด</TableHead>
                               <TableHead className="text-xs text-center">งวด</TableHead>
                               <TableHead className="text-xs text-right">ยอดรวม</TableHead>
+                              <TableHead className="text-xs text-right">จ่ายแล้ว</TableHead>
+                              <TableHead className="text-xs text-right">คงเหลือ</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
