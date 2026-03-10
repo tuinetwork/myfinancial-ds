@@ -1,3 +1,4 @@
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,6 +16,38 @@ import NotFound from "./pages/NotFound";
 import GoogleLogin from "./components/GoogleLogin";
 import AddTransactionFAB from "./components/AddTransactionFAB";
 import { Loader2 } from "lucide-react";
+
+// Error Boundary to catch and log component stack
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null; errorInfo: React.ErrorInfo | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("ErrorBoundary caught:", error.message);
+    console.error("Component stack:", errorInfo.componentStack);
+    this.setState({ errorInfo });
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-sm">
+          <h1 className="text-lg font-bold text-red-600 mb-2">Error: {this.state.error?.message}</h1>
+          <pre className="whitespace-pre-wrap text-xs bg-gray-100 p-4 rounded overflow-auto max-h-96">
+            {this.state.errorInfo?.componentStack}
+          </pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const queryClient = new QueryClient();
 
@@ -60,7 +93,9 @@ const AppWrapper = () => {
       <Sonner />
       <TooltipProvider delayDuration={0}>
         <AuthProvider>
-          <AppContent />
+          <ErrorBoundary>
+            <AppContent />
+          </ErrorBoundary>
         </AuthProvider>
       </TooltipProvider>
     </div>
