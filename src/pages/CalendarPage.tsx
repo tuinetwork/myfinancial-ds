@@ -1054,76 +1054,72 @@ const CalendarPage = () => {
                       </Badge>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="p-0 sm:p-0">
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs">ชื่อรายการ</TableHead>
-                            <TableHead className="text-xs text-right">ต่องวด</TableHead>
-                            <TableHead className="text-xs hidden sm:table-cell">ความถี่</TableHead>
-                            <TableHead className="text-xs hidden md:table-cell">วันเริ่ม</TableHead>
-                            <TableHead className="text-xs hidden md:table-cell">วันสิ้นสุด</TableHead>
-                            <TableHead className="text-xs text-center">งวด</TableHead>
-                            <TableHead className="text-xs text-right">ยอดรวม</TableHead>
-                            <TableHead className="text-xs text-right">จ่ายแล้ว</TableHead>
-                            <TableHead className="text-xs text-right">คงเหลือ</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {installmentData.map((row) => {
-                            const progressPct = row.totalOccurrences > 0 ? (row.paidOccurrences / row.totalOccurrences) * 100 : 0;
-                            const remaining = row.totalOccurrences - row.paidOccurrences;
-                            return (
-                              <TableRow key={`${row.mainCategory}-${row.subCategory}`}>
-                                <TableCell className="text-xs font-medium py-3">
-                                  <div className="flex flex-col gap-1">
-                                    <span>{row.subCategory}</span>
-                                    <span className="text-[10px] text-muted-foreground">{row.mainCategory}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-xs text-right font-semibold tabular-nums py-3">
-                                  {formatCurrency(row.amountPerOccurrence)}
-                                </TableCell>
-                                <TableCell className="text-xs hidden sm:table-cell py-3">
-                                  <Badge variant="outline" className="text-[10px]">
-                                    {formatFrequencyThai(row.recurrence)}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-xs hidden md:table-cell text-muted-foreground py-3">
-                                  {formatThaiDate(row.startDate)}
-                                </TableCell>
-                                <TableCell className="text-xs hidden md:table-cell text-muted-foreground py-3">
-                                  {formatThaiDate(row.endDate)}
-                                </TableCell>
-                                <TableCell className="py-3">
-                                  <div className="flex flex-col items-center gap-1 min-w-[80px]">
-                                    <span className="text-xs font-semibold tabular-nums">
-                                      {row.paidOccurrences} / {row.totalOccurrences}
-                                    </span>
-                                    <Progress value={progressPct} className="h-1.5 w-full" />
-                                    {remaining > 0 && (
-                                      <span className="text-[10px] text-muted-foreground">เหลือ {remaining} งวด</span>
-                                    )}
-                                    {remaining === 0 && (
-                                      <span className="text-[10px] text-accent font-medium">ครบแล้ว ✓</span>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-xs text-right font-semibold tabular-nums py-3">
-                                  {formatCurrency(row.totalAmount)}
-                                </TableCell>
-                                <TableCell className="text-xs text-right font-semibold tabular-nums py-3 text-accent">
-                                  {formatCurrency(row.amountPerOccurrence * row.paidOccurrences)}
-                                </TableCell>
-                                <TableCell className="text-xs text-right font-semibold tabular-nums py-3 text-destructive">
-                                  {formatCurrency(row.totalAmount - row.amountPerOccurrence * row.paidOccurrences)}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {installmentData.map((row) => {
+                        const progressPct = row.totalOccurrences > 0 ? (row.paidOccurrences / row.totalOccurrences) * 100 : 0;
+                        const remaining = row.totalOccurrences - row.paidOccurrences;
+                        const paidTotal = row.amountPerOccurrence * row.paidOccurrences;
+                        const remainingAmount = row.totalAmount - paidTotal;
+
+                        return (
+                          <div
+                            key={`${row.mainCategory}-${row.subCategory}`}
+                            className="border rounded-lg p-3 space-y-2.5 bg-card"
+                          >
+                            {/* Header: Name + Badge */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold truncate">{row.subCategory}</p>
+                                <p className="text-[10px] text-muted-foreground">{row.mainCategory}</p>
+                              </div>
+                              <Badge variant="outline" className="text-[10px] shrink-0">
+                                {formatFrequencyThai(row.recurrence)}
+                              </Badge>
+                            </div>
+
+                            {/* Progress */}
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground">ความคืบหน้า</span>
+                                <span className="font-semibold tabular-nums">
+                                  {row.paidOccurrences} / {row.totalOccurrences} งวด
+                                </span>
+                              </div>
+                              <Progress value={progressPct} className="h-1.5" />
+                              <div className="text-right">
+                                {remaining > 0 ? (
+                                  <span className="text-[10px] text-muted-foreground">เหลือ {remaining} งวด</span>
+                                ) : (
+                                  <span className="text-[10px] text-accent font-medium">ครบแล้ว ✓</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Details grid */}
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                              <div className="text-muted-foreground">ต่องวด</div>
+                              <div className="text-right font-semibold tabular-nums">{formatCurrency(row.amountPerOccurrence)}</div>
+
+                              <div className="text-muted-foreground">ยอดรวม</div>
+                              <div className="text-right font-semibold tabular-nums">{formatCurrency(row.totalAmount)}</div>
+
+                              <div className="text-muted-foreground">จ่ายแล้ว</div>
+                              <div className="text-right font-semibold tabular-nums text-accent">{formatCurrency(paidTotal)}</div>
+
+                              <div className="text-muted-foreground">คงเหลือ</div>
+                              <div className="text-right font-semibold tabular-nums text-destructive">{formatCurrency(remainingAmount)}</div>
+                            </div>
+
+                            {/* Date range */}
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t">
+                              <span>{formatThaiDate(row.startDate)}</span>
+                              <span>→</span>
+                              <span>{formatThaiDate(row.endDate)}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
