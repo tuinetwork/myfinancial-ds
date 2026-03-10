@@ -171,7 +171,10 @@ const AddTransactionFAB = () => {
     return `${day} ${thaiMonths[d.getMonth()]} ${thaiYear}`;
   })();
 
-  const getIcon = (catName: string): LucideIcon => categoryIconMap[catName] || CircleDot;
+  const getCategoryIcon = (catName: string) => {
+    const iconName = currentCat?.category_icons?.[catName];
+    return getIconByName(iconName);
+  };
   const getLabel = (catName: string): string => categoryLabelMap[catName] || catName;
 
   return (
