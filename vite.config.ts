@@ -69,6 +69,6 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@radix-ui/react-slot", "@radix-ui/react-collapsible", "@radix-ui/react-progress"],
+    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@radix-ui/react-slot", "@radix-ui/react-collapsible", "@radix-ui/react-progress", "@radix-ui/react-primitive", "@radix-ui/react-compose-refs", "@radix-ui/react-context", "@radix-ui/react-id", "@radix-ui/react-use-controllable-state", "@radix-ui/react-presence"],
   },
 }));
