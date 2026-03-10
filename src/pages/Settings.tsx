@@ -814,6 +814,41 @@ const BudgetSettings = () => {
         carry_over: (d.carry_over as number) ?? 0,
         period: (d.period as string) ?? period,
       };
+
+      // ─── Sync recurring items from source months ───
+      const foreignKeys = new Set<string>();
+      const sourcePeriodCache: Record<string, Record<string, Record<string, BudgetValue>> | null> = {};
+
+      for (const [mainCat, subs] of Object.entries(data.expense_budgets)) {
+        if (!MAP_CATEGORIES.includes(mainCat)) continue;
+        for (const [sub, val] of Object.entries(subs)) {
+          const startDt = getStartDate(val);
+          const recurrence = getRecurrence(val);
+          if (!startDt || !recurrence) continue;
+          const sourcePeriod = getSourcePeriod(startDt);
+          if (!sourcePeriod || sourcePeriod === period) continue;
+          // This item's source is a different month
+          foreignKeys.add(`${mainCat}::${sub}`);
+          // Fetch source month data (cached)
+          if (!(sourcePeriod in sourcePeriodCache)) {
+            try {
+              const srcDoc = await getDoc(doc(firestore, "users", userId, "budgets", sourcePeriod));
+              sourcePeriodCache[sourcePeriod] = srcDoc.exists()
+                ? (srcDoc.data()!.expense_budgets ?? {}) as Record<string, Record<string, BudgetValue>>
+                : null;
+            } catch {
+              sourcePeriodCache[sourcePeriod] = null;
+            }
+          }
+          const srcBudgets = sourcePeriodCache[sourcePeriod];
+          if (srcBudgets?.[mainCat]?.[sub]) {
+            // Replace with source month's data
+            data.expense_budgets[mainCat][sub] = srcBudgets[mainCat][sub];
+          }
+        }
+      }
+
+      setForeignSourceItems(foreignKeys);
       setBudgetData(data);
       // Initialize dueDateEnabled from existing data (check if any subcategory has a due_date)
       const enabledMap: Record<string, boolean> = {};
