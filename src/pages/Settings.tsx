@@ -608,7 +608,7 @@ const BudgetTable = ({
                     <td className="px-3 py-2.5 text-muted-foreground">
                       <div className="flex items-center gap-1.5">
                         {isForeign ? (
-                          <Lock className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" title="ข้อมูลจากเดือนต้นทาง (แก้ไขไม่ได้)" />
+                          <span title="ข้อมูลจากเดือนต้นทาง (แก้ไขไม่ได้)"><Lock className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" /></span>
                         ) : canLock ? (
                           <button
                             onClick={() => toggleUnlock(sub)}
