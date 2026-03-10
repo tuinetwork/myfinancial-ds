@@ -9,7 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-@@ -20,7 +19,7 @@
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { getIconByName } from "@/components/IconPicker";
+
+interface CategoryData {
+  label: string;
+  main_categories: Record<string, string[]>;
   category_icons?: Record<string, string>;
 }
 
@@ -17,7 +24,160 @@ import { Calendar } from "@/components/ui/calendar";
 const categoryLabelMap: Record<string, string> = {
   "หนี้สินและผ่อนชำระ": "DEBT",
   "เงินออมและการลงทุน": "SAVINGS",
-@@ -181,167 +180,182 @@
+  "ค่าสมาชิกรายเดือน": "SUBS.",
+  "ค่าใช้จ่ายทั่วไป": "GENERAL",
+  "ค่าเลี้ยงดูบุตร": "CHILDCARE",
+  "ค่าสาธารณูปโภค": "UTILITIES",
+  "รายได้ประจำ": "SALARY",
+  "รายได้เสริม": "EXTRA",
+  "รายได้จากการลงทุน": "INVEST",
+};
+
+const AddTransactionFAB = () => {
+  const { userId } = useAuth();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [type, setType] = useState<"expense" | "income">("expense");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState<Date>(new Date());
+  const [mainCategory, setMainCategory] = useState("");
+  const [subCategory, setSubCategory] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [categoryStep, setCategoryStep] = useState<1 | 2>(1);
+
+  const [categories, setCategories] = useState<Record<string, CategoryData>>({});
+
+  useEffect(() => {
+    if (!userId) return;
+    const catCol = collection(firestore, "users", userId, "categories");
+    const unsubscribe = onSnapshot(catCol, (snap) => {
+      const cats: Record<string, CategoryData> = {};
+      snap.forEach((d) => {
+        cats[d.id] = d.data() as CategoryData;
+      });
+      setCategories(cats);
+    });
+    return () => unsubscribe();
+  }, [userId]);
+
+  const currentCat = categories[type];
+  const mainCats = currentCat?.main_categories ? Object.keys(currentCat.main_categories) : [];
+  const subCats = mainCategory && currentCat?.main_categories?.[mainCategory]
+    ? currentCat.main_categories[mainCategory]
+    : [];
+
+  const isExpense = type === "expense";
+
+  const resetForm = () => {
+    setType("expense");
+    setAmount("");
+    setDate(new Date());
+    setMainCategory("");
+    setSubCategory("");
+    setNote("");
+    setCategoryStep(1);
+  };
+
+  const handleClose = () => {
+    setClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+      resetForm();
+    }, 250);
+  };
+
+  const handleTypeChange = (newType: "expense" | "income") => {
+    setType(newType);
+    setMainCategory("");
+    setSubCategory("");
+    setCategoryStep(1);
+  };
+
+  const handleMainCategorySelect = (cat: string) => {
+    setMainCategory(cat);
+    setSubCategory("");
+    setCategoryStep(2);
+  };
+
+  const handleBackToMainCategories = () => {
+    setCategoryStep(1);
+    setMainCategory("");
+    setSubCategory("");
+  };
+
+  const getNextTransactionId = async (userId: string, monthYear: string): Promise<string> => {
+    const txCol = collection(firestore, "users", userId, "transactions");
+    const q = query(txCol, where("month_year", "==", monthYear));
+    const snap = await getDocs(q);
+    const prefix = `${monthYear}-tx-`;
+    let maxNum = 0;
+    snap.forEach((d) => {
+      const id = d.id;
+      if (id.startsWith(prefix)) {
+        const num = parseInt(id.slice(prefix.length), 10);
+        if (!isNaN(num) && num > maxNum) maxNum = num;
+      }
+    });
+    return `${prefix}${String(maxNum + 1).padStart(3, "0")}`;
+  };
+
+  const MAX_AMOUNT = 9_999_999.99;
+  const MAX_NOTE_LENGTH = 500;
+
+  const handleSave = async () => {
+    if (!userId) return;
+    const numAmount = parseFloat(amount);
+    if (!numAmount || numAmount <= 0) { toast.error("กรุณากรอกจำนวนเงิน"); return; }
+    if (numAmount > MAX_AMOUNT) { toast.error(`จำนวนเงินต้องไม่เกิน ${MAX_AMOUNT.toLocaleString()} บาท`); return; }
+    if (!subCategory) { toast.error("กรุณาเลือกหมวดหมู่"); return; }
+    if (!mainCategory) { toast.error("กรุณาเลือกกลุ่มหมวดหมู่"); return; }
+    const trimmedNote = note.trim();
+    if (trimmedNote.length > MAX_NOTE_LENGTH) { toast.error(`บันทึกต้องไม่เกิน ${MAX_NOTE_LENGTH} ตัวอักษร`); return; }
+    const now = new Date();
+    const fiveYearsAgo = new Date(now.getFullYear() - 5, 0, 1);
+    if (date > now) { toast.error("ไม่สามารถเลือกวันที่ในอนาคตได้"); return; }
+    if (date < fiveYearsAgo) { toast.error("วันที่ย้อนหลังได้ไม่เกิน 5 ปี"); return; }
+
+    setSaving(true);
+    try {
+      const dateStr = format(date, "yyyy-MM-dd");
+      const monthYear = format(date, "yyyy-MM");
+      const newId = await getNextTransactionId(userId, monthYear);
+      await setDoc(doc(firestore, "users", userId, "transactions", newId), {
+        type, amount: numAmount, date: dateStr, month_year: monthYear,
+        main_category: mainCategory, sub_category: subCategory,
+        note: trimmedNote, created_at: Date.now(),
+      });
+      queryClient.invalidateQueries({ queryKey: ["budget-data"] });
+      toast.success("บันทึกรายการสำเร็จ");
+      handleClose();
+    } catch (e: any) {
+      toast.error("เกิดข้อผิดพลาด: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const canSubmit = !!amount && !!subCategory && !saving;
+
+  const thaiDate = (() => {
+    const d = date;
+    const day = d.getDate();
+    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    const thaiYear = (d.getFullYear() + 543) % 100;
+    return `${day} ${thaiMonths[d.getMonth()]} ${thaiYear}`;
+  })();
+
+  const getCategoryIcon = (catName: string) => {
+    const iconName = currentCat?.category_icons?.[catName];
+    return getIconByName(iconName);
+  };
+  const getLabel = (catName: string): string => categoryLabelMap[catName] || catName;
+
+  return (
     <>
       <button
         onClick={() => setOpen(true)}
@@ -44,7 +204,6 @@ const categoryLabelMap: Record<string, string> = {
             {/* Header */}
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-foreground">เพิ่มรายการใหม่</h2>
-
               <button
                 onClick={handleClose}
                 className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
@@ -93,12 +252,6 @@ const categoryLabelMap: Record<string, string> = {
                   isExpense ? "focus-visible:ring-destructive" : "focus-visible:ring-accent"
                 )}
               />
-
-
-
-
-
-
             </div>
 
             {/* Date */}
@@ -128,7 +281,6 @@ const categoryLabelMap: Record<string, string> = {
                   <div className="grid grid-cols-3 gap-2">
                     {mainCats.map((mc) => {
                       const IconComp = getCategoryIcon(mc);
-
                       return (
                         <button
                           key={mc}
@@ -149,18 +301,12 @@ const categoryLabelMap: Record<string, string> = {
                               : "text-muted-foreground"
                           )} />
                           <span className="text-foreground text-center leading-tight">{getLabel(mc)}</span>
-
-
-
-
-
                         </button>
                       );
                     })}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-
                     ไม่พบหมวดหมู่
                   </div>
                 )}
@@ -179,9 +325,6 @@ const categoryLabelMap: Record<string, string> = {
                   <span>{getLabel(mainCategory) || "Back"}</span>
                 </button>
                 <div className="flex flex-wrap gap-1.5">
-
-
-
                   {subCats.map((sc) => {
                     const SubIcon = getCategoryIcon(sc);
                     const selected = subCategory === sc;
@@ -202,7 +345,11 @@ const categoryLabelMap: Record<string, string> = {
                         {sc}
                       </button>
                     );
-@@ -353,36 +367,36 @@
+                  })}
+                </div>
+              </div>
+            </div>
+
             {/* Note */}
             <div className="relative">
               <Textarea
