@@ -598,12 +598,25 @@ const BudgetTable = ({
                 const totalForSub = amount * remainingOcc;
                 const remaining = totalForSub - actual;
                 const hasRecurrence = recurrence !== null && recurrence !== undefined;
-                const isLocked = hasRecurrence && !!startDt && !!endDt;
+                const isLocked = hasRecurrence && !!startDt && !!endDt && !unlockedItems.has(sub);
+                const canLock = hasRecurrence && !!startDt && !!endDt;
                 return (
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="px-3 py-2.5 text-muted-foreground">
                       <div className="flex items-center gap-1.5">
-                        {isLocked && <Lock className="h-3 w-3 text-muted-foreground/60 shrink-0" />}
+                        {canLock && (
+                          <button
+                            onClick={() => toggleUnlock(sub)}
+                            className="shrink-0 hover:text-primary transition-colors"
+                            title={isLocked ? "ปลดล็อคเพื่อแก้ไข" : "ล็อคการแก้ไข"}
+                          >
+                            {isLocked ? (
+                              <Lock className="h-3.5 w-3.5 text-muted-foreground/60" />
+                            ) : (
+                              <LockOpen className="h-3.5 w-3.5 text-primary" />
+                            )}
+                          </button>
+                        )}
                         {sub}
                       </div>
                     </td>
