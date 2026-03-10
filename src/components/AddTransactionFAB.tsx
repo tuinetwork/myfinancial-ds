@@ -22,12 +22,12 @@ interface CategoryData {
 
 // Fallback label map (used when no custom icon is set)
 const categoryLabelMap: Record<string, string> = {
-  "หนี้สินและผ่อนชำระ": "DEBT",
+  "หนี้สิน": "DEBT",
   "เงินออมและการลงทุน": "SAVINGS",
   "ค่าสมาชิกรายเดือน": "SUBS.",
   "ค่าใช้จ่ายทั่วไป": "GENERAL",
-  "ค่าเลี้ยงดูบุตร": "CHILDCARE",
-  "ค่าสาธารณูปโภค": "UTILITIES",
+  "ค่าดูแลเด็ก ๆ": "CHILDCARE",
+  "บิลและสาธารณูปโภค": "BILLS",
   "รายได้ประจำ": "SALARY",
   "รายได้เสริม": "EXTRA",
   "รายได้จากการลงทุน": "INVEST",
