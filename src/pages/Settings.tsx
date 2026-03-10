@@ -1330,6 +1330,7 @@ const CategorySettings = () => {
   const { userId } = useAuth();
   const [incomeGroups, setIncomeGroups] = useState<Record<string, string[]>>({});
   const [expenseGroups, setExpenseGroups] = useState<Record<string, string[]>>({});
+  const [categoryIcons, setCategoryIcons] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newSubName, setNewSubName] = useState("");
