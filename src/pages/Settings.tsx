@@ -411,6 +411,7 @@ const BudgetTable = ({
   txBySubDate,
   isExpense,
   selectedPeriod,
+  foreignSourceItems,
 }: {
   title: string;
   titleColor: string;
@@ -429,6 +430,7 @@ const BudgetTable = ({
   txBySubDate: Record<string, TxEntry[]>;
   isExpense?: boolean;
   selectedPeriod?: string;
+  foreignSourceItems?: Set<string>;
 }) => {
   const currentGroup = categories[selectedCategory] ?? {};
   const entries = Object.entries(currentGroup);
@@ -598,13 +600,16 @@ const BudgetTable = ({
                 const totalForSub = amount * remainingOcc;
                 const remaining = totalForSub - actual;
                 const hasRecurrence = recurrence !== null && recurrence !== undefined;
-                const isLocked = hasRecurrence && !!startDt && !!endDt && !unlockedItems.has(sub);
-                const canLock = hasRecurrence && !!startDt && !!endDt;
+                const isForeign = foreignSourceItems?.has(`${selectedCategory}::${sub}`) ?? false;
+                const isLocked = isForeign || (hasRecurrence && !!startDt && !!endDt && !unlockedItems.has(sub));
+                const canLock = !isForeign && hasRecurrence && !!startDt && !!endDt;
                 return (
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="px-3 py-2.5 text-muted-foreground">
                       <div className="flex items-center gap-1.5">
-                        {canLock && (
+                        {isForeign ? (
+                          <span title="ข้อมูลจากเดือนต้นทาง (แก้ไขไม่ได้)"><Lock className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" /></span>
+                        ) : canLock ? (
                           <button
                             onClick={() => toggleUnlock(sub)}
                             className="shrink-0 hover:text-primary transition-colors"
@@ -616,7 +621,7 @@ const BudgetTable = ({
                               <LockOpen className="h-3.5 w-3.5 text-primary" />
                             )}
                           </button>
-                        )}
+                        ) : null}
                         {sub}
                       </div>
                     </td>
@@ -735,6 +740,14 @@ const BudgetTable = ({
   );
 };
 
+// Helper: get source period from a start_date string
+function getSourcePeriod(startDate: string | null): string | null {
+  if (!startDate) return null;
+  const parts = startDate.split("-");
+  if (parts.length < 2) return null;
+  return `${parts[0]}-${parts[1]}`;
+}
+
 // ─── Budget Settings Tab ───
 const BudgetSettings = () => {
   const { userId } = useAuth();
@@ -750,6 +763,8 @@ const BudgetSettings = () => {
   const [selectedIncomeCat, setSelectedIncomeCat] = useState<string>("");
   const [txBySubDate, setTxBySubDate] = useState<Record<string, TxEntry[]>>({});
   const [dueDateEnabled, setDueDateEnabled] = useState<Record<string, boolean>>({});
+  // Track which subcategories are sourced from a different month (not editable)
+  const [foreignSourceItems, setForeignSourceItems] = useState<Set<string>>(new Set());
 
   const years = useMemo(() => {
     if (!months) return [];
@@ -804,6 +819,41 @@ const BudgetSettings = () => {
         carry_over: (d.carry_over as number) ?? 0,
         period: (d.period as string) ?? period,
       };
+
+      // ─── Sync recurring items from source months ───
+      const foreignKeys = new Set<string>();
+      const sourcePeriodCache: Record<string, Record<string, Record<string, BudgetValue>> | null> = {};
+
+      for (const [mainCat, subs] of Object.entries(data.expense_budgets)) {
+        if (!MAP_CATEGORIES.includes(mainCat)) continue;
+        for (const [sub, val] of Object.entries(subs)) {
+          const startDt = getStartDate(val);
+          const recurrence = getRecurrence(val);
+          if (!startDt || !recurrence) continue;
+          const sourcePeriod = getSourcePeriod(startDt);
+          if (!sourcePeriod || sourcePeriod === period) continue;
+          // This item's source is a different month
+          foreignKeys.add(`${mainCat}::${sub}`);
+          // Fetch source month data (cached)
+          if (!(sourcePeriod in sourcePeriodCache)) {
+            try {
+              const srcDoc = await getDoc(doc(firestore, "users", userId, "budgets", sourcePeriod));
+              sourcePeriodCache[sourcePeriod] = srcDoc.exists()
+                ? (srcDoc.data()!.expense_budgets ?? {}) as Record<string, Record<string, BudgetValue>>
+                : null;
+            } catch {
+              sourcePeriodCache[sourcePeriod] = null;
+            }
+          }
+          const srcBudgets = sourcePeriodCache[sourcePeriod];
+          if (srcBudgets?.[mainCat]?.[sub]) {
+            // Replace with source month's data
+            data.expense_budgets[mainCat][sub] = srcBudgets[mainCat][sub];
+          }
+        }
+      }
+
+      setForeignSourceItems(foreignKeys);
       setBudgetData(data);
       // Initialize dueDateEnabled from existing data (check if any subcategory has a due_date)
       const enabledMap: Record<string, boolean> = {};
@@ -850,7 +900,51 @@ const BudgetSettings = () => {
         expense_budgets: budgetData.expense_budgets,
         carry_over: budgetData.carry_over,
       });
-      toast({ title: "บันทึกสำเร็จ", description: `อัปเดตงบประมาณ ${period}` });
+
+      // ─── Propagate recurring items to all months in their range ───
+      for (const [mainCat, subs] of Object.entries(budgetData.expense_budgets)) {
+        if (!MAP_CATEGORIES.includes(mainCat)) continue;
+        for (const [sub, val] of Object.entries(subs)) {
+          const startDt = getStartDate(val);
+          const endDt = getEndDate(val);
+          const recurrence = getRecurrence(val);
+          if (!startDt || !endDt || !recurrence) continue;
+          const sourcePeriod = getSourcePeriod(startDt);
+          if (sourcePeriod !== period) continue; // Only propagate from source month
+
+          // Calculate all months in start → end range
+          const start = new Date(startDt);
+          const end = new Date(endDt);
+          let y = start.getFullYear();
+          let m = start.getMonth() + 1;
+          const endY = end.getFullYear();
+          const endM = end.getMonth() + 1;
+          while (y < endY || (y === endY && m <= endM)) {
+            const targetPeriod = `${y}-${String(m).padStart(2, "0")}`;
+            if (targetPeriod !== period) {
+              // Update this subcategory in the target month's budget
+              const targetRef = doc(firestore, "users", userId, "budgets", targetPeriod);
+              try {
+                const targetSnap = await getDoc(targetRef);
+                if (targetSnap.exists()) {
+                  const targetData = targetSnap.data();
+                  const targetExpense = (targetData.expense_budgets ?? {}) as Record<string, Record<string, BudgetValue>>;
+                  if (targetExpense[mainCat]) {
+                    targetExpense[mainCat][sub] = val;
+                    await updateDoc(targetRef, { expense_budgets: targetExpense });
+                  }
+                }
+              } catch {
+                // Skip if target month doesn't exist yet
+              }
+            }
+            m++;
+            if (m > 12) { m = 1; y++; }
+          }
+        }
+      }
+
+      toast({ title: "บันทึกสำเร็จ", description: `อัปเดตงบประมาณ ${period} (ซิงค์รายการซ้ำแล้ว)` });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
     }
@@ -1136,6 +1230,7 @@ const BudgetSettings = () => {
               txBySubDate={txBySubDate}
               isExpense
               selectedPeriod={selectedYear && selectedMonth ? `${selectedYear}-${selectedMonth}` : undefined}
+              foreignSourceItems={foreignSourceItems}
             />
             <BudgetTable
               title="รายรับ"
