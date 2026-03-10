@@ -110,31 +110,34 @@ export function AppSidebar() {
                 if (item.children) {
                   return (
                     <SidebarMenuItem key={item.url}>
-                      <Collapsible open={dashboardOpen} onOpenChange={setDashboardOpen}>
-                        <CollapsibleTrigger asChild>
-                          <SidebarMenuButton
-                            className={`w-full justify-between hover:bg-sidebar-accent/50 ${
-                              isDashboardActive ? "bg-sidebar-accent text-sidebar-primary font-medium" : ""
-                            }`}
-                            onClick={(e) => {
-                              if (item.children?.[0]) {
-                                e.preventDefault();
-                                navigate(item.children[0].url);
-                                setDashboardOpen(true);
-                              }
-                            }}
-                          >
-                            <div className="flex items-center gap-2">
-                              <item.icon className="h-4 w-4" />
-                              {!collapsed && <span>{item.title}</span>}
-                            </div>
-                            {!collapsed && (
-                              dashboardOpen
-                                ? <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/50" />
-                                : <ChevronRight className="h-3.5 w-3.5 text-sidebar-foreground/50" />
-                            )}
-                          </SidebarMenuButton>
-                        </CollapsibleTrigger>
+                      <Collapsible open={dashboardOpen} onOpenChange={setDashboardOpen}>
+                        <SidebarMenuButton
+                          className={`w-full justify-between hover:bg-sidebar-accent/50 ${
+                            isDashboardActive ? "bg-sidebar-accent text-sidebar-primary font-medium" : ""
+                          }`}
+                          onClick={(e) => {
+                            if (item.children?.[0]) {
+                              e.preventDefault();
+                              navigate(item.children[0].url);
+                              setDashboardOpen(true);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <item.icon className="h-4 w-4" />
+                            {!collapsed && <span>{item.title}</span>}
+                          </div>
+                          {!collapsed && (
+                            <CollapsibleTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <span>
+                                {dashboardOpen
+                                  ? <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+                                  : <ChevronRight className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+                                }
+                              </span>
+                            </CollapsibleTrigger>
+                          )}
+                        </SidebarMenuButton>
                         {!collapsed && (
                           <CollapsibleContent>
                             <div className="ml-6 border-l border-sidebar-border pl-2 mt-1 space-y-0.5">
