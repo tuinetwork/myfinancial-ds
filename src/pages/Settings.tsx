@@ -411,6 +411,7 @@ const BudgetTable = ({
   txBySubDate,
   isExpense,
   selectedPeriod,
+  foreignSourceItems,
 }: {
   title: string;
   titleColor: string;
@@ -429,6 +430,7 @@ const BudgetTable = ({
   txBySubDate: Record<string, TxEntry[]>;
   isExpense?: boolean;
   selectedPeriod?: string;
+  foreignSourceItems?: Set<string>;
 }) => {
   const currentGroup = categories[selectedCategory] ?? {};
   const entries = Object.entries(currentGroup);
