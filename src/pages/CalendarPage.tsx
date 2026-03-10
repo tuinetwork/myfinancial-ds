@@ -1042,190 +1042,185 @@ const CalendarPage = () => {
                 </Card>
               </div>
 
-              {/* Installment Table */}
-              {installmentData.length > 0 && (
+              {/* Installment Table + Monthly Items — 2 columns */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Installment Table */}
+                {installmentData.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <RefreshCw className="h-4 w-4 text-primary" />
+                        รายการผ่อนชำระ / งวด
+                        <Badge variant="secondary" className="text-[10px] ml-1">
+                          {installmentData.length}
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0 sm:p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">ชื่อรายการ</TableHead>
+                              <TableHead className="text-xs text-right">ต่องวด</TableHead>
+                              <TableHead className="text-xs hidden sm:table-cell">ความถี่</TableHead>
+                              <TableHead className="text-xs hidden xl:table-cell">วันเริ่ม</TableHead>
+                              <TableHead className="text-xs hidden xl:table-cell">วันสิ้นสุด</TableHead>
+                              <TableHead className="text-xs text-center">งวด</TableHead>
+                              <TableHead className="text-xs text-right">ยอดรวม</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {installmentData.map((row) => {
+                              const progressPct = row.totalOccurrences > 0 ? (row.paidOccurrences / row.totalOccurrences) * 100 : 0;
+                              const remaining = row.totalOccurrences - row.paidOccurrences;
+                              return (
+                                <TableRow key={`${row.mainCategory}-${row.subCategory}`}>
+                                  <TableCell className="text-xs font-medium py-3">
+                                    <div className="flex flex-col gap-1">
+                                      <span>{row.subCategory}</span>
+                                      <span className="text-[10px] text-muted-foreground">{row.mainCategory}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-xs text-right font-semibold tabular-nums py-3">
+                                    {formatCurrency(row.amountPerOccurrence)}
+                                  </TableCell>
+                                  <TableCell className="text-xs hidden sm:table-cell py-3">
+                                    <Badge variant="outline" className="text-[10px]">
+                                      {formatFrequencyThai(row.recurrence)}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-xs hidden xl:table-cell text-muted-foreground py-3">
+                                    {formatThaiDate(row.startDate)}
+                                  </TableCell>
+                                  <TableCell className="text-xs hidden xl:table-cell text-muted-foreground py-3">
+                                    {formatThaiDate(row.endDate)}
+                                  </TableCell>
+                                  <TableCell className="py-3">
+                                    <div className="flex flex-col items-center gap-1 min-w-[70px]">
+                                      <span className="text-xs font-semibold tabular-nums">
+                                        {row.paidOccurrences} / {row.totalOccurrences}
+                                      </span>
+                                      <Progress value={progressPct} className="h-1.5 w-full" />
+                                      {remaining > 0 && (
+                                        <span className="text-[10px] text-muted-foreground">เหลือ {remaining} งวด</span>
+                                      )}
+                                      {remaining === 0 && (
+                                        <span className="text-[10px] text-accent font-medium">ครบแล้ว ✓</span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-xs text-right font-semibold tabular-nums py-3">
+                                    {formatCurrency(row.totalAmount)}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Items List (Monthly Summary) */}
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm flex items-center gap-2">
-                      <RefreshCw className="h-4 w-4 text-primary" />
-                      รายการผ่อนชำระ / งวด
-                      <Badge variant="secondary" className="text-[10px] ml-1">
-                        {installmentData.length}
-                      </Badge>
+                      <Clock className="h-4 w-4 text-primary" />
+                      รายการทั้งหมดในเดือนนี้
+                      {dueDateItems.length > 0 && (
+                        <Badge variant="secondary" className="text-[10px] ml-1">
+                          {dueDateItems.length}
+                        </Badge>
+                      )}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="p-0 sm:p-0">
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs">ชื่อรายการ</TableHead>
-                            <TableHead className="text-xs text-right">ต่องวด</TableHead>
-                            <TableHead className="text-xs hidden sm:table-cell">ความถี่</TableHead>
-                            <TableHead className="text-xs hidden md:table-cell">วันเริ่ม</TableHead>
-                            <TableHead className="text-xs hidden md:table-cell">วันสิ้นสุด</TableHead>
-                            <TableHead className="text-xs text-center">งวด</TableHead>
-                            <TableHead className="text-xs text-right">ยอดรวม</TableHead>
-                            <TableHead className="text-xs text-right">จ่ายแล้ว</TableHead>
-                            <TableHead className="text-xs text-right">คงเหลือ</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {installmentData.map((row) => {
-                            const progressPct = row.totalOccurrences > 0 ? (row.paidOccurrences / row.totalOccurrences) * 100 : 0;
-                            const remaining = row.totalOccurrences - row.paidOccurrences;
-                            return (
-                              <TableRow key={`${row.mainCategory}-${row.subCategory}`}>
-                                <TableCell className="text-xs font-medium py-3">
-                                  <div className="flex flex-col gap-1">
-                                    <span>{row.subCategory}</span>
-                                    <span className="text-[10px] text-muted-foreground">{row.mainCategory}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-xs text-right font-semibold tabular-nums py-3">
-                                  {formatCurrency(row.amountPerOccurrence)}
-                                </TableCell>
-                                <TableCell className="text-xs hidden sm:table-cell py-3">
-                                  <Badge variant="outline" className="text-[10px]">
-                                    {formatFrequencyThai(row.recurrence)}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-xs hidden md:table-cell text-muted-foreground py-3">
-                                  {formatThaiDate(row.startDate)}
-                                </TableCell>
-                                <TableCell className="text-xs hidden md:table-cell text-muted-foreground py-3">
-                                  {formatThaiDate(row.endDate)}
-                                </TableCell>
-                                <TableCell className="py-3">
-                                  <div className="flex flex-col items-center gap-1 min-w-[80px]">
-                                    <span className="text-xs font-semibold tabular-nums">
-                                      {row.paidOccurrences} / {row.totalOccurrences}
-                                    </span>
-                                    <Progress value={progressPct} className="h-1.5 w-full" />
-                                    {remaining > 0 && (
-                                      <span className="text-[10px] text-muted-foreground">เหลือ {remaining} งวด</span>
-                                    )}
-                                    {remaining === 0 && (
-                                      <span className="text-[10px] text-accent font-medium">ครบแล้ว ✓</span>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-xs text-right font-semibold tabular-nums py-3">
-                                  {formatCurrency(row.totalAmount)}
-                                </TableCell>
-                                <TableCell className="text-xs text-right font-semibold tabular-nums py-3 text-accent">
-                                  {formatCurrency(row.amountPerOccurrence * row.paidOccurrences)}
-                                </TableCell>
-                                <TableCell className="text-xs text-right font-semibold tabular-nums py-3 text-destructive">
-                                  {formatCurrency(row.totalAmount - row.amountPerOccurrence * row.paidOccurrences)}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
+                  <CardContent>
+                    {dueDateItems.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                        <CalendarDays className="h-10 w-10 mb-3 opacity-30" />
+                        <p className="text-sm font-medium">ไม่มีรายการที่ต้องชำระในเดือนนี้</p>
+                        <p className="text-xs mt-1">กำหนดวันชำระได้ที่หน้าตั้งค่างบประมาณ</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        {dueDateItems.map((item, idx) => {
+                          const daysUntil = getDaysUntil(item.dueDate);
+                          const isOverdue = daysUntil < 0;
+                          const isUrgent = daysUntil >= 0 && daysUntil <= 3;
+                          const IconComponent = CATEGORY_ICON_MAP[item.mainCategory] || Banknote;
+
+                          return (
+                            <div
+                              key={`${item.mainCategory}-${item.subCategory}-${idx}`}
+                              onClick={() => setSelectedDate(item.dueDate)}
+                              className={`flex items-center gap-3 p-3 rounded-lg transition-colors border cursor-pointer
+                                ${item.isPaid
+                                  ? "bg-accent/5 border-accent/20 hover:bg-accent/10"
+                                  : isOverdue
+                                    ? "bg-destructive/5 border-destructive/20 hover:bg-destructive/10"
+                                    : isUrgent
+                                      ? "bg-primary/5 border-primary/15 hover:bg-primary/10"
+                                      : "bg-card border-border/50 hover:bg-muted/30"
+                                }
+                              `}
+                            >
+                              <div className={`p-2 rounded-lg shrink-0 ${
+                                item.isPaid ? "bg-accent/10" : isOverdue ? "bg-destructive/10" : "bg-primary/10"
+                              }`}>
+                                {item.isPaid
+                                  ? <CheckCircle2 className="h-4 w-4 text-accent" />
+                                  : <IconComponent className={`h-4 w-4 ${isOverdue ? "text-destructive" : "text-primary"}`} />
+                                }
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`font-medium text-sm truncate ${item.isPaid ? "line-through text-muted-foreground" : ""}`}>
+                                    {item.subCategory}
+                                  </span>
+                                  {item.isRecurring && (
+                                    <RefreshCw className="h-3 w-3 text-primary shrink-0" />
+                                  )}
+                                  {item.isPaid && (
+                                    <Badge variant="outline" className="text-[9px] px-1 py-0 border-accent/40 text-accent shrink-0">
+                                      ชำระแล้ว
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <span>{formatThaiDate(item.dueDate)}</span>
+                                  {!item.isPaid && isOverdue && (
+                                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                      เลยกำหนด {Math.abs(daysUntil)} วัน
+                                    </Badge>
+                                  )}
+                                  {!item.isPaid && isUrgent && (
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/40 text-primary">
+                                      อีก {daysUntil} วัน
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div className={`text-sm font-bold tabular-nums ${
+                                item.isPaid ? "text-accent" : isOverdue ? "text-destructive" : "text-foreground"
+                              }`}>
+                                {formatCurrency(item.amount)}
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        <Separator className="my-2" />
+                        <div className="flex items-center justify-between px-3 py-2">
+                          <span className="text-sm font-medium text-muted-foreground">รวมทั้งหมด</span>
+                          <span className="text-base font-bold">{formatCurrency(monthTotal)}</span>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
-              )}
-
-              {/* Items List (Monthly Summary) */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-primary" />
-                    รายการทั้งหมดในเดือนนี้
-                    {dueDateItems.length > 0 && (
-                      <Badge variant="secondary" className="text-[10px] ml-1">
-                        {dueDateItems.length}
-                      </Badge>
-                    )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {dueDateItems.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                      <CalendarDays className="h-10 w-10 mb-3 opacity-30" />
-                      <p className="text-sm font-medium">ไม่มีรายการที่ต้องชำระในเดือนนี้</p>
-                      <p className="text-xs mt-1">กำหนดวันชำระได้ที่หน้าตั้งค่างบประมาณ</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      {dueDateItems.map((item, idx) => {
-                        const daysUntil = getDaysUntil(item.dueDate);
-                        const isOverdue = daysUntil < 0;
-                        const isUrgent = daysUntil >= 0 && daysUntil <= 3;
-                        const IconComponent = CATEGORY_ICON_MAP[item.mainCategory] || Banknote;
-
-                        return (
-                          <div
-                            key={`${item.mainCategory}-${item.subCategory}-${idx}`}
-                            onClick={() => setSelectedDate(item.dueDate)}
-                            className={`flex items-center gap-3 p-3 rounded-lg transition-colors border cursor-pointer
-                              ${item.isPaid
-                                ? "bg-accent/5 border-accent/20 hover:bg-accent/10"
-                                : isOverdue
-                                  ? "bg-destructive/5 border-destructive/20 hover:bg-destructive/10"
-                                  : isUrgent
-                                    ? "bg-primary/5 border-primary/15 hover:bg-primary/10"
-                                    : "bg-card border-border/50 hover:bg-muted/30"
-                              }
-                            `}
-                          >
-                            <div className={`p-2 rounded-lg shrink-0 ${
-                              item.isPaid ? "bg-accent/10" : isOverdue ? "bg-destructive/10" : "bg-primary/10"
-                            }`}>
-                              {item.isPaid
-                                ? <CheckCircle2 className="h-4 w-4 text-accent" />
-                                : <IconComponent className={`h-4 w-4 ${isOverdue ? "text-destructive" : "text-primary"}`} />
-                              }
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <span className={`font-medium text-sm truncate ${item.isPaid ? "line-through text-muted-foreground" : ""}`}>
-                                  {item.subCategory}
-                                </span>
-                                {item.isRecurring && (
-                                  <RefreshCw className="h-3 w-3 text-primary shrink-0" />
-                                )}
-                                {item.isPaid && (
-                                  <Badge variant="outline" className="text-[9px] px-1 py-0 border-accent/40 text-accent shrink-0">
-                                    ชำระแล้ว
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span>{formatThaiDate(item.dueDate)}</span>
-                                {!item.isPaid && isOverdue && (
-                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                    เลยกำหนด {Math.abs(daysUntil)} วัน
-                                  </Badge>
-                                )}
-                                {!item.isPaid && isUrgent && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/40 text-primary">
-                                    อีก {daysUntil} วัน
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                            <div className={`text-sm font-bold tabular-nums ${
-                              item.isPaid ? "text-accent" : isOverdue ? "text-destructive" : "text-foreground"
-                            }`}>
-                              {formatCurrency(item.amount)}
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      <Separator className="my-2" />
-                      <div className="flex items-center justify-between px-3 py-2">
-                        <span className="text-sm font-medium text-muted-foreground">รวมทั้งหมด</span>
-                        <span className="text-base font-bold">{formatCurrency(monthTotal)}</span>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              </div>
             </div>
           </DragDropContext>
         </main>
