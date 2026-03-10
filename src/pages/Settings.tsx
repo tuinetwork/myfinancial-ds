@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   LogOut, User, Mail, Shield, ChevronRight, ChevronDown, Settings as SettingsIcon,
-  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical, CalendarIcon, Copy, Lock,
+  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical, CalendarIcon, Copy, Lock, LockOpen,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -434,6 +434,15 @@ const BudgetTable = ({
   const entries = Object.entries(currentGroup);
   const isMapCategory = isExpense && MAP_CATEGORIES.includes(selectedCategory);
   const showDueDate = isMapCategory && (dueDateEnabled?.[selectedCategory] ?? false);
+  const [unlockedItems, setUnlockedItems] = useState<Set<string>>(new Set());
+
+  const toggleUnlock = (sub: string) => {
+    setUnlockedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(sub)) next.delete(sub); else next.add(sub);
+      return next;
+    });
+  };
 
   // Calculate total occurrences for recurring items
   const getTotalOccurrences = (val: BudgetValue): number => {
@@ -589,12 +598,25 @@ const BudgetTable = ({
                 const totalForSub = amount * remainingOcc;
                 const remaining = totalForSub - actual;
                 const hasRecurrence = recurrence !== null && recurrence !== undefined;
-                const isLocked = hasRecurrence && !!startDt && !!endDt;
+                const isLocked = hasRecurrence && !!startDt && !!endDt && !unlockedItems.has(sub);
+                const canLock = hasRecurrence && !!startDt && !!endDt;
                 return (
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="px-3 py-2.5 text-muted-foreground">
                       <div className="flex items-center gap-1.5">
-                        {isLocked && <Lock className="h-3 w-3 text-muted-foreground/60 shrink-0" />}
+                        {canLock && (
+                          <button
+                            onClick={() => toggleUnlock(sub)}
+                            className="shrink-0 hover:text-primary transition-colors"
+                            title={isLocked ? "ปลดล็อคเพื่อแก้ไข" : "ล็อคการแก้ไข"}
+                          >
+                            {isLocked ? (
+                              <Lock className="h-3.5 w-3.5 text-muted-foreground/60" />
+                            ) : (
+                              <LockOpen className="h-3.5 w-3.5 text-primary" />
+                            )}
+                          </button>
+                        )}
                         {sub}
                       </div>
                     </td>
