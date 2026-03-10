@@ -1676,10 +1676,15 @@ const CategorySettings = () => {
           ) : (
             <CollapsibleTrigger className="flex items-center gap-2 flex-1 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors text-sm font-medium">
               {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-              <FolderTree className="h-4 w-4 text-primary" />
+              <GroupIcon className="h-4 w-4 text-primary" />
               <span>{groupName}</span>
               <span className="text-sm text-muted-foreground ml-auto mr-2">{subs.length} รายการ</span>
             </CollapsibleTrigger>
+            <IconPicker
+              value={categoryIcons[groupName]}
+              onChange={(icon) => setCategoryIcons((prev) => ({ ...prev, [groupName]: icon }))}
+              className="shrink-0"
+            />
           )}
           {!editingGroup && (
             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary shrink-0"
