@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { NotificationBell } from "@/components/NotificationBell";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
@@ -608,7 +609,22 @@ const BudgetTable = ({
                     <td className="px-3 py-2.5 text-muted-foreground">
                       <div className="flex items-center gap-1.5">
                         {isForeign ? (
-                          <span title="ข้อมูลจากเดือนต้นทาง (แก้ไขไม่ได้)"><Lock className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" /></span>
+                          <TooltipProvider delayDuration={200}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help"><Lock className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" /></span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                {(() => {
+                                  const sp = getSourcePeriod(startDt);
+                                  if (!sp) return "ข้อมูลจากเดือนต้นทาง";
+                                  const [y, m] = sp.split("-");
+                                  const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+                                  return `ข้อมูลจากเดือน ${monthNames[parseInt(m, 10) - 1]} ${y} (แก้ไขไม่ได้)`;
+                                })()}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         ) : canLock ? (
                           <button
                             onClick={() => toggleUnlock(sub)}
