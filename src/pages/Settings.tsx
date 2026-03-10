@@ -600,13 +600,16 @@ const BudgetTable = ({
                 const totalForSub = amount * remainingOcc;
                 const remaining = totalForSub - actual;
                 const hasRecurrence = recurrence !== null && recurrence !== undefined;
-                const isLocked = hasRecurrence && !!startDt && !!endDt && !unlockedItems.has(sub);
-                const canLock = hasRecurrence && !!startDt && !!endDt;
+                const isForeign = foreignSourceItems?.has(`${selectedCategory}::${sub}`) ?? false;
+                const isLocked = isForeign || (hasRecurrence && !!startDt && !!endDt && !unlockedItems.has(sub));
+                const canLock = !isForeign && hasRecurrence && !!startDt && !!endDt;
                 return (
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="px-3 py-2.5 text-muted-foreground">
                       <div className="flex items-center gap-1.5">
-                        {canLock && (
+                        {isForeign ? (
+                          <Lock className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" title="ข้อมูลจากเดือนต้นทาง (แก้ไขไม่ได้)" />
+                        ) : canLock ? (
                           <button
                             onClick={() => toggleUnlock(sub)}
                             className="shrink-0 hover:text-primary transition-colors"
@@ -618,7 +621,7 @@ const BudgetTable = ({
                               <LockOpen className="h-3.5 w-3.5 text-primary" />
                             )}
                           </button>
-                        )}
+                        ) : null}
                         {sub}
                       </div>
                     </td>
