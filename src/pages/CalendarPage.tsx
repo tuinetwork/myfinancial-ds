@@ -1068,6 +1068,8 @@ const CalendarPage = () => {
                               <TableHead className="text-xs hidden xl:table-cell">วันสิ้นสุด</TableHead>
                               <TableHead className="text-xs text-center">งวด</TableHead>
                               <TableHead className="text-xs text-right">ยอดรวม</TableHead>
+                              <TableHead className="text-xs text-right">จ่ายแล้ว</TableHead>
+                              <TableHead className="text-xs text-right">คงเหลือ</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1112,6 +1114,12 @@ const CalendarPage = () => {
                                   </TableCell>
                                   <TableCell className="text-xs text-right font-semibold tabular-nums py-3">
                                     {formatCurrency(row.totalAmount)}
+                                  </TableCell>
+                                  <TableCell className="text-xs text-right font-semibold tabular-nums py-3 text-accent">
+                                    {formatCurrency(row.amountPerOccurrence * row.paidOccurrences)}
+                                  </TableCell>
+                                  <TableCell className="text-xs text-right font-semibold tabular-nums py-3 text-destructive">
+                                    {formatCurrency(row.totalAmount - row.amountPerOccurrence * row.paidOccurrences)}
                                   </TableCell>
                                 </TableRow>
                               );
