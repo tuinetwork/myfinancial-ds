@@ -1113,6 +1113,12 @@ const CalendarPage = () => {
                                 <TableCell className="text-xs text-right font-semibold tabular-nums py-3">
                                   {formatCurrency(row.totalAmount)}
                                 </TableCell>
+                                <TableCell className="text-xs text-right font-semibold tabular-nums py-3 text-accent">
+                                  {formatCurrency(row.amountPerOccurrence * row.paidOccurrences)}
+                                </TableCell>
+                                <TableCell className="text-xs text-right font-semibold tabular-nums py-3 text-destructive">
+                                  {formatCurrency(row.totalAmount - row.amountPerOccurrence * row.paidOccurrences)}
+                                </TableCell>
                               </TableRow>
                             );
                           })}
