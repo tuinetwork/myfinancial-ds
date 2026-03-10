@@ -51,6 +51,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
+import { IconPicker, getIconByName } from "@/components/IconPicker";
 
 // ─── Sub-menu tabs ───
 type SettingsTab = "budget" | "categories" | "savings" | "user";
