@@ -189,6 +189,8 @@ const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [crossMonthBudgets, setCrossMonthBudgets] = useState<Record<string, ExpenseBudgetValue>>({});
+  // Store all paid_dates across all budget docs for installment tracking
+  const [allPaidDatesMap, setAllPaidDatesMap] = useState<Record<string, string[]>>({});
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
