@@ -1,42 +1,60 @@
 
 
-## Plan: Auto-sync new subcategories to Budget and Savings Goals
+## แผน: ซิงค์ข้อมูลรายการซ้ำจากเดือนต้นทาง
 
-### Problem
-When a new subcategory is added in Settings → Categories and saved, it doesn't appear in Settings → Budget or Settings → Savings Goals. Users must manually add entries, which is error-prone.
+### ปัญหา
+เมื่อตั้งค่ารายการซ้ำ (เช่น "ออมแชร์") ในเดือนหนึ่ง แต่เปลี่ยนไปดูเดือนอื่น ข้อมูลจะไม่ตรงกัน เพราะแต่ละเดือนเก็บสำเนาข้อมูลแยกกัน ทำให้:
+- วันกำหนดชำระ, วันสิ้นสุด, จำนวนงวด ต่างกันระหว่างเดือน
+- แก้ไขข้อมูลในเดือนหนึ่งไม่กระทบเดือนอื่น
 
-### Solution
-Modify the `CategorySettings.handleSave()` function to, after saving categories, also update **all existing budget documents** to include any new subcategories (with budget amount = 0). This ensures:
+### แนวทางแก้ไข
+กำหนดให้ **เดือนที่ start_date ตกอยู่** เป็น "เดือนต้นทาง" (Source Month) ที่เป็นแหล่งข้อมูลหลัก:
 
-1. **Budget tab**: New subcategories appear immediately in the budget table for all periods
-2. **Savings Goals tab**: If the new subcategory belongs to "เงินออมและการลงทุน", it also appears in savings goals automatically
+1. **แก้ไขได้เฉพาะเดือนต้นทาง** — รายการซ้ำที่มี start_date จะแก้ไขได้เฉพาะในเดือนที่ start_date ตกอยู่เท่านั้น
+2. **เดือนอื่นดึงข้อมูลจากเดือนต้นทาง** — เมื่อโหลดงบเดือนอื่น ระบบจะตรวจสอบรายการซ้ำที่มี start_date ต่างเดือน แล้วดึงข้อมูล (amount, due_date, recurrence, start_date, end_date) จากเอกสารงบของเดือนต้นทาง
+3. **บันทึกแบบกระจาย** — เมื่อแก้ไขและบันทึกในเดือนต้นทาง ระบบจะอัปเดตเอกสารงบของเดือนอื่น ๆ ที่อยู่ในช่วง start_date → end_date ด้วย
 
-### Technical Changes
+### รายละเอียดทางเทคนิค
 
-**File: `src/pages/Settings.tsx` — `CategorySettings.handleSave()`**
+**ไฟล์: `src/pages/Settings.tsx`**
 
-After saving categories to the `categories` collection, add a sync step:
+#### 1. ฟังก์ชัน `getSourcePeriod(startDate)` (ใหม่)
+- คำนวณ period (YYYY-MM) จาก start_date เพื่อระบุเดือนต้นทาง
 
-1. Fetch all budget documents from `users/{userId}/budgets`
-2. For each budget document:
-   - Compare `expense_budgets` keys/sub-keys against `expenseGroups`
-   - Compare `income_estimates` keys/sub-keys against `incomeGroups`
-   - Add any missing subcategories with value `0`
-   - Remove subcategories/groups that no longer exist in categories
-   - Write back updated budget document
-3. This automatically covers savings goals since they read from `expense_budgets["เงินออมและการลงทุน"]`
+#### 2. แก้ไข `useEffect` สำหรับโหลดข้อมูลงบ
+- หลังโหลดข้อมูลงบของเดือนที่เลือก
+- สำหรับแต่ละรายการซ้ำที่มี start_date:
+  - คำนวณ sourcePeriod = `YYYY-MM` ของ start_date
+  - ถ้า sourcePeriod ≠ เดือนที่เลือก → ดึงเอกสารงบจาก sourcePeriod
+  - แทนที่ข้อมูล (amount, due_date, recurrence, start_date, end_date) ด้วยค่าจากเดือนต้นทาง
 
-### Key Logic
+#### 3. แก้ไขเงื่อนไข `isLocked`
+- เพิ่มเงื่อนไข: ล็อคแก้ไขเมื่อ sourcePeriod ≠ เดือนที่กำลังดู
+- เดือนต้นทาง → ใช้ปุ่มล็อค/ปลดล็อคปกติ
+- เดือนอื่น → ล็อคถาวร (ไม่มีปุ่มปลดล็อค)
+
+#### 4. แก้ไข `handleSave`
+- เมื่อบันทึกในเดือนต้นทาง:
+  - สำหรับแต่ละรายการซ้ำที่มี start_date + end_date
+  - คำนวณเดือนทั้งหมดในช่วง (start → end)
+  - อัปเดตเอกสารงบของแต่ละเดือนด้วยข้อมูลล่าสุด
+
+### ลำดับการทำงาน
 ```
-For each budget doc:
-  For each main_category in expenseGroups:
-    For each subcategory in that group:
-      If subcategory not in budget.expense_budgets[main_category]:
-        Add it with value 0
-  Same for incomeGroups → income_estimates
-  
-  Remove entries from budget that no longer exist in categories
+โหลดงบเดือน X:
+  สำหรับแต่ละรายการย่อย:
+    ถ้ามี start_date:
+      sourcePeriod = YYYY-MM ของ start_date
+      ถ้า sourcePeriod ≠ X:
+        ดึงข้อมูลจากเอกสาร budgets/sourcePeriod
+        แทนที่ค่า amount, due_date, recurrence, start_date, end_date
+
+บันทึกงบเดือน X:
+  สำหรับแต่ละรายการซ้ำ:
+    ถ้า X = sourcePeriod:
+      อัปเดตเอกสารงบทุกเดือนในช่วง start → end
 ```
 
-This is a single-file change to `src/pages/Settings.tsx`, modifying only the `handleSave` function in `CategorySettings`.
-
+### ขอบเขตการแก้ไข
+- 1 ไฟล์: `src/pages/Settings.tsx`
+- เพิ่ม ~50 บรรทัด (ฟังก์ชัน sync + แก้ไข useEffect + แก้ไข handleSave)
