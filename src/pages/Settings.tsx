@@ -1646,6 +1646,8 @@ const CategorySettings = () => {
     const [editingSub, setEditingSub] = useState<string | null>(null);
     const [subDraft, setSubDraft] = useState("");
 
+    const GroupIcon = getIconByName(categoryIcons[groupName]);
+
     return (
       <Collapsible open={open} onOpenChange={setOpen}>
         <div className="flex items-center gap-1">
