@@ -263,6 +263,52 @@ const DueDatePicker = ({
     );
   }
 
+  // For monthly: show day-of-month selector (1-31)
+  const isMonthly = frequency === "monthly";
+  if (isMonthly) {
+    const currentDay = value ? new Date(value).getDate() : null;
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            className={cn(
+              "flex items-center gap-1 h-8 px-2 text-xs rounded-md border border-input bg-background hover:bg-accent transition-colors whitespace-nowrap",
+              !value && "text-muted-foreground"
+            )}
+          >
+            <CalendarIcon className="h-3 w-3" />
+            {currentDay !== null ? `วันที่ ${currentDay} ของเดือน` : "เลือกวัน"}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-3 pointer-events-auto" align="start">
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+              <button
+                key={day}
+                onClick={() => {
+                  const now = new Date();
+                  const y = now.getFullYear();
+                  const m = now.getMonth(); // 0-based
+                  const daysInMonth = new Date(y, m + 1, 0).getDate();
+                  const safeDay = Math.min(day, daysInMonth);
+                  const dateStr = `${y}-${String(m + 1).padStart(2, "0")}-${String(safeDay).padStart(2, "0")}`;
+                  onChange(dateStr);
+                  setOpen(false);
+                }}
+                className={cn(
+                  "h-8 w-8 rounded-md text-xs font-medium transition-colors hover:bg-accent",
+                  currentDay === day && "bg-primary text-primary-foreground hover:bg-primary/90"
+                )}
+              >
+                {day}
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
