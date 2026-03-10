@@ -191,6 +191,8 @@ const CalendarPage = () => {
   const [crossMonthBudgets, setCrossMonthBudgets] = useState<Record<string, ExpenseBudgetValue>>({});
   // Store all paid_dates across all budget docs for installment tracking
   const [allPaidDatesMap, setAllPaidDatesMap] = useState<Record<string, string[]>>({});
+  // Store all transactions across all months for installment tx matching
+  const [allTxBySubDate, setAllTxBySubDate] = useState<Record<string, TxEntry[]>>({});
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -285,6 +287,23 @@ const CalendarPage = () => {
 
       setCrossMonthBudgets(merged);
       setAllPaidDatesMap(paidMap);
+
+      // Fetch ALL transactions for installment tx matching across months
+      const txCol = collection(firestore, "users", userId, "transactions");
+      getDocs(txCol).then((txSnap) => {
+        const allTxMap: Record<string, TxEntry[]> = {};
+        txSnap.forEach((d) => {
+          const data = d.data();
+          const subCat = (data.sub_category as string) ?? "";
+          const amount = (data.amount as number) ?? 0;
+          const date = (data.date as string) ?? "";
+          if (subCat && date) {
+            if (!allTxMap[subCat]) allTxMap[subCat] = [];
+            allTxMap[subCat].push({ date, amount });
+          }
+        });
+        setAllTxBySubDate(allTxMap);
+      });
     });
   }, [userId, period, year, month]);
 
@@ -408,12 +427,11 @@ const CalendarPage = () => {
       const totalOcc = allDates.length;
       if (totalOcc === 0) return;
 
-      // Count paid: from ALL paid_dates across all budget docs + tx matching
+      // Count paid: from ALL paid_dates + tx matching across ALL months
       const paidKey = `${mainCat}::${subCat}`;
       const allPaidDates = allPaidDatesMap[paidKey] ?? [];
-      const txList = txBySubDate[subCat] ?? [];
-      const currentMonthDates = allDates.filter(d => d.startsWith(period));
-      const txMatchMap = matchTxToOccurrences(txList, currentMonthDates, amount ?? 0);
+      const allTxList = allTxBySubDate[subCat] ?? [];
+      const txMatchMap = matchTxToOccurrences(allTxList, allDates, amount ?? 0);
 
       let paidCount = 0;
       for (const d of allDates) {
@@ -451,7 +469,7 @@ const CalendarPage = () => {
     }
 
     return rows.sort((a, b) => a.subCategory.localeCompare(b.subCategory));
-  }, [mergedBudgets, txBySubDate, period, allPaidDatesMap]);
+  }, [mergedBudgets, allTxBySubDate, period, allPaidDatesMap]);
   const paidByDate = useMemo(() => {
     const map: Record<string, boolean> = {};
     for (const [date, items] of Object.entries(itemsByDate)) {
