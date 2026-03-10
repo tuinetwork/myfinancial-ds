@@ -91,7 +91,10 @@ const Analysis = () => {
   const monthlyComparison = useMemo(() => {
     if (!yearlyData) return [];
     const THAI_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    const now = new Date();
+    const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     return yearlyData.months
+      .filter(({ month }) => month <= currentPeriod)
       .sort((a, b) => a.month.localeCompare(b.month))
       .map(({ month, data: mData }) => {
         const [, mm] = month.split("-");

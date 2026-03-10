@@ -16,7 +16,9 @@ interface Props {
 }
 
 export function MonthlyHighlights({ yearlyData }: Props) {
-  const monthStats = yearlyData.months.map(({ month, data }) => {
+  const now = new Date();
+  const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const monthStats = yearlyData.months.filter(({ month }) => month <= currentPeriod).map(({ month, data }) => {
     const expense = data.transactions
       .filter((t) => t.type !== "รายรับ")
       .reduce((s, t) => s + t.amount, 0);
