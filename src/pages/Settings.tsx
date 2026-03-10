@@ -1375,16 +1375,36 @@ const CategorySettings = () => {
     setSaving(true);
     try {
       // 1. Save categories
+      // Build per-type icon maps
+      const expenseIconKeys = new Set<string>();
+      for (const [main, subs] of Object.entries(expenseGroups)) {
+        expenseIconKeys.add(main);
+        subs.forEach((s) => expenseIconKeys.add(s));
+      }
+      const incomeIconKeys = new Set<string>();
+      for (const [main, subs] of Object.entries(incomeGroups)) {
+        incomeIconKeys.add(main);
+        subs.forEach((s) => incomeIconKeys.add(s));
+      }
+      const expIcons: Record<string, string> = {};
+      const incIcons: Record<string, string> = {};
+      for (const [k, v] of Object.entries(categoryIcons)) {
+        if (expenseIconKeys.has(k)) expIcons[k] = v;
+        if (incomeIconKeys.has(k)) incIcons[k] = v;
+      }
+
       await Promise.all([
         setDoc(doc(firestore, "users", userId, "categories", "expense"), {
           label: "รายจ่าย",
           type: "expense",
           main_categories: expenseGroups,
+          category_icons: expIcons,
         }),
         setDoc(doc(firestore, "users", userId, "categories", "income"), {
           label: "รายรับ",
           type: "income",
           main_categories: incomeGroups,
+          category_icons: incIcons,
         }),
       ]);
 
