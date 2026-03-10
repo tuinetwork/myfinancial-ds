@@ -1,42 +1,39 @@
 
 
-## Plan: Auto-sync new subcategories to Budget and Savings Goals
+## Plan: Lock Recurring Items & Show Remaining Installments Across Months
 
 ### Problem
-When a new subcategory is added in Settings → Categories and saved, it doesn't appear in Settings → Budget or Settings → Savings Goals. Users must manually add entries, which is error-prone.
+1. **No edit protection** — Recurring items with frequency/dates can be accidentally modified. Need a lock button to disable editing.
+2. **Future months show wrong data** — When viewing April for an item that started in March with 7 installments, it still shows 7 installments and "-" for remaining. It should show 6 remaining installments and the correct remaining balance.
 
-### Solution
-Modify the `CategorySettings.handleSave()` function to, after saving categories, also update **all existing budget documents** to include any new subcategories (with budget amount = 0). This ensures:
+### Changes
 
-1. **Budget tab**: New subcategories appear immediately in the budget table for all periods
-2. **Savings Goals tab**: If the new subcategory belongs to "เงินออมและการลงทุน", it also appears in savings goals automatically
+**File: `src/pages/Settings.tsx` — `BudgetTable` component**
 
-### Technical Changes
+#### 1. Disable editing for recurring items
+- Items with `recurrence` set will have their inputs (amount, due date, frequency, start/end dates, installments) rendered as **read-only text** instead of editable inputs.
+- Add a small lock icon (🔒) next to the category name for recurring items to visually indicate they are locked.
+- Users can still edit non-recurring items normally.
 
-**File: `src/pages/Settings.tsx` — `CategorySettings.handleSave()`**
+#### 2. Calculate remaining installments per viewed month
+- Modify `getOccurrences` to compute **remaining occurrences** from the viewed month onward (not total).
+- Add a new function `getTotalOccurrences` for total count and `getRemainingOccurrences` for from-viewed-month-onward count.
+- The "งวด" column shows remaining installments from the selected period forward.
+- The "คงเหลือ" column shows: `remainingInstallments * amount` — already paid in current month.
 
-After saving categories to the `categories` collection, add a sync step:
+#### 3. Show remaining balance even when no transactions exist
+- Currently shows "-" when `actual === 0`. Change to always show remaining balance for recurring items with start/end dates, since the remaining budget is meaningful even without transactions in that month.
 
-1. Fetch all budget documents from `users/{userId}/budgets`
-2. For each budget document:
-   - Compare `expense_budgets` keys/sub-keys against `expenseGroups`
-   - Compare `income_estimates` keys/sub-keys against `incomeGroups`
-   - Add any missing subcategories with value `0`
-   - Remove subcategories/groups that no longer exist in categories
-   - Write back updated budget document
-3. This automatically covers savings goals since they read from `expense_budgets["เงินออมและการลงทุน"]`
+### Logic Detail
 
-### Key Logic
-```
-For each budget doc:
-  For each main_category in expenseGroups:
-    For each subcategory in that group:
-      If subcategory not in budget.expense_budgets[main_category]:
-        Add it with value 0
-  Same for incomeGroups → income_estimates
-  
-  Remove entries from budget that no longer exist in categories
+```text
+totalOccurrences = expandRecurrence(startDate → endDate)  // e.g., 7
+pastOccurrences = expandRecurrence(startDate → end of previous month)  // e.g., 1 in March
+remainingFromViewedMonth = totalOccurrences - pastOccurrences  // e.g., 6 in April
+remainingBalance = remainingFromViewedMonth * amount - actualInCurrentMonth
 ```
 
-This is a single-file change to `src/pages/Settings.tsx`, modifying only the `handleSave` function in `CategorySettings`.
+### Scope
+- 1 file changed: `src/pages/Settings.tsx`
+- ~40 lines modified in `BudgetTable` component
 
