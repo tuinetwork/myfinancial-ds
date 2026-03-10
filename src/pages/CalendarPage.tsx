@@ -191,6 +191,8 @@ const CalendarPage = () => {
   const [crossMonthBudgets, setCrossMonthBudgets] = useState<Record<string, ExpenseBudgetValue>>({});
   // Store all paid_dates across all budget docs for installment tracking
   const [allPaidDatesMap, setAllPaidDatesMap] = useState<Record<string, string[]>>({});
+  // Store all transactions across all months for installment tx matching
+  const [allTxBySubDate, setAllTxBySubDate] = useState<Record<string, TxEntry[]>>({});
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
