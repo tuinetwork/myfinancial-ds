@@ -1087,7 +1087,7 @@ const CalendarPage = () => {
                                   <TableCell className="text-xs text-right font-semibold tabular-nums py-3">
                                     {formatCurrency(row.amountPerOccurrence)}
                                   </TableCell>
-                                  <TableCell className="text-xs hidden sm:table-cell py-3">
+                                  <TableCell className="text-xs hidden md:table-cell py-3">
                                     <Badge variant="outline" className="text-[10px]">
                                       {formatFrequencyThai(row.recurrence)}
                                     </Badge>
