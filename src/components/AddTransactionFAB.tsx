@@ -280,7 +280,7 @@ const AddTransactionFAB = () => {
                 {mainCats.length > 0 ? (
                   <div className="grid grid-cols-3 gap-2">
                     {mainCats.map((mc) => {
-                      const IconComp = getIcon(mc);
+                      const IconComp = getCategoryIcon(mc);
                       return (
                         <button
                           key={mc}
