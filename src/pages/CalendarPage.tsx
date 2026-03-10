@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { doc, getDoc, updateDoc, onSnapshot, collection, query, where, getDocs, arrayUnion, arrayRemove } from "firebase/firestore";
-import { expandRecurrence, formatFrequencyThai, matchTxToOccurrences, type TxEntry, type TxMatchResult } from "@/lib/recurrence";
+import { expandRecurrence, formatFrequencyThai, matchTxToOccurrences, parseRRule, type TxEntry, type TxMatchResult } from "@/lib/recurrence";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppSidebar } from "@/components/AppSidebar";
