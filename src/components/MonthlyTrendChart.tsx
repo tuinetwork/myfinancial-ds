@@ -25,7 +25,9 @@ interface Props {
 }
 
 export function MonthlyTrendChart({ yearlyData }: Props) {
-  const chartData = yearlyData.months.map(({ month, data }) => {
+  const now = new Date();
+  const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const chartData = yearlyData.months.filter(({ month }) => month <= currentPeriod).map(({ month, data }) => {
     const income = data.transactions
       .filter((t) => t.type === "รายรับ")
       .reduce((s, t) => s + t.amount, 0);

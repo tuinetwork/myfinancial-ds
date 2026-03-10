@@ -8,19 +8,23 @@ interface Props {
 }
 
 export function YearlySummaryCard({ yearlyData }: Props) {
-  const { aggregated } = yearlyData;
+  const now = new Date();
+  const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const filteredMonths = yearlyData.months.filter(({ month }) => month <= currentPeriod);
 
-  const totalIncome = aggregated.transactions
+  const allTransactions = filteredMonths.flatMap(({ data }) => data.transactions);
+
+  const totalIncome = allTransactions
     .filter((t) => t.type === "รายรับ")
     .reduce((s, t) => s + t.amount, 0);
 
-  const totalExpense = aggregated.transactions
+  const totalExpense = allTransactions
     .filter((t) => t.type !== "รายรับ")
     .reduce((s, t) => s + t.amount, 0);
 
   const netBalance = totalIncome - totalExpense;
-  const avgMonthlyExpense = yearlyData.months.length > 0
-    ? totalExpense / yearlyData.months.length
+  const avgMonthlyExpense = filteredMonths.length > 0
+    ? totalExpense / filteredMonths.length
     : 0;
 
   const items = [
