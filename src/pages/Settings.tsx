@@ -895,7 +895,51 @@ const BudgetSettings = () => {
         expense_budgets: budgetData.expense_budgets,
         carry_over: budgetData.carry_over,
       });
-      toast({ title: "บันทึกสำเร็จ", description: `อัปเดตงบประมาณ ${period}` });
+
+      // ─── Propagate recurring items to all months in their range ───
+      for (const [mainCat, subs] of Object.entries(budgetData.expense_budgets)) {
+        if (!MAP_CATEGORIES.includes(mainCat)) continue;
+        for (const [sub, val] of Object.entries(subs)) {
+          const startDt = getStartDate(val);
+          const endDt = getEndDate(val);
+          const recurrence = getRecurrence(val);
+          if (!startDt || !endDt || !recurrence) continue;
+          const sourcePeriod = getSourcePeriod(startDt);
+          if (sourcePeriod !== period) continue; // Only propagate from source month
+
+          // Calculate all months in start → end range
+          const start = new Date(startDt);
+          const end = new Date(endDt);
+          let y = start.getFullYear();
+          let m = start.getMonth() + 1;
+          const endY = end.getFullYear();
+          const endM = end.getMonth() + 1;
+          while (y < endY || (y === endY && m <= endM)) {
+            const targetPeriod = `${y}-${String(m).padStart(2, "0")}`;
+            if (targetPeriod !== period) {
+              // Update this subcategory in the target month's budget
+              const targetRef = doc(firestore, "users", userId, "budgets", targetPeriod);
+              try {
+                const targetSnap = await getDoc(targetRef);
+                if (targetSnap.exists()) {
+                  const targetData = targetSnap.data();
+                  const targetExpense = (targetData.expense_budgets ?? {}) as Record<string, Record<string, BudgetValue>>;
+                  if (targetExpense[mainCat]) {
+                    targetExpense[mainCat][sub] = val;
+                    await updateDoc(targetRef, { expense_budgets: targetExpense });
+                  }
+                }
+              } catch {
+                // Skip if target month doesn't exist yet
+              }
+            }
+            m++;
+            if (m > 12) { m = 1; y++; }
+          }
+        }
+      }
+
+      toast({ title: "บันทึกสำเร็จ", description: `อัปเดตงบประมาณ ${period} (ซิงค์รายการซ้ำแล้ว)` });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
     }
