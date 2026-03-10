@@ -1092,10 +1092,10 @@ const CalendarPage = () => {
                                       {formatFrequencyThai(row.recurrence)}
                                     </Badge>
                                   </TableCell>
-                                  <TableCell className="text-xs hidden xl:table-cell text-muted-foreground py-3">
+                                  <TableCell className="text-xs hidden lg:table-cell text-muted-foreground py-3">
                                     {formatThaiDate(row.startDate)}
                                   </TableCell>
-                                  <TableCell className="text-xs hidden xl:table-cell text-muted-foreground py-3">
+                                  <TableCell className="text-xs hidden lg:table-cell text-muted-foreground py-3">
                                     {formatThaiDate(row.endDate)}
                                   </TableCell>
                                   <TableCell className="py-3">
