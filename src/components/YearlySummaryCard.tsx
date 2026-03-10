@@ -37,7 +37,7 @@ export function YearlySummaryCard({ yearlyData }: Props) {
   return (
     <Card className="col-span-1 border-none shadow-sm bg-primary text-primary-foreground animate-fade-in" style={{ animationDelay: "320ms" }}>
       <CardContent className="p-5">
-        <p className="text-sm opacity-80 mb-3 font-medium">สรุปยอดรวมทั้งปี ({yearlyData.months.length} เดือน)</p>
+        <p className="text-sm opacity-80 mb-3 font-medium">สรุปยอดรวมทั้งปี ({filteredMonths.length} เดือน)</p>
         <div className="grid grid-cols-2 gap-4">
           {items.map((item) => (
             <div key={item.label}>
