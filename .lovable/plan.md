@@ -1,60 +1,27 @@
 
 
-## แผน: ซิงค์ข้อมูลรายการซ้ำจากเดือนต้นทาง
+## Problem
+The Analysis page (and Dashboard yearly view) displays future months (e.g., April 2026) in charts and tables because budget documents exist for those months (planned ahead). The desired behavior is to only show data up to the current month.
 
-### ปัญหา
-เมื่อตั้งค่ารายการซ้ำ (เช่น "ออมแชร์") ในเดือนหนึ่ง แต่เปลี่ยนไปดูเดือนอื่น ข้อมูลจะไม่ตรงกัน เพราะแต่ละเดือนเก็บสำเนาข้อมูลแยกกัน ทำให้:
-- วันกำหนดชำระ, วันสิ้นสุด, จำนวนงวด ต่างกันระหว่างเดือน
-- แก้ไขข้อมูลในเดือนหนึ่งไม่กระทบเดือนอื่น
+## Root Cause
+- `useYearlyData` fetches ALL budget documents for the year, including future months
+- `monthlyComparison` in `Analysis.tsx` and `MonthlyTrendChart.tsx` render all months without filtering
 
-### แนวทางแก้ไข
-กำหนดให้ **เดือนที่ start_date ตกอยู่** เป็น "เดือนต้นทาง" (Source Month) ที่เป็นแหล่งข้อมูลหลัก:
+## Plan
 
-1. **แก้ไขได้เฉพาะเดือนต้นทาง** — รายการซ้ำที่มี start_date จะแก้ไขได้เฉพาะในเดือนที่ start_date ตกอยู่เท่านั้น
-2. **เดือนอื่นดึงข้อมูลจากเดือนต้นทาง** — เมื่อโหลดงบเดือนอื่น ระบบจะตรวจสอบรายการซ้ำที่มี start_date ต่างเดือน แล้วดึงข้อมูล (amount, due_date, recurrence, start_date, end_date) จากเอกสารงบของเดือนต้นทาง
-3. **บันทึกแบบกระจาย** — เมื่อแก้ไขและบันทึกในเดือนต้นทาง ระบบจะอัปเดตเอกสารงบของเดือนอื่น ๆ ที่อยู่ในช่วง start_date → end_date ด้วย
-
-### รายละเอียดทางเทคนิค
-
-**ไฟล์: `src/pages/Settings.tsx`**
-
-#### 1. ฟังก์ชัน `getSourcePeriod(startDate)` (ใหม่)
-- คำนวณ period (YYYY-MM) จาก start_date เพื่อระบุเดือนต้นทาง
-
-#### 2. แก้ไข `useEffect` สำหรับโหลดข้อมูลงบ
-- หลังโหลดข้อมูลงบของเดือนที่เลือก
-- สำหรับแต่ละรายการซ้ำที่มี start_date:
-  - คำนวณ sourcePeriod = `YYYY-MM` ของ start_date
-  - ถ้า sourcePeriod ≠ เดือนที่เลือก → ดึงเอกสารงบจาก sourcePeriod
-  - แทนที่ข้อมูล (amount, due_date, recurrence, start_date, end_date) ด้วยค่าจากเดือนต้นทาง
-
-#### 3. แก้ไขเงื่อนไข `isLocked`
-- เพิ่มเงื่อนไข: ล็อคแก้ไขเมื่อ sourcePeriod ≠ เดือนที่กำลังดู
-- เดือนต้นทาง → ใช้ปุ่มล็อค/ปลดล็อคปกติ
-- เดือนอื่น → ล็อคถาวร (ไม่มีปุ่มปลดล็อค)
-
-#### 4. แก้ไข `handleSave`
-- เมื่อบันทึกในเดือนต้นทาง:
-  - สำหรับแต่ละรายการซ้ำที่มี start_date + end_date
-  - คำนวณเดือนทั้งหมดในช่วง (start → end)
-  - อัปเดตเอกสารงบของแต่ละเดือนด้วยข้อมูลล่าสุด
-
-### ลำดับการทำงาน
+### 1. Filter `monthlyComparison` in `Analysis.tsx` (line ~94)
+Add a filter to exclude months after the current month:
+```ts
+const now = new Date();
+const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 ```
-โหลดงบเดือน X:
-  สำหรับแต่ละรายการย่อย:
-    ถ้ามี start_date:
-      sourcePeriod = YYYY-MM ของ start_date
-      ถ้า sourcePeriod ≠ X:
-        ดึงข้อมูลจากเอกสาร budgets/sourcePeriod
-        แทนที่ค่า amount, due_date, recurrence, start_date, end_date
+Filter `yearlyData.months` to only include months where `month <= currentPeriod` before mapping to chart data.
 
-บันทึกงบเดือน X:
-  สำหรับแต่ละรายการซ้ำ:
-    ถ้า X = sourcePeriod:
-      อัปเดตเอกสารงบทุกเดือนในช่วง start → end
-```
+### 2. Filter `MonthlyTrendChart.tsx` (line ~27)
+Apply the same current-month filter to `yearlyData.months` before generating `chartData`, so the Dashboard yearly bar chart also excludes future months.
 
-### ขอบเขตการแก้ไข
-- 1 ไฟล์: `src/pages/Settings.tsx`
-- เพิ่ม ~50 บรรทัด (ฟังก์ชัน sync + แก้ไข useEffect + แก้ไข handleSave)
+### 3. Filter `MonthlyHighlights` and `YearlySummaryCard`
+Check if these components also iterate over `yearlyData.months` and apply the same filter to keep consistency across all yearly views.
+
+Both files will use the same pattern: compare each month's period string against the current `YYYY-MM` period.
+
