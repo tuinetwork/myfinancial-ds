@@ -469,7 +469,7 @@ const CalendarPage = () => {
     }
 
     return rows.sort((a, b) => a.subCategory.localeCompare(b.subCategory));
-  }, [mergedBudgets, txBySubDate, period, allPaidDatesMap]);
+  }, [mergedBudgets, allTxBySubDate, period, allPaidDatesMap]);
   const paidByDate = useMemo(() => {
     const map: Record<string, boolean> = {};
     for (const [date, items] of Object.entries(itemsByDate)) {
