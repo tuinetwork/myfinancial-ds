@@ -1063,9 +1063,9 @@ const CalendarPage = () => {
                             <TableRow>
                               <TableHead className="text-xs">ชื่อรายการ</TableHead>
                               <TableHead className="text-xs text-right">ต่องวด</TableHead>
-                              <TableHead className="text-xs hidden sm:table-cell">ความถี่</TableHead>
-                              <TableHead className="text-xs hidden xl:table-cell">วันเริ่ม</TableHead>
-                              <TableHead className="text-xs hidden xl:table-cell">วันสิ้นสุด</TableHead>
+                               <TableHead className="text-xs hidden md:table-cell">ความถี่</TableHead>
+                               <TableHead className="text-xs hidden lg:table-cell">วันเริ่ม</TableHead>
+                               <TableHead className="text-xs hidden lg:table-cell">วันสิ้นสุด</TableHead>
                               <TableHead className="text-xs text-center">งวด</TableHead>
                               <TableHead className="text-xs text-right">ยอดรวม</TableHead>
                               <TableHead className="text-xs text-right">จ่ายแล้ว</TableHead>
@@ -1087,15 +1087,15 @@ const CalendarPage = () => {
                                   <TableCell className="text-xs text-right font-semibold tabular-nums py-3">
                                     {formatCurrency(row.amountPerOccurrence)}
                                   </TableCell>
-                                  <TableCell className="text-xs hidden sm:table-cell py-3">
+                                  <TableCell className="text-xs hidden md:table-cell py-3">
                                     <Badge variant="outline" className="text-[10px]">
                                       {formatFrequencyThai(row.recurrence)}
                                     </Badge>
                                   </TableCell>
-                                  <TableCell className="text-xs hidden xl:table-cell text-muted-foreground py-3">
+                                  <TableCell className="text-xs hidden lg:table-cell text-muted-foreground py-3">
                                     {formatThaiDate(row.startDate)}
                                   </TableCell>
-                                  <TableCell className="text-xs hidden xl:table-cell text-muted-foreground py-3">
+                                  <TableCell className="text-xs hidden lg:table-cell text-muted-foreground py-3">
                                     {formatThaiDate(row.endDate)}
                                   </TableCell>
                                   <TableCell className="py-3">
