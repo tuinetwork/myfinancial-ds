@@ -334,6 +334,95 @@ const CalendarPage = () => {
   const monthTotal = useMemo(() => dueDateItems.reduce((s, i) => s + i.amount, 0), [dueDateItems]);
   const paidCount = useMemo(() => dueDateItems.filter(i => i.isPaid).length, [dueDateItems]);
   const recurringCount = useMemo(() => dueDateItems.filter(i => i.isRecurring).length, [dueDateItems]);
+
+  // Installment data: recurring items with start_date + end_date
+  interface InstallmentRow {
+    mainCategory: string;
+    subCategory: string;
+    amountPerOccurrence: number;
+    dueDate: string;
+    recurrence: string;
+    startDate: string;
+    endDate: string;
+    totalOccurrences: number;
+    paidOccurrences: number;
+    totalAmount: number;
+  }
+
+  const installmentData = useMemo(() => {
+    const rows: InstallmentRow[] = [];
+    const seen = new Set<string>();
+
+    const processSubItem = (mainCat: string, subCat: string, subVal: any) => {
+      if (!subVal || typeof subVal !== "object") return;
+      const { recurrence, start_date, end_date, due_date, amount, paid_dates } = subVal;
+      if (!recurrence || !start_date || !end_date || !due_date) return;
+      const key = `${mainCat}::${subCat}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      // Calculate total occurrences across all months from start to end
+      const startD = new Date(start_date);
+      const endD = new Date(end_date);
+      let allDates: string[] = [];
+      let y = startD.getFullYear();
+      let m = startD.getMonth() + 1;
+      const endY = endD.getFullYear();
+      const endM = endD.getMonth() + 1;
+
+      while (y < endY || (y === endY && m <= endM)) {
+        const expanded = expandRecurrence(due_date, recurrence, y, m, start_date, end_date);
+        allDates = allDates.concat(expanded);
+        m++;
+        if (m > 12) { m = 1; y++; }
+      }
+
+      const totalOcc = allDates.length;
+      if (totalOcc === 0) return;
+
+      // Count paid: from paid_dates + tx matching in current month
+      const itemPaidDates = paid_dates ?? [];
+      const txList = txBySubDate[subCat] ?? [];
+      const currentMonthDates = allDates.filter(d => d.startsWith(period));
+      const txMatchMap = matchTxToOccurrences(txList, currentMonthDates, amount ?? 0);
+
+      let paidCount = 0;
+      for (const d of allDates) {
+        if (itemPaidDates.includes(d)) {
+          paidCount++;
+        } else if (txMatchMap.get(d)?.isPaid) {
+          paidCount++;
+        }
+      }
+
+      rows.push({
+        mainCategory: mainCat,
+        subCategory: subCat,
+        amountPerOccurrence: amount ?? 0,
+        dueDate: due_date,
+        recurrence,
+        startDate: start_date,
+        endDate: end_date,
+        totalOccurrences: totalOcc,
+        paidOccurrences: paidCount,
+        totalAmount: (amount ?? 0) * totalOcc,
+      });
+    };
+
+    for (const [mainCat, val] of Object.entries(mergedBudgets)) {
+      if (isV2Format(val)) {
+        for (const [subCat, subVal] of Object.entries(val.sub_categories)) {
+          processSubItem(mainCat, subCat, subVal);
+        }
+      } else if (typeof val === "object" && val !== null && !Array.isArray(val) && !("amount" in val)) {
+        for (const [subCat, subVal] of Object.entries(val as Record<string, unknown>)) {
+          processSubItem(mainCat, subCat, subVal);
+        }
+      }
+    }
+
+    return rows.sort((a, b) => a.subCategory.localeCompare(b.subCategory));
+  }, [mergedBudgets, txBySubDate, period]);
   const paidByDate = useMemo(() => {
     const map: Record<string, boolean> = {};
     for (const [date, items] of Object.entries(itemsByDate)) {
