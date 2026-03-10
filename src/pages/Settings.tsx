@@ -1354,12 +1354,18 @@ const CategorySettings = () => {
         }
         return result;
       };
+      const mergedIcons: Record<string, string> = {};
       if (expSnap.exists()) {
-        setExpenseGroups(toGroups(expSnap.data()));
+        const data = expSnap.data();
+        setExpenseGroups(toGroups(data));
+        Object.assign(mergedIcons, data?.category_icons ?? {});
       }
       if (incSnap.exists()) {
-        setIncomeGroups(toGroups(incSnap.data()));
+        const data = incSnap.data();
+        setIncomeGroups(toGroups(data));
+        Object.assign(mergedIcons, data?.category_icons ?? {});
       }
+      setCategoryIcons(mergedIcons);
       setLoading(false);
     });
   }, [userId]);
