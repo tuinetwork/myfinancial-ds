@@ -202,48 +202,55 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         )}
-        <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
-          {!collapsed && (
-            <CollapsibleContent>
-              <div className="ml-6 border-l border-sidebar-border pl-2 mb-1 space-y-0.5">
-                {settingsChildren.map((child) => {
-                  const active = renderChildActive(child.url);
-                  return (
-                    <button
-                      key={child.url}
-                      onClick={() => navigate(child.url)}
-                      className={`flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${
-                        active
-                          ? "text-sidebar-primary font-medium bg-sidebar-accent/50"
-                          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
-                      }`}
-                    >
-                      {child.icon && <child.icon className="h-3.5 w-3.5" />}
-                      {child.title}
-                    </button>
-                  );
-                })}
-              </div>
-            </CollapsibleContent>
-          )}
-          <CollapsibleTrigger asChild>
-            <SidebarMenuButton
-              className={`w-full justify-between hover:bg-sidebar-accent/50 ${
-                isSettingsActive ? "bg-sidebar-accent text-sidebar-primary font-medium" : ""
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                {!collapsed && <span>ตั้งค่า</span>}
-              </div>
-              {!collapsed && (
-                settingsOpen
-                  ? <ChevronUp className="h-3.5 w-3.5 text-sidebar-foreground/50" />
-                  : <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/50" />
-              )}
-            </SidebarMenuButton>
-          </CollapsibleTrigger>
-        </Collapsible>
+        <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
+          {!collapsed && (
+            <CollapsibleContent>
+              <div className="ml-6 border-l border-sidebar-border pl-2 mb-1 space-y-0.5">
+                {settingsChildren.map((child) => {
+                  const active = renderChildActive(child.url);
+                  return (
+                    <button
+                      key={child.url}
+                      onClick={() => navigate(child.url)}
+                      className={`flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${
+                        active
+                          ? "text-sidebar-primary font-medium bg-sidebar-accent/50"
+                          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
+                      }`}
+                    >
+                      {child.icon && <child.icon className="h-3.5 w-3.5" />}
+                      {child.title}
+                    </button>
+                  );
+                })}
+              </div>
+            </CollapsibleContent>
+          )}
+          <SidebarMenuButton
+            className={`w-full justify-between hover:bg-sidebar-accent/50 ${
+              isSettingsActive ? "bg-sidebar-accent text-sidebar-primary font-medium" : ""
+            }`}
+            onClick={() => {
+              navigate("/settings?tab=budget");
+              setSettingsOpen(true);
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              {!collapsed && <span>ตั้งค่า</span>}
+            </div>
+            {!collapsed && (
+              <CollapsibleTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <span>
+                  {settingsOpen
+                    ? <ChevronUp className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+                    : <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/50" />
+                  }
+                </span>
+              </CollapsibleTrigger>
+            )}
+          </SidebarMenuButton>
+        </Collapsible>
       </SidebarFooter>
     </Sidebar>
   );
