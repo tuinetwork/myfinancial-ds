@@ -1230,6 +1230,7 @@ const BudgetSettings = () => {
               txBySubDate={txBySubDate}
               isExpense
               selectedPeriod={selectedYear && selectedMonth ? `${selectedYear}-${selectedMonth}` : undefined}
+              foreignSourceItems={foreignSourceItems}
             />
             <BudgetTable
               title="รายรับ"
