@@ -1,42 +1,30 @@
 
 
-## Plan: Auto-sync new subcategories to Budget and Savings Goals
+## Plan: Monthly Frequency — Day-of-Month Picker (1-31)
 
 ### Problem
-When a new subcategory is added in Settings → Categories and saved, it doesn't appear in Settings → Budget or Settings → Savings Goals. Users must manually add entries, which is error-prone.
+When frequency is set to "รายเดือน" (monthly), the due date picker still shows a full calendar. It should instead show a simple day-of-month selector (1-31), since for monthly recurrence only the day number matters.
 
-### Solution
-Modify the `CategorySettings.handleSave()` function to, after saving categories, also update **all existing budget documents** to include any new subcategories (with budget amount = 0). This ensures:
+### Changes
 
-1. **Budget tab**: New subcategories appear immediately in the budget table for all periods
-2. **Savings Goals tab**: If the new subcategory belongs to "เงินออมและการลงทุน", it also appears in savings goals automatically
+**File: `src/pages/Settings.tsx` — `DueDatePicker` component**
 
-### Technical Changes
+Add a new condition for `frequency === "monthly"` (similar to the existing `isWeekly` branch) that renders a grid of day numbers 1-31 instead of the full calendar.
 
-**File: `src/pages/Settings.tsx` — `CategorySettings.handleSave()`**
+- After the `isWeekly` block (line 263), add a new `isMonthly` block
+- Display a grid of buttons numbered 1-31
+- When a day is selected, generate a date string using the current year/month with that day number
+- Show the selected day as "วันที่ X ของเดือน" in the trigger button
+- Preserve the same popover pattern and styling
 
-After saving categories to the `categories` collection, add a sync step:
-
-1. Fetch all budget documents from `users/{userId}/budgets`
-2. For each budget document:
-   - Compare `expense_budgets` keys/sub-keys against `expenseGroups`
-   - Compare `income_estimates` keys/sub-keys against `incomeGroups`
-   - Add any missing subcategories with value `0`
-   - Remove subcategories/groups that no longer exist in categories
-   - Write back updated budget document
-3. This automatically covers savings goals since they read from `expense_budgets["เงินออมและการลงทุน"]`
-
-### Key Logic
-```
-For each budget doc:
-  For each main_category in expenseGroups:
-    For each subcategory in that group:
-      If subcategory not in budget.expense_budgets[main_category]:
-        Add it with value 0
-  Same for incomeGroups → income_estimates
-  
-  Remove entries from budget that no longer exist in categories
+```text
+DueDatePicker logic flow:
+  if weekly  → show day-of-week grid (existing)
+  if monthly → show 1-31 day grid (NEW)
+  else       → show full calendar (existing)
 ```
 
-This is a single-file change to `src/pages/Settings.tsx`, modifying only the `handleSave` function in `CategorySettings`.
+### Scope
+- 1 file changed: `src/pages/Settings.tsx`
+- ~30 lines added to `DueDatePicker` component
 
