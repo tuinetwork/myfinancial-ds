@@ -287,6 +287,23 @@ const CalendarPage = () => {
 
       setCrossMonthBudgets(merged);
       setAllPaidDatesMap(paidMap);
+
+      // Fetch ALL transactions for installment tx matching across months
+      const txCol = collection(firestore, "users", userId, "transactions");
+      getDocs(txCol).then((txSnap) => {
+        const allTxMap: Record<string, TxEntry[]> = {};
+        txSnap.forEach((d) => {
+          const data = d.data();
+          const subCat = (data.sub_category as string) ?? "";
+          const amount = (data.amount as number) ?? 0;
+          const date = (data.date as string) ?? "";
+          if (subCat && date) {
+            if (!allTxMap[subCat]) allTxMap[subCat] = [];
+            allTxMap[subCat].push({ date, amount });
+          }
+        });
+        setAllTxBySubDate(allTxMap);
+      });
     });
   }, [userId, period, year, month]);
 
