@@ -1063,9 +1063,9 @@ const CalendarPage = () => {
                             <TableRow>
                               <TableHead className="text-xs">ชื่อรายการ</TableHead>
                               <TableHead className="text-xs text-right">ต่องวด</TableHead>
-                              <TableHead className="text-xs hidden sm:table-cell">ความถี่</TableHead>
-                              <TableHead className="text-xs hidden xl:table-cell">วันเริ่ม</TableHead>
-                              <TableHead className="text-xs hidden xl:table-cell">วันสิ้นสุด</TableHead>
+                               <TableHead className="text-xs hidden md:table-cell">ความถี่</TableHead>
+                               <TableHead className="text-xs hidden lg:table-cell">วันเริ่ม</TableHead>
+                               <TableHead className="text-xs hidden lg:table-cell">วันสิ้นสุด</TableHead>
                               <TableHead className="text-xs text-center">งวด</TableHead>
                               <TableHead className="text-xs text-right">ยอดรวม</TableHead>
                               <TableHead className="text-xs text-right">จ่ายแล้ว</TableHead>
