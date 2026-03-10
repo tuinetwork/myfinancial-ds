@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, X, CalendarIcon, ChevronLeft } from "lucide-react";
+import { Plus, X, CalendarIcon, ChevronLeft, Landmark, TrendingUp, CalendarCheck, ShoppingBag, Baby, Zap, CircleDot, Briefcase, Gift, Coins, type LucideIcon } from "lucide-react";
 import { collection, doc, getDocs, setDoc, query, where, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,6 +17,30 @@ interface CategoryData {
   label: string;
   main_categories: Record<string, string[]>;
 }
+
+const categoryIconMap: Record<string, LucideIcon> = {
+  "หนี้สินและผ่อนชำระ": Landmark,
+  "เงินออมและการลงทุน": TrendingUp,
+  "ค่าสมาชิกรายเดือน": CalendarCheck,
+  "ค่าใช้จ่ายทั่วไป": ShoppingBag,
+  "ค่าเลี้ยงดูบุตร": Baby,
+  "ค่าสาธารณูปโภค": Zap,
+  "รายได้ประจำ": Briefcase,
+  "รายได้เสริม": Gift,
+  "รายได้จากการลงทุน": Coins,
+};
+
+const categoryLabelMap: Record<string, string> = {
+  "หนี้สินและผ่อนชำระ": "DEBT",
+  "เงินออมและการลงทุน": "SAVINGS",
+  "ค่าสมาชิกรายเดือน": "SUBS.",
+  "ค่าใช้จ่ายทั่วไป": "GENERAL",
+  "ค่าเลี้ยงดูบุตร": "CHILDCARE",
+  "ค่าสาธารณูปโภค": "UTILITIES",
+  "รายได้ประจำ": "SALARY",
+  "รายได้เสริม": "EXTRA",
+  "รายได้จากการลงทุน": "INVEST",
+};
 
 const AddTransactionFAB = () => {
   const { userId } = useAuth();
@@ -54,7 +78,6 @@ const AddTransactionFAB = () => {
     : [];
 
   const isExpense = type === "expense";
-  const themeColor = isExpense ? "red" : "emerald";
 
   const resetForm = () => {
     setType("expense");
@@ -157,6 +180,9 @@ const AddTransactionFAB = () => {
     return `${day} ${thaiMonths[d.getMonth()]} ${thaiYear}`;
   })();
 
+  const getIcon = (catName: string): LucideIcon => categoryIconMap[catName] || CircleDot;
+  const getLabel = (catName: string): string => categoryLabelMap[catName] || catName;
+
   return (
     <>
       <button
@@ -177,16 +203,16 @@ const AddTransactionFAB = () => {
             onClick={(e) => e.stopPropagation()}
             className={cn(
               "relative z-10 w-full max-w-md mx-4 mb-4 sm:mb-0 rounded-2xl shadow-2xl p-5 space-y-3",
-              "bg-slate-800/60 backdrop-blur-xl border border-white/10",
+              "bg-card/95 backdrop-blur-xl border border-border",
               closing ? "animate-modal-slide-down" : "animate-modal-slide-up"
             )}
           >
             {/* Header */}
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">เพิ่มรายการใหม่</h2>
+              <h2 className="text-lg font-semibold text-foreground">เพิ่มรายการใหม่</h2>
               <button
                 onClick={handleClose}
-                className="h-8 w-8 rounded-full flex items-center justify-center text-white/50 hover:bg-white/10 transition-colors"
+                className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -199,84 +225,94 @@ const AddTransactionFAB = () => {
                 className={cn(
                   "flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                   isExpense
-                    ? "bg-red-500 text-white shadow-md shadow-red-500/30"
-                    : "bg-white/10 text-white/60 hover:bg-white/15"
+                    ? "bg-destructive text-destructive-foreground shadow-md"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
               >
-                - รายจ่าย
+                - Expense
               </button>
               <button
                 onClick={() => handleTypeChange("income")}
                 className={cn(
                   "flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                   !isExpense
-                    ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
-                    : "bg-white/10 text-white/60 hover:bg-white/15"
+                    ? "bg-accent text-accent-foreground shadow-md"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
               >
-                + รายรับ
+                + Income
               </button>
             </div>
 
-            {/* Amount + Date row */}
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-semibold text-white/40">฿</span>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className={cn(
-                    "pl-8 text-lg font-semibold h-12 bg-white/10 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-1",
-                    isExpense ? "focus-visible:ring-red-500" : "focus-visible:ring-emerald-500"
-                  )}
-                />
-              </div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="h-12 bg-white/10 border-white/10 text-white/80 hover:bg-white/15 hover:text-white shrink-0"
-                  >
-                    <CalendarIcon className="mr-1.5 h-4 w-4 text-white/40" />
-                    {thaiDate}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-[60]" align="end">
-                  <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus />
-                </PopoverContent>
-              </Popover>
+            {/* Amount */}
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-semibold text-muted-foreground">฿</span>
+              <Input
+                type="number"
+                inputMode="decimal"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className={cn(
+                  "pl-8 text-lg font-semibold h-12 bg-muted/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1",
+                  isExpense ? "focus-visible:ring-destructive" : "focus-visible:ring-accent"
+                )}
+              />
             </div>
 
-            {/* Category area — fixed height */}
-            <div className="h-[200px] relative overflow-hidden rounded-xl bg-white/5 border border-white/10">
+            {/* Date */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full h-12 justify-start bg-muted/50 border-border text-foreground hover:bg-muted"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                  {thaiDate}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus />
+              </PopoverContent>
+            </Popover>
+
+            {/* Category area */}
+            <div className="h-[200px] relative overflow-hidden rounded-xl bg-muted/30 border border-border">
               {/* Step 1: Main categories grid */}
               <div className={cn(
                 "absolute inset-0 p-2 overflow-y-auto transition-all duration-200",
                 categoryStep === 1 ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
               )}>
                 {mainCats.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    {mainCats.map((mc) => (
-                      <button
-                        key={mc}
-                        onClick={() => handleMainCategorySelect(mc)}
-                        className={cn(
-                          "px-3 py-3 rounded-xl text-sm font-medium text-white/80 text-left transition-all duration-150",
-                          "bg-white/5 border hover:bg-white/10",
-                          mainCategory === mc
-                            ? isExpense ? "border-red-500/60 bg-red-500/10" : "border-emerald-500/60 bg-emerald-500/10"
-                            : "border-white/10"
-                        )}
-                      >
-                        {mc}
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-3 gap-2">
+                    {mainCats.map((mc) => {
+                      const IconComp = getIcon(mc);
+                      return (
+                        <button
+                          key={mc}
+                          onClick={() => handleMainCategorySelect(mc)}
+                          className={cn(
+                            "px-2 py-3 rounded-xl text-xs font-medium transition-all duration-150",
+                            "flex flex-col items-center justify-center gap-1.5",
+                            "bg-muted/50 border hover:bg-muted",
+                            mainCategory === mc
+                              ? isExpense ? "border-destructive bg-destructive/10" : "border-accent bg-accent/10"
+                              : "border-border"
+                          )}
+                        >
+                          <IconComp className={cn(
+                            "h-6 w-6",
+                            mainCategory === mc
+                              ? isExpense ? "text-destructive" : "text-accent"
+                              : "text-muted-foreground"
+                          )} />
+                          <span className="text-foreground text-center leading-tight">{getLabel(mc)}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-white/30 text-sm">
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
                     ไม่พบหมวดหมู่
                   </div>
                 )}
@@ -289,10 +325,10 @@ const AddTransactionFAB = () => {
               )}>
                 <button
                   onClick={handleBackToMainCategories}
-                  className="flex items-center gap-1 text-sm text-white/50 hover:text-white/80 mb-2 transition-colors"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2 transition-colors"
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  <span>{mainCategory || "กลับ"}</span>
+                  <span>{getLabel(mainCategory) || "Back"}</span>
                 </button>
                 <div className="flex flex-col gap-1">
                   {subCats.map((sc) => (
@@ -300,10 +336,10 @@ const AddTransactionFAB = () => {
                       key={sc}
                       onClick={() => setSubCategory(sc)}
                       className={cn(
-                        "px-3 py-2.5 rounded-lg text-sm text-left text-white/80 transition-all duration-150",
-                        "hover:bg-white/10",
+                        "px-3 py-2.5 rounded-lg text-sm text-left text-foreground transition-all duration-150",
+                        "hover:bg-muted",
                         subCategory === sc
-                          ? isExpense ? "bg-red-500/15 border border-red-500/50" : "bg-emerald-500/15 border border-emerald-500/50"
+                          ? isExpense ? "bg-destructive/10 border border-destructive/50" : "bg-accent/10 border border-accent/50"
                           : "border border-transparent"
                       )}
                     >
@@ -317,13 +353,13 @@ const AddTransactionFAB = () => {
             {/* Note */}
             <div className="relative">
               <Textarea
-                placeholder="บันทึกเพิ่มเติม..."
+                placeholder="Note..."
                 value={note}
                 onChange={(e) => setNote(e.target.value.slice(0, MAX_NOTE_LENGTH))}
-                className="resize-none bg-white/10 border-white/10 text-white placeholder:text-white/30 min-h-[56px] text-sm"
+                className="resize-none bg-muted/50 border-border text-foreground placeholder:text-muted-foreground min-h-[56px] text-sm"
                 maxLength={MAX_NOTE_LENGTH}
               />
-              <span className="absolute bottom-1 right-2 text-[10px] text-white/30">
+              <span className="absolute bottom-1 right-2 text-[10px] text-muted-foreground">
                 {note.length}/{MAX_NOTE_LENGTH}
               </span>
             </div>
@@ -335,12 +371,12 @@ const AddTransactionFAB = () => {
               className={cn(
                 "w-full h-12 text-base font-semibold rounded-xl transition-all duration-200",
                 isExpense
-                  ? "bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/25"
-                  : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25",
+                  ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg"
+                  : "bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg",
                 !canSubmit && "opacity-50 cursor-not-allowed"
               )}
             >
-              {saving ? "กำลังบันทึก..." : "บันทึกรายการ"}
+              {saving ? "Saving..." : "Save"}
             </Button>
           </div>
         </div>
