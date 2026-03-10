@@ -399,21 +399,30 @@ const AddTransactionFAB = () => {
                   <span>{getLabel(mainCategory) || "Back"}</span>
                 </button>
                 <div className="flex flex-col gap-1">
-                  {subCats.map((sc) => (
-                    <button
-                      key={sc}
-                      onClick={() => setSubCategory(sc)}
-                      className={cn(
-                        "px-3 py-2.5 rounded-lg text-sm text-left text-foreground transition-all duration-150",
-                        "hover:bg-muted",
-                        subCategory === sc
-                          ? isExpense ? "bg-destructive/10 border border-destructive/50" : "bg-accent/10 border border-accent/50"
-                          : "border border-transparent"
-                      )}
-                    >
-                      {sc}
-                    </button>
-                  ))}
+                  {subCats.map((sc) => {
+                    const SubIcon = subCategoryIconMap[sc] || CircleDot;
+                    return (
+                      <button
+                        key={sc}
+                        onClick={() => setSubCategory(sc)}
+                        className={cn(
+                          "px-3 py-2.5 rounded-lg text-sm text-left text-foreground transition-all duration-150 flex items-center gap-2",
+                          "hover:bg-muted",
+                          subCategory === sc
+                            ? isExpense ? "bg-destructive/10 border border-destructive/50" : "bg-accent/10 border border-accent/50"
+                            : "border border-transparent"
+                        )}
+                      >
+                        <SubIcon className={cn(
+                          "h-4 w-4 shrink-0",
+                          subCategory === sc
+                            ? isExpense ? "text-destructive" : "text-accent"
+                            : "text-muted-foreground"
+                        )} />
+                        {sc}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
