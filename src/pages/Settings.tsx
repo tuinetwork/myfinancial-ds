@@ -435,15 +435,14 @@ const BudgetTable = ({
   const isMapCategory = isExpense && MAP_CATEGORIES.includes(selectedCategory);
   const showDueDate = isMapCategory && (dueDateEnabled?.[selectedCategory] ?? false);
 
-  // Calculate occurrences for recurring items
-  const getOccurrences = (val: BudgetValue): number => {
+  // Calculate total occurrences for recurring items
+  const getTotalOccurrences = (val: BudgetValue): number => {
     const recurrence = getRecurrence(val);
     if (!recurrence) return 1;
     const dueDate = getDueDate(val);
     const startDt = getStartDate(val);
     const endDt = getEndDate(val);
     if (startDt && endDt) {
-      // Count all occurrences across all months in the range
       const start = new Date(startDt);
       const end = new Date(endDt);
       let total = 0;
@@ -466,6 +465,36 @@ const BudgetTable = ({
       }
     }
     return 1;
+  };
+
+  // Calculate remaining occurrences from viewed month onward
+  const getRemainingOccurrences = (val: BudgetValue): number => {
+    const recurrence = getRecurrence(val);
+    if (!recurrence) return 1;
+    const dueDate = getDueDate(val);
+    const startDt = getStartDate(val);
+    const endDt = getEndDate(val);
+    if (!startDt || !endDt || !selectedPeriod) return getTotalOccurrences(val);
+    const [py, pm] = selectedPeriod.split("-").map(Number);
+    if (!py || !pm) return getTotalOccurrences(val);
+    // Count occurrences from the viewed month to end_date
+    const end = new Date(endDt);
+    let total = 0;
+    let y = py;
+    let m = pm;
+    const endY = end.getFullYear();
+    const endM = end.getMonth() + 1;
+    while (y < endY || (y === endY && m <= endM)) {
+      total += expandRecurrence(dueDate, recurrence, y, m, startDt, endDt).length;
+      m++;
+      if (m > 12) { m = 1; y++; }
+    }
+    return Math.max(total, 0);
+  };
+
+  // Backward-compatible alias used for budget total calculation
+  const getOccurrences = (val: BudgetValue): number => {
+    return getRemainingOccurrences(val);
   };
 
   // Compute actuals using tolerance matching
