@@ -324,27 +324,24 @@ const AddTransactionFAB = () => {
                   <ChevronLeft className="h-4 w-4" />
                   <span>{getLabel(mainCategory) || "Back"}</span>
                 </button>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap gap-1.5">
                   {subCats.map((sc) => {
                     const SubIcon = getCategoryIcon(sc);
+                    const selected = subCategory === sc;
                     return (
                       <button
                         key={sc}
                         onClick={() => setSubCategory(sc)}
                         className={cn(
-                          "px-3 py-2.5 rounded-lg text-sm text-left text-foreground transition-all duration-150 flex items-center gap-2",
-                          "hover:bg-muted",
-                          subCategory === sc
-                            ? isExpense ? "bg-destructive/10 border border-destructive/50" : "bg-accent/10 border border-accent/50"
-                            : "border border-transparent"
+                          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150",
+                          selected
+                            ? isExpense
+                              ? "bg-destructive text-destructive-foreground shadow-sm"
+                              : "bg-accent text-accent-foreground shadow-sm"
+                            : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground border border-border"
                         )}
                       >
-                        <SubIcon className={cn(
-                          "h-4 w-4 shrink-0",
-                          subCategory === sc
-                            ? isExpense ? "text-destructive" : "text-accent"
-                            : "text-muted-foreground"
-                        )} />
+                        <SubIcon className="h-3 w-3 shrink-0" />
                         {sc}
                       </button>
                     );
