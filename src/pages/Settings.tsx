@@ -434,6 +434,15 @@ const BudgetTable = ({
   const entries = Object.entries(currentGroup);
   const isMapCategory = isExpense && MAP_CATEGORIES.includes(selectedCategory);
   const showDueDate = isMapCategory && (dueDateEnabled?.[selectedCategory] ?? false);
+  const [unlockedItems, setUnlockedItems] = useState<Set<string>>(new Set());
+
+  const toggleUnlock = (sub: string) => {
+    setUnlockedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(sub)) next.delete(sub); else next.add(sub);
+      return next;
+    });
+  };
 
   // Calculate total occurrences for recurring items
   const getTotalOccurrences = (val: BudgetValue): number => {
