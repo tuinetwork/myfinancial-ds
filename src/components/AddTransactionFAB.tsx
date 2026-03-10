@@ -326,7 +326,7 @@ const AddTransactionFAB = () => {
                 </button>
                 <div className="flex flex-col gap-1">
                   {subCats.map((sc) => {
-                    const SubIcon = subCategoryIconMap[sc] || CircleDot;
+                    const SubIcon = getCategoryIcon(sc);
                     return (
                       <button
                         key={sc}
