@@ -42,6 +42,74 @@ const categoryLabelMap: Record<string, string> = {
   "รายได้จากการลงทุน": "INVEST",
 };
 
+const subCategoryIconMap: Record<string, LucideIcon> = {
+  // สาธารณูปโภค
+  "ค่าไฟฟ้า": Lightbulb,
+  "ค่าน้ำประปา": Droplets,
+  "ค่าอินเทอร์เน็ต": Wifi,
+  "ค่าโทรศัพท์": Phone,
+  "ค่าเน็ตมือถือ": Wifi,
+  // ที่อยู่อาศัย
+  "ค่าเช่าบ้าน": Home,
+  "ค่าเช่าหอพัก": Home,
+  "ค่าผ่อนบ้าน": Home,
+  "ค่าส่วนกลาง": Building2,
+  // ยานพาหนะ
+  "ค่าผ่อนรถ": Car,
+  "ค่าน้ำมัน": Fuel,
+  "ค่าประกันรถ": Car,
+  "ค่าซ่อมรถ": Wrench,
+  "ค่าเดินทาง": Bus,
+  // หนี้สิน
+  "บัตรเครดิต": CreditCard,
+  "สินเชื่อส่วนบุคคล": Banknote,
+  "ค่าผ่อนสินค้า": Receipt,
+  // การศึกษา
+  "ค่าเทอม": GraduationCap,
+  "ค่าเรียนพิเศษ": GraduationCap,
+  "ค่าหนังสือ": GraduationCap,
+  // อาหาร
+  "ค่าอาหาร": Utensils,
+  "ค่ากาแฟ": Utensils,
+  "ค่าของกินจุกจิก": Store,
+  // สุขภาพ
+  "ค่ารักษาพยาบาล": Stethoscope,
+  "ค่าประกันสุขภาพ": Heart,
+  "ค่ายา": Stethoscope,
+  // ช้อปปิ้ง / ทั่วไป
+  "ค่าเสื้อผ้า": Shirt,
+  "ค่าของใช้": ShoppingBag,
+  "ค่าท่องเที่ยว": Plane,
+  "ค่าบันเทิง": Gamepad2,
+  "ค่าสัตว์เลี้ยง": Dog,
+  "ค่าบุหรี่": Cigarette,
+  // ออม / ลงทุน
+  "เงินออม": PiggyBank,
+  "กองทุน": TrendingUp,
+  "หุ้น": TrendingUp,
+  "ทองคำ": Coins,
+  "คริปโต": Coins,
+  "ประกันชีวิต": Heart,
+  // สมาชิก
+  "Netflix": CalendarCheck,
+  "YouTube Premium": CalendarCheck,
+  "Spotify": CalendarCheck,
+  "iCloud": CalendarCheck,
+  // รายรับ
+  "เงินเดือน": Wallet,
+  "โบนัส": DollarSign,
+  "ค่าล่วงเวลา": Briefcase,
+  "เงินปันผล": HandCoins,
+  "ดอกเบี้ย": Banknote,
+  "ขายของ": Store,
+  "ฟรีแลนซ์": Briefcase,
+  // เลี้ยงดูบุตร
+  "ค่านม": Baby,
+  "ค่าเสื้อผ้าเด็ก": Baby,
+  "ค่าเรียนลูก": GraduationCap,
+  "ค่าพี่เลี้ยง": Baby,
+};
+
 const AddTransactionFAB = () => {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
