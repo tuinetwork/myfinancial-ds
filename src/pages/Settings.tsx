@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { NotificationBell } from "@/components/NotificationBell";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
@@ -44,7 +45,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   LogOut, User, Mail, Shield, ChevronRight, ChevronDown, Settings as SettingsIcon,
-  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical, CalendarIcon, Copy,
+  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical, CalendarIcon, Copy, Lock, LockOpen,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -411,6 +412,7 @@ const BudgetTable = ({
   txBySubDate,
   isExpense,
   selectedPeriod,
+  foreignSourceItems,
 }: {
   title: string;
   titleColor: string;
@@ -429,21 +431,30 @@ const BudgetTable = ({
   txBySubDate: Record<string, TxEntry[]>;
   isExpense?: boolean;
   selectedPeriod?: string;
+  foreignSourceItems?: Set<string>;
 }) => {
   const currentGroup = categories[selectedCategory] ?? {};
   const entries = Object.entries(currentGroup);
   const isMapCategory = isExpense && MAP_CATEGORIES.includes(selectedCategory);
   const showDueDate = isMapCategory && (dueDateEnabled?.[selectedCategory] ?? false);
+  const [unlockedItems, setUnlockedItems] = useState<Set<string>>(new Set());
 
-  // Calculate occurrences for recurring items
-  const getOccurrences = (val: BudgetValue): number => {
+  const toggleUnlock = (sub: string) => {
+    setUnlockedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(sub)) next.delete(sub); else next.add(sub);
+      return next;
+    });
+  };
+
+  // Calculate total occurrences for recurring items
+  const getTotalOccurrences = (val: BudgetValue): number => {
     const recurrence = getRecurrence(val);
     if (!recurrence) return 1;
     const dueDate = getDueDate(val);
     const startDt = getStartDate(val);
     const endDt = getEndDate(val);
     if (startDt && endDt) {
-      // Count all occurrences across all months in the range
       const start = new Date(startDt);
       const end = new Date(endDt);
       let total = 0;
@@ -466,6 +477,36 @@ const BudgetTable = ({
       }
     }
     return 1;
+  };
+
+  // Calculate remaining occurrences from viewed month onward
+  const getRemainingOccurrences = (val: BudgetValue): number => {
+    const recurrence = getRecurrence(val);
+    if (!recurrence) return 1;
+    const dueDate = getDueDate(val);
+    const startDt = getStartDate(val);
+    const endDt = getEndDate(val);
+    if (!startDt || !endDt || !selectedPeriod) return getTotalOccurrences(val);
+    const [py, pm] = selectedPeriod.split("-").map(Number);
+    if (!py || !pm) return getTotalOccurrences(val);
+    // Count occurrences from the viewed month to end_date
+    const end = new Date(endDt);
+    let total = 0;
+    let y = py;
+    let m = pm;
+    const endY = end.getFullYear();
+    const endM = end.getMonth() + 1;
+    while (y < endY || (y === endY && m <= endM)) {
+      total += expandRecurrence(dueDate, recurrence, y, m, startDt, endDt).length;
+      m++;
+      if (m > 12) { m = 1; y++; }
+    }
+    return Math.max(total, 0);
+  };
+
+  // Backward-compatible alias used for budget total calculation
+  const getOccurrences = (val: BudgetValue): number => {
+    return getRemainingOccurrences(val);
   };
 
   // Compute actuals using tolerance matching
@@ -555,42 +596,94 @@ const BudgetTable = ({
                 const startDt = getStartDate(val);
                 const endDt = getEndDate(val);
                 const actual = computeActual(sub, val);
-                const occurrences = getOccurrences(val);
-                const totalForSub = amount * occurrences;
+                const remainingOcc = getRemainingOccurrences(val);
+                const totalOcc = getTotalOccurrences(val);
+                const totalForSub = amount * remainingOcc;
                 const remaining = totalForSub - actual;
                 const hasRecurrence = recurrence !== null && recurrence !== undefined;
+                const isForeign = foreignSourceItems?.has(`${selectedCategory}::${sub}`) ?? false;
+                const isLocked = isForeign || (hasRecurrence && !!startDt && !!endDt && !unlockedItems.has(sub));
+                const canLock = !isForeign && hasRecurrence && !!startDt && !!endDt;
                 return (
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                    <td className="px-3 py-2.5 text-muted-foreground">{sub}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        {isForeign ? (
+                          <TooltipProvider delayDuration={200}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help"><Lock className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" /></span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                {(() => {
+                                  const sp = getSourcePeriod(startDt);
+                                  if (!sp) return "ข้อมูลจากเดือนต้นทาง";
+                                  const [y, m] = sp.split("-");
+                                  const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+                                  return `ข้อมูลจากเดือน ${monthNames[parseInt(m, 10) - 1]} ${y} (แก้ไขไม่ได้)`;
+                                })()}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : canLock ? (
+                          <button
+                            onClick={() => toggleUnlock(sub)}
+                            className="shrink-0 hover:text-primary transition-colors"
+                            title={isLocked ? "ปลดล็อคเพื่อแก้ไข" : "ล็อคการแก้ไข"}
+                          >
+                            {isLocked ? (
+                              <Lock className="h-3.5 w-3.5 text-muted-foreground/60" />
+                            ) : (
+                              <LockOpen className="h-3.5 w-3.5 text-primary" />
+                            )}
+                          </button>
+                        ) : null}
+                        {sub}
+                      </div>
+                    </td>
                     <td className="px-3 py-2.5 text-right">
-                      <Input
-                        type="number"
-                        value={amount}
-                        onChange={(e) => onAmountChange(selectedCategory, sub, Number(e.target.value) || 0)}
-                        className="h-8 w-28 text-sm text-right ml-auto [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
-                      />
+                      {isLocked ? (
+                        <span className="text-sm tabular-nums">{amount.toLocaleString("th-TH")}</span>
+                      ) : (
+                        <Input
+                          type="number"
+                          value={amount}
+                          onChange={(e) => onAmountChange(selectedCategory, sub, Number(e.target.value) || 0)}
+                          className="h-8 w-28 text-sm text-right ml-auto [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                        />
+                      )}
                     </td>
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        <DueDatePicker
-                          value={dueDate}
-                          onChange={(d) => onDueDateChange?.(selectedCategory, sub, d)}
-                          frequency={recurrence ? getFrequencyType(recurrence) : null}
-                        />
+                        {isLocked ? (
+                          <span className="text-xs text-muted-foreground">{formatThaiDate(dueDate)}</span>
+                        ) : (
+                          <DueDatePicker
+                            value={dueDate}
+                            onChange={(d) => onDueDateChange?.(selectedCategory, sub, d)}
+                            frequency={recurrence ? getFrequencyType(recurrence) : null}
+                          />
+                        )}
                       </td>
                     )}
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        <FrequencyPicker
-                          value={recurrence}
-                          dueDate={dueDate}
-                          onChange={(rrule) => onRecurrenceChange?.(selectedCategory, sub, rrule)}
-                        />
+                        {isLocked ? (
+                          <span className="text-xs text-muted-foreground">{formatFrequencyThai(recurrence)}</span>
+                        ) : (
+                          <FrequencyPicker
+                            value={recurrence}
+                            dueDate={dueDate}
+                            onChange={(rrule) => onRecurrenceChange?.(selectedCategory, sub, rrule)}
+                          />
+                        )}
                       </td>
                     )}
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        {hasRecurrence ? (
+                        {isLocked ? (
+                          <span className="text-xs text-muted-foreground">{formatThaiDate(startDt)}</span>
+                        ) : hasRecurrence ? (
                           <DueDatePicker value={startDt} onChange={(d) => onStartDateChange?.(selectedCategory, sub, d)} />
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
@@ -599,7 +692,9 @@ const BudgetTable = ({
                     )}
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        {hasRecurrence ? (
+                        {isLocked ? (
+                          <span className="text-xs text-muted-foreground">{formatThaiDate(endDt)}</span>
+                        ) : hasRecurrence ? (
                           <DueDatePicker value={endDt} onChange={(d) => onEndDateChange?.(selectedCategory, sub, d)} />
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
@@ -608,11 +703,13 @@ const BudgetTable = ({
                     )}
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        {hasRecurrence && startDt ? (
+                        {isLocked ? (
+                          <span className="text-xs tabular-nums">{remainingOcc} / {totalOcc}</span>
+                        ) : hasRecurrence && startDt ? (
                           <Input
                             type="number"
                             min={1}
-                            value={occurrences}
+                            value={totalOcc}
                             onChange={(e) => {
                               const count = Math.max(1, Number(e.target.value) || 1);
                               onOccurrencesChange?.(selectedCategory, sub, count);
@@ -628,7 +725,7 @@ const BudgetTable = ({
                       {actual > 0 ? fmt(actual) : "-"}
                     </td>
                     <td className={`px-3 py-2.5 text-right tabular-nums ${remainingColor(totalForSub, actual)}`}>
-                      {actual > 0 ? fmt(remaining) : "-"}
+                      {(isLocked || actual > 0) ? fmt(remaining) : "-"}
                     </td>
                   </tr>
                 );
@@ -659,6 +756,14 @@ const BudgetTable = ({
   );
 };
 
+// Helper: get source period from a start_date string
+function getSourcePeriod(startDate: string | null): string | null {
+  if (!startDate) return null;
+  const parts = startDate.split("-");
+  if (parts.length < 2) return null;
+  return `${parts[0]}-${parts[1]}`;
+}
+
 // ─── Budget Settings Tab ───
 const BudgetSettings = () => {
   const { userId } = useAuth();
@@ -674,6 +779,8 @@ const BudgetSettings = () => {
   const [selectedIncomeCat, setSelectedIncomeCat] = useState<string>("");
   const [txBySubDate, setTxBySubDate] = useState<Record<string, TxEntry[]>>({});
   const [dueDateEnabled, setDueDateEnabled] = useState<Record<string, boolean>>({});
+  // Track which subcategories are sourced from a different month (not editable)
+  const [foreignSourceItems, setForeignSourceItems] = useState<Set<string>>(new Set());
 
   const years = useMemo(() => {
     if (!months) return [];
@@ -728,6 +835,41 @@ const BudgetSettings = () => {
         carry_over: (d.carry_over as number) ?? 0,
         period: (d.period as string) ?? period,
       };
+
+      // ─── Sync recurring items from source months ───
+      const foreignKeys = new Set<string>();
+      const sourcePeriodCache: Record<string, Record<string, Record<string, BudgetValue>> | null> = {};
+
+      for (const [mainCat, subs] of Object.entries(data.expense_budgets)) {
+        if (!MAP_CATEGORIES.includes(mainCat)) continue;
+        for (const [sub, val] of Object.entries(subs)) {
+          const startDt = getStartDate(val);
+          const recurrence = getRecurrence(val);
+          if (!startDt || !recurrence) continue;
+          const sourcePeriod = getSourcePeriod(startDt);
+          if (!sourcePeriod || sourcePeriod === period) continue;
+          // This item's source is a different month
+          foreignKeys.add(`${mainCat}::${sub}`);
+          // Fetch source month data (cached)
+          if (!(sourcePeriod in sourcePeriodCache)) {
+            try {
+              const srcDoc = await getDoc(doc(firestore, "users", userId, "budgets", sourcePeriod));
+              sourcePeriodCache[sourcePeriod] = srcDoc.exists()
+                ? (srcDoc.data()!.expense_budgets ?? {}) as Record<string, Record<string, BudgetValue>>
+                : null;
+            } catch {
+              sourcePeriodCache[sourcePeriod] = null;
+            }
+          }
+          const srcBudgets = sourcePeriodCache[sourcePeriod];
+          if (srcBudgets?.[mainCat]?.[sub]) {
+            // Replace with source month's data
+            data.expense_budgets[mainCat][sub] = srcBudgets[mainCat][sub];
+          }
+        }
+      }
+
+      setForeignSourceItems(foreignKeys);
       setBudgetData(data);
       // Initialize dueDateEnabled from existing data (check if any subcategory has a due_date)
       const enabledMap: Record<string, boolean> = {};
@@ -774,7 +916,51 @@ const BudgetSettings = () => {
         expense_budgets: budgetData.expense_budgets,
         carry_over: budgetData.carry_over,
       });
-      toast({ title: "บันทึกสำเร็จ", description: `อัปเดตงบประมาณ ${period}` });
+
+      // ─── Propagate recurring items to all months in their range ───
+      for (const [mainCat, subs] of Object.entries(budgetData.expense_budgets)) {
+        if (!MAP_CATEGORIES.includes(mainCat)) continue;
+        for (const [sub, val] of Object.entries(subs)) {
+          const startDt = getStartDate(val);
+          const endDt = getEndDate(val);
+          const recurrence = getRecurrence(val);
+          if (!startDt || !endDt || !recurrence) continue;
+          const sourcePeriod = getSourcePeriod(startDt);
+          if (sourcePeriod !== period) continue; // Only propagate from source month
+
+          // Calculate all months in start → end range
+          const start = new Date(startDt);
+          const end = new Date(endDt);
+          let y = start.getFullYear();
+          let m = start.getMonth() + 1;
+          const endY = end.getFullYear();
+          const endM = end.getMonth() + 1;
+          while (y < endY || (y === endY && m <= endM)) {
+            const targetPeriod = `${y}-${String(m).padStart(2, "0")}`;
+            if (targetPeriod !== period) {
+              // Update this subcategory in the target month's budget
+              const targetRef = doc(firestore, "users", userId, "budgets", targetPeriod);
+              try {
+                const targetSnap = await getDoc(targetRef);
+                if (targetSnap.exists()) {
+                  const targetData = targetSnap.data();
+                  const targetExpense = (targetData.expense_budgets ?? {}) as Record<string, Record<string, BudgetValue>>;
+                  if (targetExpense[mainCat]) {
+                    targetExpense[mainCat][sub] = val;
+                    await updateDoc(targetRef, { expense_budgets: targetExpense });
+                  }
+                }
+              } catch {
+                // Skip if target month doesn't exist yet
+              }
+            }
+            m++;
+            if (m > 12) { m = 1; y++; }
+          }
+        }
+      }
+
+      toast({ title: "บันทึกสำเร็จ", description: `อัปเดตงบประมาณ ${period} (ซิงค์รายการซ้ำแล้ว)` });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
     }
@@ -1060,6 +1246,7 @@ const BudgetSettings = () => {
               txBySubDate={txBySubDate}
               isExpense
               selectedPeriod={selectedYear && selectedMonth ? `${selectedYear}-${selectedMonth}` : undefined}
+              foreignSourceItems={foreignSourceItems}
             />
             <BudgetTable
               title="รายรับ"
