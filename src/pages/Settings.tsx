@@ -45,12 +45,13 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   LogOut, User, Mail, Shield, ChevronRight, ChevronDown, Settings as SettingsIcon,
-  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical, CalendarIcon, Copy, Lock, LockOpen,
+  Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical, CalendarIcon, Copy, Lock, LockOpen, CircleDot,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
+import { IconPicker, getIconByName } from "@/components/IconPicker";
 
 // ─── Sub-menu tabs ───
 type SettingsTab = "budget" | "categories" | "savings" | "user";
@@ -1329,6 +1330,7 @@ const CategorySettings = () => {
   const { userId } = useAuth();
   const [incomeGroups, setIncomeGroups] = useState<Record<string, string[]>>({});
   const [expenseGroups, setExpenseGroups] = useState<Record<string, string[]>>({});
+  const [categoryIcons, setCategoryIcons] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newSubName, setNewSubName] = useState("");
@@ -1352,12 +1354,18 @@ const CategorySettings = () => {
         }
         return result;
       };
+      const mergedIcons: Record<string, string> = {};
       if (expSnap.exists()) {
-        setExpenseGroups(toGroups(expSnap.data()));
+        const data = expSnap.data();
+        setExpenseGroups(toGroups(data));
+        Object.assign(mergedIcons, data?.category_icons ?? {});
       }
       if (incSnap.exists()) {
-        setIncomeGroups(toGroups(incSnap.data()));
+        const data = incSnap.data();
+        setIncomeGroups(toGroups(data));
+        Object.assign(mergedIcons, data?.category_icons ?? {});
       }
+      setCategoryIcons(mergedIcons);
       setLoading(false);
     });
   }, [userId]);
@@ -1367,16 +1375,36 @@ const CategorySettings = () => {
     setSaving(true);
     try {
       // 1. Save categories
+      // Build per-type icon maps
+      const expenseIconKeys = new Set<string>();
+      for (const [main, subs] of Object.entries(expenseGroups)) {
+        expenseIconKeys.add(main);
+        subs.forEach((s) => expenseIconKeys.add(s));
+      }
+      const incomeIconKeys = new Set<string>();
+      for (const [main, subs] of Object.entries(incomeGroups)) {
+        incomeIconKeys.add(main);
+        subs.forEach((s) => incomeIconKeys.add(s));
+      }
+      const expIcons: Record<string, string> = {};
+      const incIcons: Record<string, string> = {};
+      for (const [k, v] of Object.entries(categoryIcons)) {
+        if (expenseIconKeys.has(k)) expIcons[k] = v;
+        if (incomeIconKeys.has(k)) incIcons[k] = v;
+      }
+
       await Promise.all([
         setDoc(doc(firestore, "users", userId, "categories", "expense"), {
           label: "รายจ่าย",
           type: "expense",
           main_categories: expenseGroups,
+          category_icons: expIcons,
         }),
         setDoc(doc(firestore, "users", userId, "categories", "income"), {
           label: "รายรับ",
           type: "income",
           main_categories: incomeGroups,
+          category_icons: incIcons,
         }),
       ]);
 
@@ -1618,6 +1646,8 @@ const CategorySettings = () => {
     const [editingSub, setEditingSub] = useState<string | null>(null);
     const [subDraft, setSubDraft] = useState("");
 
+    const GroupIcon = getIconByName(categoryIcons[groupName]);
+
     return (
       <Collapsible open={open} onOpenChange={setOpen}>
         <div className="flex items-center gap-1">
@@ -1644,12 +1674,19 @@ const CategorySettings = () => {
               </Button>
             </div>
           ) : (
-            <CollapsibleTrigger className="flex items-center gap-2 flex-1 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors text-sm font-medium">
-              {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-              <FolderTree className="h-4 w-4 text-primary" />
-              <span>{groupName}</span>
-              <span className="text-sm text-muted-foreground ml-auto mr-2">{subs.length} รายการ</span>
-            </CollapsibleTrigger>
+            <>
+              <CollapsibleTrigger className="flex items-center gap-2 flex-1 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors text-sm font-medium">
+                {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                <GroupIcon className="h-4 w-4 text-primary" />
+                <span>{groupName}</span>
+                <span className="text-sm text-muted-foreground ml-auto mr-2">{subs.length} รายการ</span>
+              </CollapsibleTrigger>
+              <IconPicker
+                value={categoryIcons[groupName]}
+                onChange={(icon) => setCategoryIcons((prev) => ({ ...prev, [groupName]: icon }))}
+                className="shrink-0"
+              />
+            </>
           )}
           {!editingGroup && (
             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary shrink-0"
@@ -1708,11 +1745,14 @@ const CategorySettings = () => {
                           </div>
                         ) : (
                           <>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground flex-1">
                               <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground">
                                 <GripVertical className="h-3 w-3" />
                               </div>
-                              <Tag className="h-3 w-3" />
+                              <IconPicker
+                                value={categoryIcons[sub]}
+                                onChange={(icon) => setCategoryIcons((prev) => ({ ...prev, [sub]: icon }))}
+                              />
                               {sub}
                             </div>
                             <div className="flex items-center gap-0.5">

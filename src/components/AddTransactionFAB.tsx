@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, X, CalendarIcon, ChevronLeft, Landmark, TrendingUp, CalendarCheck, ShoppingBag, Baby, Zap, CircleDot, Briefcase, Gift, Coins, Lightbulb, Droplets, Wifi, Phone, Home, Car, CreditCard, Fuel, GraduationCap, Heart, Utensils, Shirt, Plane, Gamepad2, PiggyBank, Banknote, Building2, HandCoins, Wallet, DollarSign, Receipt, Store, Wrench, Stethoscope, Bus, Dog, Cigarette, type LucideIcon } from "lucide-react";
+import { Plus, X, CalendarIcon, ChevronLeft, CircleDot } from "lucide-react";
 import { collection, doc, getDocs, setDoc, query, where, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,24 +12,15 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { getIconByName } from "@/components/IconPicker";
 
 interface CategoryData {
   label: string;
   main_categories: Record<string, string[]>;
+  category_icons?: Record<string, string>;
 }
 
-const categoryIconMap: Record<string, LucideIcon> = {
-  "หนี้สินและผ่อนชำระ": Landmark,
-  "เงินออมและการลงทุน": TrendingUp,
-  "ค่าสมาชิกรายเดือน": CalendarCheck,
-  "ค่าใช้จ่ายทั่วไป": ShoppingBag,
-  "ค่าเลี้ยงดูบุตร": Baby,
-  "ค่าสาธารณูปโภค": Zap,
-  "รายได้ประจำ": Briefcase,
-  "รายได้เสริม": Gift,
-  "รายได้จากการลงทุน": Coins,
-};
-
+// Fallback label map (used when no custom icon is set)
 const categoryLabelMap: Record<string, string> = {
   "หนี้สินและผ่อนชำระ": "DEBT",
   "เงินออมและการลงทุน": "SAVINGS",
@@ -40,74 +31,6 @@ const categoryLabelMap: Record<string, string> = {
   "รายได้ประจำ": "SALARY",
   "รายได้เสริม": "EXTRA",
   "รายได้จากการลงทุน": "INVEST",
-};
-
-const subCategoryIconMap: Record<string, LucideIcon> = {
-  // สาธารณูปโภค
-  "ค่าไฟฟ้า": Lightbulb,
-  "ค่าน้ำประปา": Droplets,
-  "ค่าอินเทอร์เน็ต": Wifi,
-  "ค่าโทรศัพท์": Phone,
-  "ค่าเน็ตมือถือ": Wifi,
-  // ที่อยู่อาศัย
-  "ค่าเช่าบ้าน": Home,
-  "ค่าเช่าหอพัก": Home,
-  "ค่าผ่อนบ้าน": Home,
-  "ค่าส่วนกลาง": Building2,
-  // ยานพาหนะ
-  "ค่าผ่อนรถ": Car,
-  "ค่าน้ำมัน": Fuel,
-  "ค่าประกันรถ": Car,
-  "ค่าซ่อมรถ": Wrench,
-  "ค่าเดินทาง": Bus,
-  // หนี้สิน
-  "บัตรเครดิต": CreditCard,
-  "สินเชื่อส่วนบุคคล": Banknote,
-  "ค่าผ่อนสินค้า": Receipt,
-  // การศึกษา
-  "ค่าเทอม": GraduationCap,
-  "ค่าเรียนพิเศษ": GraduationCap,
-  "ค่าหนังสือ": GraduationCap,
-  // อาหาร
-  "ค่าอาหาร": Utensils,
-  "ค่ากาแฟ": Utensils,
-  "ค่าของกินจุกจิก": Store,
-  // สุขภาพ
-  "ค่ารักษาพยาบาล": Stethoscope,
-  "ค่าประกันสุขภาพ": Heart,
-  "ค่ายา": Stethoscope,
-  // ช้อปปิ้ง / ทั่วไป
-  "ค่าเสื้อผ้า": Shirt,
-  "ค่าของใช้": ShoppingBag,
-  "ค่าท่องเที่ยว": Plane,
-  "ค่าบันเทิง": Gamepad2,
-  "ค่าสัตว์เลี้ยง": Dog,
-  "ค่าบุหรี่": Cigarette,
-  // ออม / ลงทุน
-  "เงินออม": PiggyBank,
-  "กองทุน": TrendingUp,
-  "หุ้น": TrendingUp,
-  "ทองคำ": Coins,
-  "คริปโต": Coins,
-  "ประกันชีวิต": Heart,
-  // สมาชิก
-  "Netflix": CalendarCheck,
-  "YouTube Premium": CalendarCheck,
-  "Spotify": CalendarCheck,
-  "iCloud": CalendarCheck,
-  // รายรับ
-  "เงินเดือน": Wallet,
-  "โบนัส": DollarSign,
-  "ค่าล่วงเวลา": Briefcase,
-  "เงินปันผล": HandCoins,
-  "ดอกเบี้ย": Banknote,
-  "ขายของ": Store,
-  "ฟรีแลนซ์": Briefcase,
-  // เลี้ยงดูบุตร
-  "ค่านม": Baby,
-  "ค่าเสื้อผ้าเด็ก": Baby,
-  "ค่าเรียนลูก": GraduationCap,
-  "ค่าพี่เลี้ยง": Baby,
 };
 
 const AddTransactionFAB = () => {
@@ -248,7 +171,10 @@ const AddTransactionFAB = () => {
     return `${day} ${thaiMonths[d.getMonth()]} ${thaiYear}`;
   })();
 
-  const getIcon = (catName: string): LucideIcon => categoryIconMap[catName] || CircleDot;
+  const getCategoryIcon = (catName: string) => {
+    const iconName = currentCat?.category_icons?.[catName];
+    return getIconByName(iconName);
+  };
   const getLabel = (catName: string): string => categoryLabelMap[catName] || catName;
 
   return (
@@ -354,7 +280,7 @@ const AddTransactionFAB = () => {
                 {mainCats.length > 0 ? (
                   <div className="grid grid-cols-3 gap-2">
                     {mainCats.map((mc) => {
-                      const IconComp = getIcon(mc);
+                      const IconComp = getCategoryIcon(mc);
                       return (
                         <button
                           key={mc}
@@ -400,7 +326,7 @@ const AddTransactionFAB = () => {
                 </button>
                 <div className="flex flex-col gap-1">
                   {subCats.map((sc) => {
-                    const SubIcon = subCategoryIconMap[sc] || CircleDot;
+                    const SubIcon = getCategoryIcon(sc);
                     return (
                       <button
                         key={sc}
