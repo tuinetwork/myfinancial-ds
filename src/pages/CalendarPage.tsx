@@ -409,7 +409,7 @@ const CalendarPage = () => {
       if (totalOcc === 0) return;
 
       // Count paid: from ALL paid_dates across all budget docs + tx matching
-      const key = `${mainCat}::${subCat}`;
+      const paidKey = `${mainCat}::${subCat}`;
       const allPaidDates = allPaidDatesMap[key] ?? [];
       const txList = txBySubDate[subCat] ?? [];
       const currentMonthDates = allDates.filter(d => d.startsWith(period));
