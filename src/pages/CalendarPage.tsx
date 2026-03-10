@@ -221,22 +221,47 @@ const CalendarPage = () => {
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const viewEnd = `${year}-${String(month + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
       const merged: Record<string, ExpenseBudgetValue> = {};
+      // Collect paid_dates from ALL docs for installment tracking
+      const paidMap: Record<string, string[]> = {};
 
       snap.forEach((docSnap) => {
-        const docPeriod = docSnap.id;
-        if (docPeriod === period) return; // skip current period (already loaded via onSnapshot)
         const data = docSnap.data();
         const eb = (data.expense_budgets ?? {}) as Record<string, ExpenseBudgetValue>;
+        const docPeriod = docSnap.id;
+
+        const collectPaidDates = (mainCat: string, subCat: string, subVal: any) => {
+          if (!subVal || typeof subVal !== "object") return;
+          const pd = subVal.paid_dates as string[] | undefined;
+          if (pd && pd.length > 0) {
+            const key = `${mainCat}::${subCat}`;
+            if (!paidMap[key]) paidMap[key] = [];
+            for (const d of pd) {
+              if (!paidMap[key].includes(d)) paidMap[key].push(d);
+            }
+          }
+        };
+
+        for (const [mainCat, val] of Object.entries(eb)) {
+          if (isV2Format(val)) {
+            for (const [subCat, subVal] of Object.entries(val.sub_categories)) {
+              collectPaidDates(mainCat, subCat, subVal);
+            }
+          } else if (typeof val === "object" && val !== null && !Array.isArray(val) && !("amount" in val)) {
+            for (const [subCat, subVal] of Object.entries(val as Record<string, unknown>)) {
+              collectPaidDates(mainCat, subCat, subVal);
+            }
+          }
+        }
+
+        if (docPeriod === period) return; // skip current period for crossMonth merge
 
         for (const [mainCat, val] of Object.entries(eb)) {
           const processSubItem = (subCat: string, subVal: any) => {
             if (!subVal || typeof subVal !== "object" || !subVal.recurrence || !subVal.due_date) return;
             const startDate = subVal.start_date || subVal.due_date;
             const endDate = subVal.end_date || null;
-            // Check if this recurring item's range overlaps with the viewed month
-            if (startDate > viewEnd) return; // starts after viewed month
-            if (endDate && endDate < viewStart) return; // ended before viewed month
-            // Include this item — merge into crossMonthBudgets
+            if (startDate > viewEnd) return;
+            if (endDate && endDate < viewStart) return;
             if (!merged[mainCat]) merged[mainCat] = {} as any;
             const cat = merged[mainCat] as Record<string, any>;
             if (isV2Format(cat)) {
@@ -259,6 +284,7 @@ const CalendarPage = () => {
       });
 
       setCrossMonthBudgets(merged);
+      setAllPaidDatesMap(paidMap);
     });
   }, [userId, period, year, month]);
 
