@@ -735,6 +735,14 @@ const BudgetTable = ({
   );
 };
 
+// Helper: get source period from a start_date string
+function getSourcePeriod(startDate: string | null): string | null {
+  if (!startDate) return null;
+  const parts = startDate.split("-");
+  if (parts.length < 2) return null;
+  return `${parts[0]}-${parts[1]}`;
+}
+
 // ─── Budget Settings Tab ───
 const BudgetSettings = () => {
   const { userId } = useAuth();
@@ -750,6 +758,8 @@ const BudgetSettings = () => {
   const [selectedIncomeCat, setSelectedIncomeCat] = useState<string>("");
   const [txBySubDate, setTxBySubDate] = useState<Record<string, TxEntry[]>>({});
   const [dueDateEnabled, setDueDateEnabled] = useState<Record<string, boolean>>({});
+  // Track which subcategories are sourced from a different month (not editable)
+  const [foreignSourceItems, setForeignSourceItems] = useState<Set<string>>(new Set());
 
   const years = useMemo(() => {
     if (!months) return [];
