@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { doc, getDoc, updateDoc, onSnapshot, collection, query, where, getDocs, arrayUnion, arrayRemove } from "firebase/firestore";
-import { expandRecurrence, formatFrequencyThai, matchTxToOccurrences, type TxEntry, type TxMatchResult } from "@/lib/recurrence";
+import { expandRecurrence, formatFrequencyThai, matchTxToOccurrences, parseRRule, type TxEntry, type TxMatchResult } from "@/lib/recurrence";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -332,6 +334,95 @@ const CalendarPage = () => {
   const monthTotal = useMemo(() => dueDateItems.reduce((s, i) => s + i.amount, 0), [dueDateItems]);
   const paidCount = useMemo(() => dueDateItems.filter(i => i.isPaid).length, [dueDateItems]);
   const recurringCount = useMemo(() => dueDateItems.filter(i => i.isRecurring).length, [dueDateItems]);
+
+  // Installment data: recurring items with start_date + end_date
+  interface InstallmentRow {
+    mainCategory: string;
+    subCategory: string;
+    amountPerOccurrence: number;
+    dueDate: string;
+    recurrence: string;
+    startDate: string;
+    endDate: string;
+    totalOccurrences: number;
+    paidOccurrences: number;
+    totalAmount: number;
+  }
+
+  const installmentData = useMemo(() => {
+    const rows: InstallmentRow[] = [];
+    const seen = new Set<string>();
+
+    const processSubItem = (mainCat: string, subCat: string, subVal: any) => {
+      if (!subVal || typeof subVal !== "object") return;
+      const { recurrence, start_date, end_date, due_date, amount, paid_dates } = subVal;
+      if (!recurrence || !start_date || !end_date || !due_date) return;
+      const key = `${mainCat}::${subCat}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      // Calculate total occurrences across all months from start to end
+      const startD = new Date(start_date);
+      const endD = new Date(end_date);
+      let allDates: string[] = [];
+      let y = startD.getFullYear();
+      let m = startD.getMonth() + 1;
+      const endY = endD.getFullYear();
+      const endM = endD.getMonth() + 1;
+
+      while (y < endY || (y === endY && m <= endM)) {
+        const expanded = expandRecurrence(due_date, recurrence, y, m, start_date, end_date);
+        allDates = allDates.concat(expanded);
+        m++;
+        if (m > 12) { m = 1; y++; }
+      }
+
+      const totalOcc = allDates.length;
+      if (totalOcc === 0) return;
+
+      // Count paid: from paid_dates + tx matching in current month
+      const itemPaidDates = paid_dates ?? [];
+      const txList = txBySubDate[subCat] ?? [];
+      const currentMonthDates = allDates.filter(d => d.startsWith(period));
+      const txMatchMap = matchTxToOccurrences(txList, currentMonthDates, amount ?? 0);
+
+      let paidCount = 0;
+      for (const d of allDates) {
+        if (itemPaidDates.includes(d)) {
+          paidCount++;
+        } else if (txMatchMap.get(d)?.isPaid) {
+          paidCount++;
+        }
+      }
+
+      rows.push({
+        mainCategory: mainCat,
+        subCategory: subCat,
+        amountPerOccurrence: amount ?? 0,
+        dueDate: due_date,
+        recurrence,
+        startDate: start_date,
+        endDate: end_date,
+        totalOccurrences: totalOcc,
+        paidOccurrences: paidCount,
+        totalAmount: (amount ?? 0) * totalOcc,
+      });
+    };
+
+    for (const [mainCat, val] of Object.entries(mergedBudgets)) {
+      if (isV2Format(val)) {
+        for (const [subCat, subVal] of Object.entries(val.sub_categories)) {
+          processSubItem(mainCat, subCat, subVal);
+        }
+      } else if (typeof val === "object" && val !== null && !Array.isArray(val) && !("amount" in val)) {
+        for (const [subCat, subVal] of Object.entries(val as Record<string, unknown>)) {
+          processSubItem(mainCat, subCat, subVal);
+        }
+      }
+    }
+
+    return rows.sort((a, b) => a.subCategory.localeCompare(b.subCategory));
+  }, [mergedBudgets, txBySubDate, period]);
   const paidByDate = useMemo(() => {
     const map: Record<string, boolean> = {};
     for (const [date, items] of Object.entries(itemsByDate)) {
@@ -903,6 +994,85 @@ const CalendarPage = () => {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Installment Table */}
+              {installmentData.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <RefreshCw className="h-4 w-4 text-primary" />
+                      รายการผ่อนชำระ / งวด
+                      <Badge variant="secondary" className="text-[10px] ml-1">
+                        {installmentData.length}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0 sm:p-0">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">ชื่อรายการ</TableHead>
+                            <TableHead className="text-xs text-right">ต่องวด</TableHead>
+                            <TableHead className="text-xs hidden sm:table-cell">ความถี่</TableHead>
+                            <TableHead className="text-xs hidden md:table-cell">วันเริ่ม</TableHead>
+                            <TableHead className="text-xs hidden md:table-cell">วันสิ้นสุด</TableHead>
+                            <TableHead className="text-xs text-center">งวด</TableHead>
+                            <TableHead className="text-xs text-right">ยอดรวม</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {installmentData.map((row) => {
+                            const progressPct = row.totalOccurrences > 0 ? (row.paidOccurrences / row.totalOccurrences) * 100 : 0;
+                            const remaining = row.totalOccurrences - row.paidOccurrences;
+                            return (
+                              <TableRow key={`${row.mainCategory}-${row.subCategory}`}>
+                                <TableCell className="text-xs font-medium py-3">
+                                  <div className="flex flex-col gap-1">
+                                    <span>{row.subCategory}</span>
+                                    <span className="text-[10px] text-muted-foreground">{row.mainCategory}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-xs text-right font-semibold tabular-nums py-3">
+                                  {formatCurrency(row.amountPerOccurrence)}
+                                </TableCell>
+                                <TableCell className="text-xs hidden sm:table-cell py-3">
+                                  <Badge variant="outline" className="text-[10px]">
+                                    {formatFrequencyThai(row.recurrence)}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-xs hidden md:table-cell text-muted-foreground py-3">
+                                  {formatThaiDate(row.startDate)}
+                                </TableCell>
+                                <TableCell className="text-xs hidden md:table-cell text-muted-foreground py-3">
+                                  {formatThaiDate(row.endDate)}
+                                </TableCell>
+                                <TableCell className="py-3">
+                                  <div className="flex flex-col items-center gap-1 min-w-[80px]">
+                                    <span className="text-xs font-semibold tabular-nums">
+                                      {row.paidOccurrences} / {row.totalOccurrences}
+                                    </span>
+                                    <Progress value={progressPct} className="h-1.5 w-full" />
+                                    {remaining > 0 && (
+                                      <span className="text-[10px] text-muted-foreground">เหลือ {remaining} งวด</span>
+                                    )}
+                                    {remaining === 0 && (
+                                      <span className="text-[10px] text-accent font-medium">ครบแล้ว ✓</span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-xs text-right font-semibold tabular-nums py-3">
+                                  {formatCurrency(row.totalAmount)}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Items List (Monthly Summary) */}
               <Card>
