@@ -584,42 +584,63 @@ const BudgetTable = ({
                 const startDt = getStartDate(val);
                 const endDt = getEndDate(val);
                 const actual = computeActual(sub, val);
-                const occurrences = getOccurrences(val);
-                const totalForSub = amount * occurrences;
+                const remainingOcc = getRemainingOccurrences(val);
+                const totalOcc = getTotalOccurrences(val);
+                const totalForSub = amount * remainingOcc;
                 const remaining = totalForSub - actual;
                 const hasRecurrence = recurrence !== null && recurrence !== undefined;
+                const isLocked = hasRecurrence && !!startDt && !!endDt;
                 return (
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                    <td className="px-3 py-2.5 text-muted-foreground">{sub}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        {isLocked && <Lock className="h-3 w-3 text-muted-foreground/60 shrink-0" />}
+                        {sub}
+                      </div>
+                    </td>
                     <td className="px-3 py-2.5 text-right">
-                      <Input
-                        type="number"
-                        value={amount}
-                        onChange={(e) => onAmountChange(selectedCategory, sub, Number(e.target.value) || 0)}
-                        className="h-8 w-28 text-sm text-right ml-auto [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
-                      />
+                      {isLocked ? (
+                        <span className="text-sm tabular-nums">{amount.toLocaleString("th-TH")}</span>
+                      ) : (
+                        <Input
+                          type="number"
+                          value={amount}
+                          onChange={(e) => onAmountChange(selectedCategory, sub, Number(e.target.value) || 0)}
+                          className="h-8 w-28 text-sm text-right ml-auto [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                        />
+                      )}
                     </td>
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        <DueDatePicker
-                          value={dueDate}
-                          onChange={(d) => onDueDateChange?.(selectedCategory, sub, d)}
-                          frequency={recurrence ? getFrequencyType(recurrence) : null}
-                        />
+                        {isLocked ? (
+                          <span className="text-xs text-muted-foreground">{formatThaiDate(dueDate)}</span>
+                        ) : (
+                          <DueDatePicker
+                            value={dueDate}
+                            onChange={(d) => onDueDateChange?.(selectedCategory, sub, d)}
+                            frequency={recurrence ? getFrequencyType(recurrence) : null}
+                          />
+                        )}
                       </td>
                     )}
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        <FrequencyPicker
-                          value={recurrence}
-                          dueDate={dueDate}
-                          onChange={(rrule) => onRecurrenceChange?.(selectedCategory, sub, rrule)}
-                        />
+                        {isLocked ? (
+                          <span className="text-xs text-muted-foreground">{formatFrequencyThai(recurrence)}</span>
+                        ) : (
+                          <FrequencyPicker
+                            value={recurrence}
+                            dueDate={dueDate}
+                            onChange={(rrule) => onRecurrenceChange?.(selectedCategory, sub, rrule)}
+                          />
+                        )}
                       </td>
                     )}
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        {hasRecurrence ? (
+                        {isLocked ? (
+                          <span className="text-xs text-muted-foreground">{formatThaiDate(startDt)}</span>
+                        ) : hasRecurrence ? (
                           <DueDatePicker value={startDt} onChange={(d) => onStartDateChange?.(selectedCategory, sub, d)} />
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
@@ -628,7 +649,9 @@ const BudgetTable = ({
                     )}
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        {hasRecurrence ? (
+                        {isLocked ? (
+                          <span className="text-xs text-muted-foreground">{formatThaiDate(endDt)}</span>
+                        ) : hasRecurrence ? (
                           <DueDatePicker value={endDt} onChange={(d) => onEndDateChange?.(selectedCategory, sub, d)} />
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
@@ -637,11 +660,13 @@ const BudgetTable = ({
                     )}
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
-                        {hasRecurrence && startDt ? (
+                        {isLocked ? (
+                          <span className="text-xs tabular-nums">{remainingOcc} / {totalOcc}</span>
+                        ) : hasRecurrence && startDt ? (
                           <Input
                             type="number"
                             min={1}
-                            value={occurrences}
+                            value={totalOcc}
                             onChange={(e) => {
                               const count = Math.max(1, Number(e.target.value) || 1);
                               onOccurrencesChange?.(selectedCategory, sub, count);
@@ -657,7 +682,7 @@ const BudgetTable = ({
                       {actual > 0 ? fmt(actual) : "-"}
                     </td>
                     <td className={`px-3 py-2.5 text-right tabular-nums ${remainingColor(totalForSub, actual)}`}>
-                      {actual > 0 ? fmt(remaining) : "-"}
+                      {(isLocked || actual > 0) ? fmt(remaining) : "-"}
                     </td>
                   </tr>
                 );
