@@ -33,6 +33,21 @@ const categoryLabelMap: Record<string, string> = {
   "รายได้จากการลงทุน": "INVEST",
 };
 
+const subCategoryLabelMap: Record<string, string> = {
+  "ค่าไฟฟ้า": "Electric", "ค่าน้ำประปา": "Water", "ค่าอินเทอร์เน็ต": "Internet",
+  "ค่าโทรศัพท์": "Phone", "ค่าเช่าบ้าน": "Rent", "ค่าส่วนกลาง": "Common",
+  "ค่าอาหาร/เครื่องดื่ม": "Food/Drink", "ค่าเดินทาง": "Transport", "ค่าน้ำมัน": "Fuel",
+  "ค่ารักษาพยาบาล": "Medical", "ค่าเสื้อผ้า": "Clothes", "ค่าของใช้": "Supplies",
+  "ค่าบันเทิง": "Fun", "ค่าการศึกษา": "Education", "ค่าทำผม": "Haircut",
+  "ผ่อนบ้าน": "Mortgage", "ผ่อนรถ": "Car Loan", "ผ่อนบัตรเครดิต": "Credit Card", "ผ่อนสินเชื่อ": "Loan",
+  "เงินออม": "Savings", "กองทุน": "Fund", "หุ้น": "Stock",
+  "ประกันชีวิต": "Life Ins.", "ประกันสุขภาพ": "Health Ins.",
+  "YouTube Premium": "YouTube",
+  "ค่าเทอม": "Tuition", "ค่านม/อาหาร": "Baby Food", "ค่าเสื้อผ้าเด็ก": "Kids Clothes",
+  "เงินเดือน": "Salary", "โบนัส": "Bonus", "ค่าล่วงเวลา": "OT",
+  "เงินปันผล": "Dividend", "ดอกเบี้ย": "Interest", "ขายของ": "Sales", "ฟรีแลนซ์": "Freelance",
+};
+
 const AddTransactionFAB = () => {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
