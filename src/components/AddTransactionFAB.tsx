@@ -357,7 +357,7 @@ const AddTransactionFAB = () => {
                         )}
                       >
                         <SubIcon className="h-3 w-3 shrink-0" />
-                        {sc}
+        {getLabel(sc)}
                       </button>
                     );
                   })}
