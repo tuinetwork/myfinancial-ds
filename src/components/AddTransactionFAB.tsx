@@ -190,7 +190,7 @@ const AddTransactionFAB = () => {
     const iconName = currentCat?.category_icons?.[catName];
     return getIconByName(iconName);
   };
-  const getLabel = (catName: string): string => categoryLabelMap[catName] || catName;
+  const getLabel = (catName: string): string => categoryLabelMap[catName] || subCategoryLabelMap[catName] || catName;
 
   return (
     <>
