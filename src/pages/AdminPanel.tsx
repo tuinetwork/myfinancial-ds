@@ -408,8 +408,13 @@ export default function AdminPanel() {
         </header>
 
         <div className="flex-1 p-4 sm:p-6 space-y-6">
-          {/* ===== Migration Tool (Dev only) ===== */}
-          {isDev && <MigrationCard />}
+          {/* ===== Migration Tools (Dev only) ===== */}
+          {isDev && (
+            <div className="space-y-4">
+              <MigrationCard />
+              <AccountMigrationCard />
+            </div>
+          )}
 
           {/* ===== ตารางที่ 1: รออนุมัติ (Realtime) ===== */}
           <Card>
