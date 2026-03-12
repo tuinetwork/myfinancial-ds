@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus, X, CalendarIcon, ChevronLeft, CircleDot } from "lucide-react";
 import { collection, doc, getDocs, setDoc, query, where, onSnapshot } from "firebase/firestore";
+import { getDefaultAccount } from "@/lib/firestore-services";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -161,11 +162,26 @@ const AddTransactionFAB = () => {
       const dateStr = format(date, "yyyy-MM-dd");
       const monthYear = format(date, "yyyy-MM");
       const newId = await getNextTransactionId(userId, monthYear);
-      await setDoc(doc(firestore, "users", userId, "transactions", newId), {
+
+      // Build transaction data
+      const txData: Record<string, any> = {
         type, amount: numAmount, date: dateStr, month_year: monthYear,
         main_category: mainCategory, sub_category: subCategory,
         note: trimmedNote, created_at: Date.now(),
-      });
+      };
+
+      // Auto-attach default account ID
+      try {
+        const defaultAccount = await getDefaultAccount(userId);
+        if (defaultAccount) {
+          if (type === "expense") txData.from_account_id = defaultAccount.id;
+          if (type === "income") txData.to_account_id = defaultAccount.id;
+        }
+      } catch {
+        // Silently skip if accounts subcollection doesn't exist yet
+      }
+
+      await setDoc(doc(firestore, "users", userId, "transactions", newId), txData);
       queryClient.invalidateQueries({ queryKey: ["budget-data"] });
       toast.success("บันทึกรายการสำเร็จ");
       handleClose();

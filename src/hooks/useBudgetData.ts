@@ -32,6 +32,11 @@ export interface Transaction {
   type: string;
   category: string;
   description: string;
+  // Extended fields (backward compatible)
+  from_account_id?: string;
+  to_account_id?: string;
+  tags?: string[];
+  is_deleted?: boolean;
 }
 
 export interface BudgetData {
