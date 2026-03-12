@@ -150,6 +150,63 @@ const MigrationCard = () => {
   );
 };
 
+// ===== Account Migration Card Component (Dev only) =====
+const AccountMigrationCard = () => {
+  const [migrating, setMigrating] = useState(false);
+  const [progress, setProgress] = useState<AccountMigrationProgress | null>(null);
+  const [done, setDone] = useState(false);
+  const { toast } = useToast();
+
+  const handleMigrate = async () => {
+    setMigrating(true);
+    setDone(false);
+    try {
+      const result = await runAccountMigration((p) => setProgress({ ...p }));
+      setProgress(result);
+      setDone(true);
+      toast({
+        title: "Account Migration สำเร็จ",
+        description: `สร้างบัญชี ${result.accountsCreated} รายการ, อัปเดต ${result.migratedTransactions} ธุรกรรม${result.errors.length > 0 ? `, ${result.errors.length} ข้อผิดพลาด` : ""}`,
+      });
+    } catch (err: any) {
+      toast({ title: "Migration ล้มเหลว", description: err.message, variant: "destructive" });
+    }
+    setMigrating(false);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <Database className="h-5 w-5 text-primary" />
+          <CardTitle className="text-base">Migration ระบบบัญชี/กระเป๋าเงิน</CardTitle>
+          <Badge variant="outline" className="text-xs">Dev Only</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          สร้างบัญชีเงินสดหลัก (Main Wallet) สำหรับทุกผู้ใช้ คำนวณยอดเงินจากประวัติธุรกรรม
+          และเชื่อมโยง from_account_id / to_account_id กับธุรกรรมที่ยังไม่มี
+        </p>
+        {progress && (
+          <div className="text-xs space-y-1 p-3 rounded-md bg-muted">
+            <p>ผู้ใช้: {progress.processedUsers}/{progress.totalUsers}</p>
+            <p>ธุรกรรมทั้งหมด: {progress.totalTransactions}</p>
+            <p>อัปเดตแล้ว: {progress.migratedTransactions} | บัญชีสร้างใหม่: {progress.accountsCreated}</p>
+            {progress.errors.length > 0 && (
+              <p className="text-destructive">ข้อผิดพลาด: {progress.errors.length}</p>
+            )}
+          </div>
+        )}
+        <Button onClick={handleMigrate} disabled={migrating} size="sm" className="gap-1.5">
+          {migrating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+          {migrating ? "กำลัง Migrate..." : done ? "รัน Migration อีกครั้ง" : "รัน Account Migration"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
+
 export default function AdminPanel() {
   const { userRole, userId, loading: authLoading } = useAuth();
   const navigate = useNavigate();
