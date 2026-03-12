@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus, X, CalendarIcon, ChevronLeft, CircleDot } from "lucide-react";
 import { collection, doc, getDocs, setDoc, query, where, onSnapshot } from "firebase/firestore";
+import { getDefaultAccount } from "@/lib/firestore-services";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
