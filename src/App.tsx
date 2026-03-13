@@ -100,9 +100,11 @@ const AppWrapper = () => {
       <Sonner />
       <TooltipProvider delayDuration={0}>
         <AuthProvider>
-          <ErrorBoundary>
-            <AppContent />
-          </ErrorBoundary>
+          <PrivacyProvider>
+            <ErrorBoundary>
+              <AppContent />
+            </ErrorBoundary>
+          </PrivacyProvider>
         </AuthProvider>
       </TooltipProvider>
     </div>

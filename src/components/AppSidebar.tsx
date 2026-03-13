@@ -36,6 +36,9 @@ const mainMenuItems: MenuItem[] = [
   { title: "วิเคราะห์", url: "/analysis", icon: PieChart },
   { title: "ปฏิทินการเงิน", url: "/calendar", icon: CalendarDays },
   { title: "รายการธุรกรรม", url: "/transactions", icon: Receipt },
+  { title: "บัญชี/กระเป๋าเงิน", url: "/accounts", icon: Landmark },
+  { title: "การลงทุน", url: "/investments", icon: TrendingUp },
+  { title: "เป้าหมาย", url: "/goals", icon: Target },
 ];
 
 const settingsChildren = [
