@@ -81,6 +81,9 @@ const AppContent = () => {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/accounts" element={<AccountsPage />} />
+            <Route path="/investments" element={<InvestmentsPage />} />
+            <Route path="/goals" element={<GoalsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <AddTransactionFAB />
