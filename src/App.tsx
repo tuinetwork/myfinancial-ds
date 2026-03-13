@@ -6,12 +6,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { PrivacyProvider } from "@/contexts/PrivacyContext";
 import Index from "./pages/Index";
 import Transactions from "./pages/Transactions";
 import Analysis from "./pages/Analysis";
 import CalendarPage from "./pages/CalendarPage";
 import Settings from "./pages/Settings";
 import AdminPanel from "./pages/AdminPanel";
+import AccountsPage from "./pages/AccountsPage";
+import InvestmentsPage from "./pages/InvestmentsPage";
+import GoalsPage from "./pages/GoalsPage";
 import NotFound from "./pages/NotFound";
 import GoogleLogin from "./components/GoogleLogin";
 import AddTransactionFAB from "./components/AddTransactionFAB";
@@ -77,6 +81,9 @@ const AppContent = () => {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/accounts" element={<AccountsPage />} />
+            <Route path="/investments" element={<InvestmentsPage />} />
+            <Route path="/goals" element={<GoalsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <AddTransactionFAB />
@@ -93,9 +100,11 @@ const AppWrapper = () => {
       <Sonner />
       <TooltipProvider delayDuration={0}>
         <AuthProvider>
-          <ErrorBoundary>
-            <AppContent />
-          </ErrorBoundary>
+          <PrivacyProvider>
+            <ErrorBoundary>
+              <AppContent />
+            </ErrorBoundary>
+          </PrivacyProvider>
         </AuthProvider>
       </TooltipProvider>
     </div>

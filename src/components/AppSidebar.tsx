@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard, Receipt, Settings, ChevronDown, ChevronRight, ChevronUp,
   CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart, ShieldCheck, Wallet,
+  TrendingUp, Landmark,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +36,9 @@ const mainMenuItems: MenuItem[] = [
   { title: "วิเคราะห์", url: "/analysis", icon: PieChart },
   { title: "ปฏิทินการเงิน", url: "/calendar", icon: CalendarDays },
   { title: "รายการธุรกรรม", url: "/transactions", icon: Receipt },
+  { title: "บัญชี/กระเป๋าเงิน", url: "/accounts", icon: Landmark },
+  { title: "การลงทุน", url: "/investments", icon: TrendingUp },
+  { title: "เป้าหมาย", url: "/goals", icon: Target },
 ];
 
 const settingsChildren = [
