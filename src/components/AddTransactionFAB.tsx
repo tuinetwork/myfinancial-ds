@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { Plus, X, CalendarIcon, ChevronLeft, CircleDot } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Plus, X, CalendarIcon, ChevronLeft, CircleDot, ArrowRightLeft, Hash } from "lucide-react";
 import { collection, doc, getDocs, setDoc, query, where, onSnapshot } from "firebase/firestore";
-import { getDefaultAccount } from "@/lib/firestore-services";
+import { getDefaultAccount, getAccounts, updateAccount } from "@/lib/firestore-services";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -10,10 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getIconByName } from "@/components/IconPicker";
+import type { Account } from "@/types/finance";
 
 interface CategoryData {
   label: string;
@@ -21,7 +23,6 @@ interface CategoryData {
   category_icons?: Record<string, string>;
 }
 
-// Fallback label map (used when no custom icon is set)
 const categoryLabelMap: Record<string, string> = {
   "หนี้สิน": "DEBT",
   "เงินออมและการลงทุน": "SAVINGS",
@@ -54,7 +55,7 @@ const AddTransactionFAB = () => {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
-  const [type, setType] = useState<"expense" | "income">("expense");
+  const [type, setType] = useState<"expense" | "income" | "transfer">("expense");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState<Date>(new Date());
   const [mainCategory, setMainCategory] = useState("");
@@ -63,7 +64,52 @@ const AddTransactionFAB = () => {
   const [saving, setSaving] = useState(false);
   const [categoryStep, setCategoryStep] = useState<1 | 2>(1);
 
+  // Account selection
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [fromAccountId, setFromAccountId] = useState("");
+  const [toAccountId, setToAccountId] = useState("");
+
+  // Tags
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
+
   const [categories, setCategories] = useState<Record<string, CategoryData>>({});
+
+  // Fetch accounts
+  useEffect(() => {
+    if (!userId) return;
+    const unsub = onSnapshot(collection(firestore, "users", userId, "accounts"), (snap) => {
+      const accs = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() } as Account))
+        .filter((a) => !a.is_deleted && a.is_active);
+      setAccounts(accs);
+    });
+    return () => unsub();
+  }, [userId]);
+
+  // Fetch suggested tags from recent transactions
+  useEffect(() => {
+    if (!userId) return;
+    const txCol = collection(firestore, "users", userId, "transactions");
+    getDocs(txCol).then((snap) => {
+      const tagCounts: Record<string, number> = {};
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        if (data.tags && Array.isArray(data.tags)) {
+          data.tags.forEach((t: string) => {
+            tagCounts[t] = (tagCounts[t] || 0) + 1;
+          });
+        }
+      });
+      const sorted = Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([t]) => t);
+      setSuggestedTags(sorted);
+    });
+  }, [userId, open]);
 
   useEffect(() => {
     if (!userId) return;
@@ -78,13 +124,14 @@ const AddTransactionFAB = () => {
     return () => unsubscribe();
   }, [userId]);
 
-  const currentCat = categories[type];
+  const currentCat = type !== "transfer" ? categories[type] : null;
   const mainCats = currentCat?.main_categories ? Object.keys(currentCat.main_categories) : [];
   const subCats = mainCategory && currentCat?.main_categories?.[mainCategory]
     ? currentCat.main_categories[mainCategory]
     : [];
 
   const isExpense = type === "expense";
+  const isTransfer = type === "transfer";
 
   const resetForm = () => {
     setType("expense");
@@ -94,6 +141,11 @@ const AddTransactionFAB = () => {
     setSubCategory("");
     setNote("");
     setCategoryStep(1);
+    setSelectedAccountId("");
+    setFromAccountId("");
+    setToAccountId("");
+    setTags([]);
+    setTagInput("");
   };
 
   const handleClose = () => {
@@ -105,7 +157,7 @@ const AddTransactionFAB = () => {
     }, 250);
   };
 
-  const handleTypeChange = (newType: "expense" | "income") => {
+  const handleTypeChange = (newType: "expense" | "income" | "transfer") => {
     setType(newType);
     setMainCategory("");
     setSubCategory("");
@@ -123,6 +175,14 @@ const AddTransactionFAB = () => {
     setMainCategory("");
     setSubCategory("");
   };
+
+  const addTag = (tag: string) => {
+    const t = tag.trim().replace(/^#/, "");
+    if (t && !tags.includes(t)) setTags([...tags, t]);
+    setTagInput("");
+  };
+
+  const removeTag = (tag: string) => setTags(tags.filter((t) => t !== tag));
 
   const getNextTransactionId = async (userId: string, monthYear: string): Promise<string> => {
     const txCol = collection(firestore, "users", userId, "transactions");
@@ -148,8 +208,15 @@ const AddTransactionFAB = () => {
     const numAmount = parseFloat(amount);
     if (!numAmount || numAmount <= 0) { toast.error("กรุณากรอกจำนวนเงิน"); return; }
     if (numAmount > MAX_AMOUNT) { toast.error(`จำนวนเงินต้องไม่เกิน ${MAX_AMOUNT.toLocaleString()} บาท`); return; }
-    if (!subCategory) { toast.error("กรุณาเลือกหมวดหมู่"); return; }
-    if (!mainCategory) { toast.error("กรุณาเลือกกลุ่มหมวดหมู่"); return; }
+
+    if (isTransfer) {
+      if (!fromAccountId || !toAccountId) { toast.error("กรุณาเลือกบัญชีต้นทางและปลายทาง"); return; }
+      if (fromAccountId === toAccountId) { toast.error("บัญชีต้นทางและปลายทางต้องไม่เหมือนกัน"); return; }
+    } else {
+      if (!subCategory) { toast.error("กรุณาเลือกหมวดหมู่"); return; }
+      if (!mainCategory) { toast.error("กรุณาเลือกกลุ่มหมวดหมู่"); return; }
+    }
+
     const trimmedNote = note.trim();
     if (trimmedNote.length > MAX_NOTE_LENGTH) { toast.error(`บันทึกต้องไม่เกิน ${MAX_NOTE_LENGTH} ตัวอักษร`); return; }
     const now = new Date();
@@ -163,22 +230,54 @@ const AddTransactionFAB = () => {
       const monthYear = format(date, "yyyy-MM");
       const newId = await getNextTransactionId(userId, monthYear);
 
-      // Build transaction data
       const txData: Record<string, any> = {
-        type, amount: numAmount, date: dateStr, month_year: monthYear,
-        main_category: mainCategory, sub_category: subCategory,
-        note: trimmedNote, created_at: Date.now(),
+        type: isTransfer ? "transfer" : type,
+        amount: numAmount,
+        date: dateStr,
+        month_year: monthYear,
+        note: trimmedNote,
+        created_at: Date.now(),
       };
 
-      // Auto-attach default account ID
-      try {
-        const defaultAccount = await getDefaultAccount(userId);
-        if (defaultAccount) {
-          if (type === "expense") txData.from_account_id = defaultAccount.id;
-          if (type === "income") txData.to_account_id = defaultAccount.id;
+      if (tags.length > 0) txData.tags = tags;
+
+      if (isTransfer) {
+        txData.from_account_id = fromAccountId;
+        txData.to_account_id = toAccountId;
+        txData.main_category = "โอนเงิน";
+        txData.sub_category = "โอนระหว่างบัญชี";
+
+        // Update balances
+        const fromAcc = accounts.find((a) => a.id === fromAccountId);
+        const toAcc = accounts.find((a) => a.id === toAccountId);
+        if (fromAcc) await updateAccount(userId, fromAccountId, { balance: fromAcc.balance - numAmount });
+        if (toAcc) await updateAccount(userId, toAccountId, { balance: toAcc.balance + numAmount });
+      } else {
+        txData.main_category = mainCategory;
+        txData.sub_category = subCategory;
+
+        // Auto-attach account + update balance
+        const accountId = selectedAccountId || null;
+        let targetAccount: Account | null = null;
+
+        if (accountId) {
+          targetAccount = accounts.find((a) => a.id === accountId) || null;
+        } else {
+          try {
+            targetAccount = await getDefaultAccount(userId);
+          } catch { /* skip */ }
         }
-      } catch {
-        // Silently skip if accounts subcollection doesn't exist yet
+
+        if (targetAccount) {
+          if (type === "expense") {
+            txData.from_account_id = targetAccount.id;
+            await updateAccount(userId, targetAccount.id, { balance: targetAccount.balance - numAmount });
+          }
+          if (type === "income") {
+            txData.to_account_id = targetAccount.id;
+            await updateAccount(userId, targetAccount.id, { balance: targetAccount.balance + numAmount });
+          }
+        }
       }
 
       await setDoc(doc(firestore, "users", userId, "transactions", newId), txData);
@@ -192,7 +291,7 @@ const AddTransactionFAB = () => {
     }
   };
 
-  const canSubmit = !!amount && !!subCategory && !saving;
+  const canSubmit = !!amount && (isTransfer ? (!!fromAccountId && !!toAccountId) : !!subCategory) && !saving;
 
   const thaiDate = (() => {
     const d = date;
@@ -227,7 +326,7 @@ const AddTransactionFAB = () => {
           <div
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "relative z-10 w-full max-w-md mx-4 mb-4 sm:mb-0 rounded-2xl shadow-2xl p-5 space-y-3",
+              "relative z-10 w-full max-w-md mx-4 mb-4 sm:mb-0 rounded-2xl shadow-2xl p-5 space-y-3 max-h-[90vh] overflow-y-auto",
               "bg-card/95 backdrop-blur-xl border border-border",
               closing ? "animate-modal-slide-down" : "animate-modal-slide-up"
             )}
@@ -243,13 +342,13 @@ const AddTransactionFAB = () => {
               </button>
             </div>
 
-            {/* Type toggle */}
+            {/* Type toggle - 3 buttons */}
             <div className="flex gap-2">
               <button
                 onClick={() => handleTypeChange("expense")}
                 className={cn(
                   "flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                  isExpense
+                  type === "expense"
                     ? "bg-destructive text-destructive-foreground shadow-md"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
@@ -260,12 +359,24 @@ const AddTransactionFAB = () => {
                 onClick={() => handleTypeChange("income")}
                 className={cn(
                   "flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                  !isExpense
+                  type === "income"
                     ? "bg-accent text-accent-foreground shadow-md"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
               >
                 + Income
+              </button>
+              <button
+                onClick={() => handleTypeChange("transfer")}
+                className={cn(
+                  "flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                  type === "transfer"
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                <ArrowRightLeft className="h-3.5 w-3.5 inline mr-1" />
+                Transfer
               </button>
             </div>
 
@@ -280,7 +391,7 @@ const AddTransactionFAB = () => {
                 onChange={(e) => setAmount(e.target.value)}
                 className={cn(
                   "pl-8 text-lg font-semibold h-12 bg-muted/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1",
-                  isExpense ? "focus-visible:ring-destructive" : "focus-visible:ring-accent"
+                  type === "expense" ? "focus-visible:ring-destructive" : type === "income" ? "focus-visible:ring-accent" : "focus-visible:ring-primary"
                 )}
               />
             </div>
@@ -301,84 +412,168 @@ const AddTransactionFAB = () => {
               </PopoverContent>
             </Popover>
 
-            {/* Category area */}
-            <div className="h-[200px] relative overflow-hidden rounded-xl bg-muted/30 border border-border">
-              {/* Step 1: Main categories grid */}
-              <div className={cn(
-                "absolute inset-0 p-2 overflow-y-auto transition-all duration-200",
-                categoryStep === 1 ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
-              )}>
-                {mainCats.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    {mainCats.map((mc) => {
-                      const IconComp = getCategoryIcon(mc);
-                      return (
-                        <button
-                          key={mc}
-                          onClick={() => handleMainCategorySelect(mc)}
-                          className={cn(
-                            "px-2 py-3 rounded-xl text-xs font-medium transition-all duration-150",
-                            "flex flex-col items-center justify-center gap-1.5",
-                            "bg-muted/50 border hover:bg-muted",
-                            mainCategory === mc
-                              ? isExpense ? "border-destructive bg-destructive/10" : "border-accent bg-accent/10"
-                              : "border-border"
-                          )}
-                        >
-                          <IconComp className={cn(
-                            "h-6 w-6",
-                            mainCategory === mc
-                              ? isExpense ? "text-destructive" : "text-accent"
-                              : "text-muted-foreground"
-                          )} />
-                          <span className="text-foreground text-center leading-tight">{getLabel(mc)}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                    ไม่พบหมวดหมู่
-                  </div>
-                )}
-              </div>
-
-              {/* Step 2: Sub categories list */}
-              <div className={cn(
-                "absolute inset-0 p-2 overflow-y-auto transition-all duration-200",
-                categoryStep === 2 ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
-              )}>
-                <button
-                  onClick={handleBackToMainCategories}
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2 transition-colors"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  <span>{getLabel(mainCategory) || "Back"}</span>
-                </button>
-                <div className="flex flex-wrap gap-1.5">
-                  {subCats.map((sc) => {
-                    const SubIcon = getCategoryIcon(sc);
-                    const selected = subCategory === sc;
-                    return (
-                      <button
-                        key={sc}
-                        onClick={() => setSubCategory(sc)}
-                        className={cn(
-                          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150",
-                          selected
-                            ? isExpense
-                              ? "bg-destructive text-destructive-foreground shadow-sm"
-                              : "bg-accent text-accent-foreground shadow-sm"
-                            : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground border border-border"
-                        )}
-                      >
-                        <SubIcon className="h-3 w-3 shrink-0" />
-        {getLabel(sc)}
-                      </button>
-                    );
-                  })}
+            {/* Transfer: From/To Account */}
+            {isTransfer && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">จากบัญชี</label>
+                  <Select value={fromAccountId} onValueChange={setFromAccountId}>
+                    <SelectTrigger className="bg-muted/50 border-border"><SelectValue placeholder="เลือกบัญชีต้นทาง" /></SelectTrigger>
+                    <SelectContent>
+                      {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">ไปยังบัญชี</label>
+                  <Select value={toAccountId} onValueChange={setToAccountId}>
+                    <SelectTrigger className="bg-muted/50 border-border"><SelectValue placeholder="เลือกบัญชีปลายทาง" /></SelectTrigger>
+                    <SelectContent>
+                      {accounts.filter((a) => a.id !== fromAccountId).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
+            )}
+
+            {/* Income/Expense: Optional Account + Category */}
+            {!isTransfer && (
+              <>
+                {/* Optional Account Selector */}
+                {accounts.length > 0 && (
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">บัญชี / กระเป๋าเงิน (ไม่บังคับ)</label>
+                    <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                      <SelectTrigger className="bg-muted/50 border-border"><SelectValue placeholder="อัตโนมัติ (กระเป๋าหลัก)" /></SelectTrigger>
+                      <SelectContent>
+                        {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Category area */}
+                <div className="h-[200px] relative overflow-hidden rounded-xl bg-muted/30 border border-border">
+                  {/* Step 1: Main categories grid */}
+                  <div className={cn(
+                    "absolute inset-0 p-2 overflow-y-auto transition-all duration-200",
+                    categoryStep === 1 ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
+                  )}>
+                    {mainCats.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        {mainCats.map((mc) => {
+                          const IconComp = getCategoryIcon(mc);
+                          return (
+                            <button
+                              key={mc}
+                              onClick={() => handleMainCategorySelect(mc)}
+                              className={cn(
+                                "px-2 py-3 rounded-xl text-xs font-medium transition-all duration-150",
+                                "flex flex-col items-center justify-center gap-1.5",
+                                "bg-muted/50 border hover:bg-muted",
+                                mainCategory === mc
+                                  ? isExpense ? "border-destructive bg-destructive/10" : "border-accent bg-accent/10"
+                                  : "border-border"
+                              )}
+                            >
+                              <IconComp className={cn(
+                                "h-6 w-6",
+                                mainCategory === mc
+                                  ? isExpense ? "text-destructive" : "text-accent"
+                                  : "text-muted-foreground"
+                              )} />
+                              <span className="text-foreground text-center leading-tight">{getLabel(mc)}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                        ไม่พบหมวดหมู่
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Step 2: Sub categories list */}
+                  <div className={cn(
+                    "absolute inset-0 p-2 overflow-y-auto transition-all duration-200",
+                    categoryStep === 2 ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
+                  )}>
+                    <button
+                      onClick={handleBackToMainCategories}
+                      className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2 transition-colors"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      <span>{getLabel(mainCategory) || "Back"}</span>
+                    </button>
+                    <div className="flex flex-wrap gap-1.5">
+                      {subCats.map((sc) => {
+                        const SubIcon = getCategoryIcon(sc);
+                        const selected = subCategory === sc;
+                        return (
+                          <button
+                            key={sc}
+                            onClick={() => setSubCategory(sc)}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150",
+                              selected
+                                ? isExpense
+                                  ? "bg-destructive text-destructive-foreground shadow-sm"
+                                  : "bg-accent text-accent-foreground shadow-sm"
+                                : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground border border-border"
+                            )}
+                          >
+                            <SubIcon className="h-3 w-3 shrink-0" />
+                            {getLabel(sc)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Tags */}
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+                <div className="flex-1 flex flex-wrap gap-1 items-center">
+                  {tags.map((t) => (
+                    <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                      #{t}
+                      <button onClick={() => removeTag(t)} className="hover:text-destructive">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
+                        e.preventDefault();
+                        addTag(tagInput);
+                      }
+                    }}
+                    placeholder={tags.length === 0 ? "เพิ่ม tag..." : ""}
+                    className="bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none flex-1 min-w-[60px] py-1"
+                  />
+                </div>
+              </div>
+              {suggestedTags.length > 0 && tags.length < 5 && (
+                <div className="flex flex-wrap gap-1">
+                  {suggestedTags.filter((t) => !tags.includes(t)).slice(0, 5).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => addTag(t)}
+                      className="px-2 py-0.5 rounded-full text-[10px] bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
+                    >
+                      #{t}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Note */}
@@ -401,9 +596,11 @@ const AddTransactionFAB = () => {
               disabled={!canSubmit}
               className={cn(
                 "w-full h-12 text-base font-semibold rounded-xl transition-all duration-200",
-                isExpense
+                type === "expense"
                   ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg"
-                  : "bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg",
+                  : type === "income"
+                  ? "bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg"
+                  : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg",
                 !canSubmit && "opacity-50 cursor-not-allowed"
               )}
             >
