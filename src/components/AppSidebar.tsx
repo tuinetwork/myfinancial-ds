@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard, Receipt, Settings, ChevronDown, ChevronRight, ChevronUp,
   CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart, ShieldCheck, Wallet,
+  TrendingUp, Landmark,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
