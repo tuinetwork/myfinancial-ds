@@ -3,15 +3,16 @@ import { getAuth } from "firebase/auth";
 import { getDatabase } from "firebase/database";
 import { getFirestore } from "firebase/firestore";
 
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyDV_vAmTI_VAdJMHnZG-KFH7lS1XfTmeds",
+  apiKey: "AIzaSyCwRBtuW2xkxTrrDebvVAQaQtxv4BaQFAM",
   authDomain: "myfinancedashboard-5e96a.firebaseapp.com",
   databaseURL: "https://myfinancedashboard-5e96a-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "myfinancedashboard-5e96a",
   storageBucket: "myfinancedashboard-5e96a.firebasestorage.app",
   messagingSenderId: "825108223515",
   appId: "1:825108223515:web:7c9867bd501741df240abe",
-  measurementId: "G-TSEBC4JXL3",
+  measurementId: "G-TSEBC4JXL3"
 };
 
 const app = initializeApp(firebaseConfig);
