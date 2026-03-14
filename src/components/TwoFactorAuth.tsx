@@ -61,7 +61,7 @@ export function TwoFactorAuth({ open, onVerified, onCancel }: TwoFactorAuthProps
         setIsSetup(true);
       } else {
         // Generate new secret for setup
-        const newSecret = authenticator.generateSecret();
+        const newSecret = generateSecret();
         setSecret(newSecret);
         setIsSetup(false);
       }
