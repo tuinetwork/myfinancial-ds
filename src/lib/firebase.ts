@@ -4,7 +4,7 @@ import { getDatabase } from "firebase/database";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCJmSsk5NkmXnWDJ-nwLcLph1WgbD4Cb58",
+  apiKey: "AIzaSyDV_vAmTI_VAdJMHnZG-KFH7lS1XfTmeds",
   authDomain: "myfinancedashboard-5e96a.firebaseapp.com",
   databaseURL: "https://myfinancedashboard-5e96a-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "myfinancedashboard-5e96a",
