@@ -91,7 +91,7 @@ export function TwoFactorAuth({ open, onVerified, onCancel }: TwoFactorAuthProps
 
     try {
       const result = await verify({ token: otpCode, secret });
-      if (isValid) {
+      if (result.valid) {
         if (!isSetup) {
           // Save secret on first setup
           await setDoc(doc(firestore, "users", userId, "security", "mfa"), {
