@@ -90,7 +90,7 @@ export function TwoFactorAuth({ open, onVerified, onCancel }: TwoFactorAuthProps
     setError("");
 
     try {
-      const isValid = authenticator.verify({ token: otpCode, secret });
+      const result = await verify({ token: otpCode, secret });
       if (isValid) {
         if (!isSetup) {
           // Save secret on first setup
