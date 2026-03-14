@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard, Receipt, Settings, ChevronDown, ChevronRight, ChevronUp,
   CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart, ShieldCheck, Wallet,
-  TrendingUp, Landmark,
+  TrendingUp, Landmark, Terminal,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,6 +18,7 @@ import {
   Tooltip, TooltipContent, TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+// ===== Types =====
 interface MenuItem {
   title: string;
   url: string;
@@ -106,6 +107,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { userRole, user } = useAuth();
   const isAdminUser = userRole === "dev" || userRole === "admin";
+  const isDevUser = userRole === "dev";
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   const isDashboardActive = location.pathname === "/";
@@ -135,7 +137,7 @@ export function AppSidebar() {
     }
   };
 
-  /* ── Render a collapsible menu group (full mode: accordion, mini mode: floating popout) ── */
+  /* ── Render a collapsible menu group ── */
   const renderCollapsibleItem = (
     item: MenuItem,
     isOpen: boolean,
@@ -144,7 +146,6 @@ export function AppSidebar() {
   ) => {
     const children = item.children!;
 
-    // ── Mini Mode: icon + floating popout ──
     if (collapsed) {
       return (
         <SidebarMenuItem key={item.url}>
@@ -197,7 +198,6 @@ export function AppSidebar() {
       );
     }
 
-    // ── Full Mode: accordion ──
     return (
       <SidebarMenuItem key={item.url}>
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -332,8 +332,43 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* ── Footer: Admin + Settings ── */}
+      {/* ── Footer: Command Center (Dev only) + Admin + Settings ── */}
       <SidebarFooter className="p-2 border-t border-sidebar-border space-y-0.5">
+        {/* Command Center - Dev only */}
+        {isDevUser && (
+          collapsed ? (
+            <SidebarMenuItem>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SidebarMenuButton
+                    className={`w-full justify-center hover:bg-sidebar-accent/50 ${
+                      location.pathname === "/command-center" ? "bg-sidebar-accent text-sidebar-primary font-medium" : ""
+                    }`}
+                    onClick={() => navigate("/command-center")}
+                  >
+                    <Terminal className="h-4 w-4" />
+                  </SidebarMenuButton>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-sidebar text-sidebar-foreground border-sidebar-border">
+                  Command Center
+                </TooltipContent>
+              </Tooltip>
+            </SidebarMenuItem>
+          ) : (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                className={`w-full hover:bg-sidebar-accent/50 ${
+                  location.pathname === "/command-center" ? "bg-sidebar-accent text-sidebar-primary font-medium" : ""
+                }`}
+                onClick={() => navigate("/command-center")}
+              >
+                <Terminal className="h-4 w-4" />
+                <span>Command Center</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )
+        )}
+
         {isAdminUser && (
           collapsed ? (
             <SidebarMenuItem>
