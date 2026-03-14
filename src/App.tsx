@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,8 +7,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
-import { doc, onSnapshot } from "firebase/firestore";
-import { firestore } from "@/lib/firebase";
 import Index from "./pages/Index";
 import Transactions from "./pages/Transactions";
 import Analysis from "./pages/Analysis";
@@ -18,11 +16,10 @@ import AdminPanel from "./pages/AdminPanel";
 import AccountsPage from "./pages/AccountsPage";
 import InvestmentsPage from "./pages/InvestmentsPage";
 import GoalsPage from "./pages/GoalsPage";
-import CommandCenter from "./pages/CommandCenter";
 import NotFound from "./pages/NotFound";
 import GoogleLogin from "./components/GoogleLogin";
 import AddTransactionFAB from "./components/AddTransactionFAB";
-import { Loader2, AlertTriangle, X, Megaphone } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 // Error Boundary to catch and log component stack
 class ErrorBoundary extends React.Component<
@@ -58,67 +55,6 @@ class ErrorBoundary extends React.Component<
 
 const queryClient = new QueryClient();
 
-// ===== Global System Listeners =====
-function SystemOverlays() {
-  const { user, userRole } = useAuth();
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [broadcastMessage, setBroadcastMessage] = useState("");
-  const [dismissedBroadcast, setDismissedBroadcast] = useState("");
-  const [forceRefreshTs, setForceRefreshTs] = useState(0);
-
-  useEffect(() => {
-    const unsub = onSnapshot(doc(firestore, "system_config", "global"), (snap) => {
-      if (!snap.exists()) return;
-      const data = snap.data();
-      setMaintenanceMode(data.maintenance_mode ?? false);
-      setBroadcastMessage(data.broadcast_message ?? "");
-
-      // Force refresh: if timestamp is newer than our baseline, reload
-      const newTs = data.force_refresh ?? 0;
-      if (forceRefreshTs > 0 && newTs > forceRefreshTs) {
-        window.location.reload();
-      }
-      if (newTs > 0) setForceRefreshTs(newTs);
-    }, () => {
-      // Ignore errors (doc may not exist yet)
-    });
-    return () => unsub();
-  }, [forceRefreshTs]);
-
-  const isDev = userRole === "dev";
-
-  return (
-    <>
-      {/* Maintenance Overlay - show for non-dev users */}
-      {maintenanceMode && !isDev && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 backdrop-blur-sm">
-          <div className="text-center space-y-4 p-8">
-            <AlertTriangle className="h-16 w-16 mx-auto text-[hsl(var(--debt))]" />
-            <h2 className="text-2xl font-bold text-foreground">ระบบอยู่ระหว่างปรับปรุง</h2>
-            <p className="text-muted-foreground max-w-sm mx-auto">
-              ขณะนี้ระบบอยู่ในโหมดบำรุงรักษา กรุณารอสักครู่แล้วลองใหม่อีกครั้ง
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Broadcast Banner */}
-      {broadcastMessage && broadcastMessage !== dismissedBroadcast && (
-        <div className="fixed top-0 left-0 right-0 z-[90] bg-[hsl(var(--debt))] text-[hsl(var(--debt-foreground))] px-4 py-2.5 flex items-center justify-center gap-3 shadow-lg">
-          <Megaphone className="h-4 w-4 shrink-0" />
-          <p className="text-sm font-medium">{broadcastMessage}</p>
-          <button
-            onClick={() => setDismissedBroadcast(broadcastMessage)}
-            className="shrink-0 h-6 w-6 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
-    </>
-  );
-}
-
 const AppContent = () => {
   const { user, loading, pendingApproval } = useAuth();
 
@@ -137,7 +73,6 @@ const AppContent = () => {
   return (
     <BrowserRouter>
       <SidebarProvider>
-        <SystemOverlays />
         <div className="min-h-screen flex w-full">
           <Routes>
             <Route path="/" element={<Index />} />
@@ -149,7 +84,6 @@ const AppContent = () => {
             <Route path="/accounts" element={<AccountsPage />} />
             <Route path="/investments" element={<InvestmentsPage />} />
             <Route path="/goals" element={<GoalsPage />} />
-            <Route path="/command-center" element={<CommandCenter />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <AddTransactionFAB />
