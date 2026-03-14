@@ -74,7 +74,7 @@ export function TwoFactorAuth({ open, onVerified, onCancel }: TwoFactorAuthProps
 
   const getOtpAuthUrl = () => {
     if (!secret || !user?.email) return "";
-    return authenticator.keyuri(user.email, "MyFinancial DS", secret);
+    return generateURI({ secret, issuer: "MyFinancial DS", label: user.email });
   };
 
   const handleCopySecret = () => {
