@@ -1251,7 +1251,7 @@ const BudgetSettings = () => {
             />
             <BudgetTable
               title="รายรับ"
-              titleColor="text-emerald-600"
+              titleColor="text-accent"
               categories={budgetData.income_estimates as Record<string, Record<string, BudgetValue>>}
               allCategories={incomeCategories}
               selectedCategory={selectedIncomeCat}
