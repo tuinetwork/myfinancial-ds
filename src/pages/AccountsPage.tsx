@@ -99,7 +99,10 @@ export default function AccountsPage() {
     return () => unsub();
   }, [userId]);
 
-  const totalNetWorth = accounts.reduce((sum, a) => sum + a.balance, 0);
+  const liabilityTypes: string[] = ["credit_card", "loan", "payable"];
+  const totalAssets = accounts.filter((a) => !liabilityTypes.includes(a.type)).reduce((sum, a) => sum + a.balance, 0);
+  const totalLiabilities = accounts.filter((a) => liabilityTypes.includes(a.type)).reduce((sum, a) => sum + Math.abs(a.balance), 0);
+  const totalNetWorth = totalAssets - totalLiabilities;
 
   const grouped = accounts.reduce<Record<string, Account[]>>((acc, account) => {
     const group = accountTypeConfig[account.type]?.group || "Other";
