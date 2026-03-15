@@ -24,6 +24,7 @@ const accountTypeConfig: Record<AccountType, { label: string; icon: React.Compon
   investment: { label: "การลงทุน", icon: TrendingUp, group: "Investments" },
   credit_card: { label: "บัตรเครดิต", icon: CreditCard, group: "Credit / Loans" },
   loan: { label: "สินเชื่อ", icon: Building2, group: "Credit / Loans" },
+  receivable: { label: "ลูกหนี้", icon: UserCheck, group: "Receivables" },
   inventory: { label: "สินค้าคงคลัง", icon: Package, group: "Inventory / Business" },
 };
 
