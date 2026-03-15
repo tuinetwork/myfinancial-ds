@@ -28,7 +28,7 @@ import {
 import {
   Terminal, ShieldCheck, Database, Download, Upload, Radio, AlertTriangle,
   Loader2, Search, RefreshCw, Megaphone, Plug, CheckCircle, XCircle,
-  Info, Trash2, Code, Play, FileJson, Plus, Edit, Save, X, Server
+  Info, Trash2, Code, Play, FileJson, Plus, Edit, Save, X, Server, ShieldAlert
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -42,16 +42,16 @@ interface SchemaDoc {
   updatedAt: number;
 }
 
-// ===== Tree Node Component สำหรับแสดงข้อมูลแบบ Tree =====
+// ===== Tree Node Component สำหรับแสดงข้อมูลแบบ Tree (สีขาว) =====
 const TreeNode = ({ label, value, defaultOpen = false }: { label: string; value: any; defaultOpen?: boolean }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   
   // จัดการค่า Null / Undefined
   if (value === null || value === undefined) {
     return (
-      <div className="pl-4 py-0.5 border-l border-border/50 font-mono text-xs flex gap-2">
-        <span className="text-primary">{label}:</span>
-        <span className="text-muted-foreground italic">null</span>
+      <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs flex gap-2">
+        <span className="text-white opacity-90">{label}:</span>
+        <span className="text-white/50 italic">null</span>
       </div>
     );
   }
@@ -59,9 +59,9 @@ const TreeNode = ({ label, value, defaultOpen = false }: { label: string; value:
   // จัดการค่า Firestore Timestamp
   if (typeof value === "object" && typeof value.toDate === "function") {
       return (
-      <div className="pl-4 py-0.5 border-l border-border/50 font-mono text-xs flex gap-2">
-        <span className="text-primary">{label}:</span>
-        <span className="text-emerald-500">"{value.toDate().toLocaleString()}"</span>
+      <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs flex gap-2">
+        <span className="text-white opacity-90">{label}:</span>
+        <span className="text-white">"{value.toDate().toLocaleString()}"</span>
       </div>
     );
   }
@@ -72,9 +72,9 @@ const TreeNode = ({ label, value, defaultOpen = false }: { label: string; value:
   // จัดการค่าพื้นฐาน (String, Number, Boolean)
   if (!isObject) {
     return (
-      <div className="pl-4 py-0.5 border-l border-border/50 font-mono text-xs flex gap-2 items-start">
-        <span className="text-primary shrink-0">{label}:</span>
-        <span className={typeof value === 'string' ? 'text-amber-500 break-all' : typeof value === 'boolean' ? 'text-purple-500' : 'text-blue-500'}>
+      <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs flex gap-2 items-start">
+        <span className="text-white opacity-90 shrink-0">{label}:</span>
+        <span className="text-white break-all">
           {typeof value === 'string' ? `"${value}"` : String(value)}
         </span>
       </div>
@@ -86,23 +86,23 @@ const TreeNode = ({ label, value, defaultOpen = false }: { label: string; value:
   // จัดการ Object หรือ Array ที่ว่างเปล่า
   if (keys.length === 0) {
     return (
-      <div className="pl-4 py-0.5 border-l border-border/50 font-mono text-xs flex gap-2">
-        <span className="text-primary">{label}:</span>
-        <span className="text-muted-foreground">{isArray ? "[]" : "{}"}</span>
+      <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs flex gap-2">
+        <span className="text-white opacity-90">{label}:</span>
+        <span className="text-white/50">{isArray ? "[]" : "{}"}</span>
       </div>
     );
   }
 
   // วาดโครงสร้าง Object / Array ที่มีข้อมูลอยู่ข้างใน
   return (
-    <div className="pl-4 py-0.5 border-l border-border/50 font-mono text-xs">
+    <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs">
       <div 
-        className="flex items-center gap-1 cursor-pointer hover:bg-muted/50 rounded px-1 -ml-1 transition-colors select-none w-fit"
+        className="flex items-center gap-1 cursor-pointer hover:bg-white/10 rounded px-1 -ml-1 transition-colors select-none w-fit"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className="text-muted-foreground w-3 text-[10px]">{isOpen ? '▼' : '▶'}</span>
-        <span className="text-foreground font-semibold">{label}</span>
-        <span className="text-muted-foreground text-[10px]">
+        <span className="text-white/50 w-3 text-[10px]">{isOpen ? '▼' : '▶'}</span>
+        <span className="text-white font-semibold">{label}</span>
+        <span className="text-white/50 text-[10px]">
           {isArray ? `[${keys.length}]` : `{${keys.length}}`}
         </span>
       </div>
@@ -159,8 +159,10 @@ export default function CommandCenter() {
   const [scanning, setScanning] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  // Schema & Data Tree States
-  const [schemaTab, setSchemaTab] = useState<"schemas" | "data">("schemas");
+  // Database Tab States
+  const [dbTab, setDbTab] = useState<"schemas" | "data" | "recovery">("schemas");
+  
+  // Schema States
   const [schemas, setSchemas] = useState<SchemaDoc[]>([]);
   const [isSchemaModalOpen, setIsSchemaModalOpen] = useState(false);
   const [schemaForm, setSchemaForm] = useState<Partial<SchemaDoc>>({
@@ -168,6 +170,7 @@ export default function CommandCenter() {
   });
   const [isEditingSchema, setIsEditingSchema] = useState(false);
   
+  // Tree States
   const [allUsersData, setAllUsersData] = useState<Record<string, any> | null>(null);
   const [loadingDataTree, setLoadingDataTree] = useState(false);
 
@@ -346,8 +349,8 @@ export default function CommandCenter() {
     setLoadingDataTree(false);
   };
 
-  const handleTabChange = (tab: "schemas" | "data") => {
-    setSchemaTab(tab);
+  const handleTabChange = (tab: "schemas" | "data" | "recovery") => {
+    setDbTab(tab);
     if (tab === "data" && !allUsersData) {
       fetchAllUsersDataTree();
     }
@@ -543,7 +546,8 @@ export default function CommandCenter() {
         </header>
 
         <div className="flex-1 p-4 sm:p-6 space-y-6 pb-20">
-          {/* ===== Operation Terminal ===== */}
+          
+          {/* ===== Operation Terminal (เต็มความกว้างด้านบน) ===== */}
           <Card className="border-border">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -572,350 +576,379 @@ export default function CommandCenter() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* ===== แบ่ง 2 คอลัมน์ (ซ้าย - ขวา) ===== */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             
-            {/* ===== Database Explorer (Schemas & Tree) ===== */}
-            <Card className="lg:col-span-2">
-              <CardHeader className="pb-0 border-b border-border">
-                <div className="flex items-center justify-between mb-3">
+            {/* ========== คอลัมน์ซ้าย ========== */}
+            <div className="space-y-6">
+              
+              {/* Data Scan & Integrity */}
+              <Card>
+                <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Database className="h-4 w-4 text-primary" />
-                    Database Explorer
+                    <Search className="h-4 w-4 text-primary" />
+                    Data Scan & Integrity
                   </CardTitle>
-                  {schemaTab === "schemas" && (
-                    <Button size="sm" onClick={() => handleOpenSchemaModal()} className="h-8 gap-1">
-                      <Plus className="h-4 w-4" /> Add Schema
-                    </Button>
-                  )}
-                  {schemaTab === "data" && (
-                    <Button size="sm" onClick={fetchAllUsersDataTree} disabled={loadingDataTree} variant="outline" className="h-8 gap-1">
-                      <RefreshCw className={`h-3.5 w-3.5 ${loadingDataTree ? 'animate-spin' : ''}`} /> Reload Data
-                    </Button>
-                  )}
-                </div>
-                {/* Tabs */}
-                <div className="flex gap-4">
-                  <button 
-                    className={`pb-2 text-sm font-medium border-b-2 transition-colors ${schemaTab === 'schemas' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-                    onClick={() => handleTabChange('schemas')}
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button
+                    onClick={handleOrphanScan}
+                    disabled={scanning}
+                    size="sm"
+                    variant="outline"
+                    className="w-full justify-start gap-2"
                   >
-                    Schema Definitions
-                  </button>
-                  <button 
-                    className={`pb-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${schemaTab === 'data' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-                    onClick={() => handleTabChange('data')}
-                  >
-                    Live Users Tree <Server className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-4">
-                {schemaTab === "schemas" ? (
-                  // ----- View: Schemas -----
-                  schemas.length === 0 ? (
-                    <div className="text-center py-8 border border-dashed rounded-lg bg-muted/30">
-                      <FileJson className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-                      <p className="text-sm text-muted-foreground">ยังไม่มีข้อมูล Schema ในระบบ</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {schemas.map((schema) => (
-                        <div key={schema.id} className="relative p-4 rounded-lg border border-border bg-card hover:bg-muted/10 transition-colors group">
-                          <div className="flex items-start justify-between mb-2">
-                            <div>
-                              <h3 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
-                                <FileJson className="h-3.5 w-3.5 text-primary" /> {schema.id}
-                              </h3>
-                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                                {schema.description || "ไม่มีคำอธิบาย"}
-                              </p>
-                            </div>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleOpenSchemaModal(schema)}>
-                                <Edit className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteSchema(schema.id)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="bg-muted/50 p-2 rounded text-[10px] font-mono text-muted-foreground h-20 overflow-hidden relative">
-                            <pre>{schema.schemaJson}</pre>
-                            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-muted/50 to-transparent" />
-                          </div>
-                          <p className="text-[9px] text-muted-foreground mt-2 text-right">
-                            Updated: {format(schema.updatedAt, "dd MMM yyyy HH:mm")}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                ) : (
-                  // ----- View: Data Tree -----
-                  <div className="rounded-md border border-border bg-[#1e1e1e] text-[#d4d4d4] overflow-hidden">
-                    {loadingDataTree ? (
-                      <div className="flex flex-col items-center justify-center h-[350px] space-y-3">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                        <p className="text-xs text-muted-foreground">กำลังโหลดข้อมูลจาก Firestore...</p>
-                      </div>
-                    ) : allUsersData ? (
-                      <ScrollArea className="h-[400px] w-full p-4">
-                        <TreeNode label="database_root" value={allUsersData} defaultOpen={true} />
-                      </ScrollArea>
-                    ) : null}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* ===== Data Scan & Integrity ===== */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Search className="h-4 w-4 text-primary" />
-                  Data Scan & Integrity
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button
-                  onClick={handleOrphanScan}
-                  disabled={scanning}
-                  size="sm"
-                  variant="outline"
-                  className="w-full justify-start gap-2"
-                >
-                  {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                  Orphaned Data Scan
-                </Button>
-                {orphans !== null && (
-                  <div className="text-xs p-3 rounded-lg bg-muted/50 space-y-1">
-                    <p className="font-medium text-foreground">
-                      ผลลัพธ์: พบ {orphans.length} รายการกำพร้า
-                    </p>
-                    {orphans.slice(0, 5).map((o, i) => (
-                      <p key={i} className="text-muted-foreground">
-                        • {o.id.slice(0, 15)}... — {o.issue}
+                    {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    Orphaned Data Scan
+                  </Button>
+                  {orphans !== null && (
+                    <div className="text-xs p-3 rounded-lg bg-muted/50 space-y-1">
+                      <p className="font-medium text-foreground">
+                        ผลลัพธ์: พบ {orphans.length} รายการกำพร้า
                       </p>
-                    ))}
-                    {orphans.length > 5 && (
-                      <p className="text-muted-foreground">...และอีก {orphans.length - 5} รายการ</p>
+                      {orphans.slice(0, 5).map((o, i) => (
+                        <p key={i} className="text-muted-foreground">
+                          • {o.id.slice(0, 15)}... — {o.issue}
+                        </p>
+                      ))}
+                      {orphans.length > 5 && (
+                        <p className="text-muted-foreground">...และอีก {orphans.length - 5} รายการ</p>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Global Controls */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Radio className="h-4 w-4 text-primary" />
+                    Global Controls
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-medium text-foreground">Maintenance Mode</Label>
+                      <p className="text-xs text-muted-foreground">จำกัดการเขียนข้อมูลสำหรับผู้ใช้ทั่วไป</p>
+                    </div>
+                    <Switch
+                      checked={maintenanceMode}
+                      onCheckedChange={handleToggleMaintenance}
+                    />
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium flex items-center gap-1.5 text-foreground">
+                      <Megaphone className="h-3.5 w-3.5" />
+                      System Broadcast
+                    </Label>
+                    {currentBroadcast && (
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-[hsl(var(--debt))]/10 border border-[hsl(var(--debt))]/20">
+                        <p className="text-xs flex-1 text-foreground">{currentBroadcast}</p>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={handleClearBroadcast}>
+                          ลบ
+                        </Button>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <Input
+                        value={broadcastMsg}
+                        onChange={(e) => setBroadcastMsg(e.target.value)}
+                        placeholder="ข้อความประกาศ..."
+                        className="flex-1 h-9 text-sm"
+                        maxLength={200}
+                      />
+                      <Button size="sm" onClick={handleBroadcast} disabled={!broadcastMsg.trim()} className="h-9">
+                        ส่ง
+                      </Button>
+                    </div>
+                  </div>
+                  <Separator />
+                  <Button
+                    onClick={handleForceRefresh}
+                    size="sm"
+                    variant="destructive"
+                    className="w-full justify-start gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Force Refresh All Clients
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Cross-App Connector */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Plug className="h-4 w-4 text-primary" />
+                    Cross-App Connector
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="p-4 rounded-lg border border-dashed border-border text-center space-y-2">
+                    <Plug className="h-8 w-8 mx-auto text-muted-foreground/50" />
+                    <p className="text-sm font-medium text-foreground">Inventory App Connector</p>
+                    <p className="text-xs text-muted-foreground">
+                      เชื่อมต่อระบบสต็อกสินค้ากับบัญชีสินทรัพย์การเงิน — กำลังพัฒนา
+                    </p>
+                    <Badge variant="outline" className="text-xs">Coming Soon</Badge>
+                  </div>
+                  <Button size="sm" variant="outline" className="w-full gap-2" disabled>
+                    <Plug className="h-4 w-4" />
+                    Run Diagnostic
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Script Editor */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Code className="h-4 w-4 text-primary" />
+                      Migration Script Editor
+                    </CardTitle>
+                    <Button
+                      size="sm"
+                      onClick={() => setConfirmAction({
+                        open: true,
+                        title: "รันสคริปต์ Migration",
+                        desc: "สคริปต์จะทำงานโดยตรงกับฐานข้อมูล การกระทำนี้ไม่สามารถย้อนกลับได้ กรุณาตรวจสอบโค้ดให้แน่ใจก่อนดำเนินการ",
+                        action: handleRunScript,
+                      })}
+                      disabled={scriptRunning || !scriptCode.trim()}
+                      className="gap-1.5 h-8"
+                    >
+                      {scriptRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                      Run Script
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="text-xs text-muted-foreground flex flex-wrap gap-1.5">
+                    <Badge variant="outline" className="text-[10px] font-mono">db</Badge>
+                    <Badge variant="outline" className="text-[10px] font-mono">log(msg)</Badge>
+                    <Badge variant="outline" className="text-[10px] font-mono">collection</Badge>
+                    <Badge variant="outline" className="text-[10px] font-mono">doc</Badge>
+                    <Badge variant="outline" className="text-[10px] font-mono">getDocs</Badge>
+                    <Badge variant="outline" className="text-[10px] font-mono">setDoc</Badge>
+                    <Badge variant="outline" className="text-[10px] font-mono">updateDoc</Badge>
+                    <Badge variant="outline" className="text-[10px] font-mono">deleteDoc</Badge>
+                    <Badge variant="outline" className="text-[10px] font-mono">writeBatch</Badge>
+                    <Badge variant="outline" className="text-[10px] font-mono">query</Badge>
+                    <Badge variant="outline" className="text-[10px] font-mono">where</Badge>
+                  </div>
+                  <Textarea
+                    value={scriptCode}
+                    onChange={(e) => setScriptCode(e.target.value)}
+                    className="font-mono text-xs min-h-[200px] bg-muted/30 border-border resize-y leading-relaxed"
+                    placeholder="// เขียนสคริปต์ migration ที่นี่..."
+                    spellCheck={false}
+                  />
+                </CardContent>
+              </Card>
+
+            </div>
+
+            {/* ========== คอลัมน์ขวา ========== */}
+            <div className="space-y-6">
+              
+              {/* Combined Database & Disaster Recovery Card */}
+              <Card>
+                <CardHeader className="pb-0 border-b border-border">
+                  <div className="flex items-center justify-between mb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Database className="h-4 w-4 text-primary" />
+                      Database Explorer & Recovery
+                    </CardTitle>
+                    {dbTab === "schemas" && (
+                      <Button size="sm" onClick={() => handleOpenSchemaModal()} className="h-8 gap-1">
+                        <Plus className="h-4 w-4" /> Add Schema
+                      </Button>
+                    )}
+                    {dbTab === "data" && (
+                      <Button size="sm" onClick={fetchAllUsersDataTree} disabled={loadingDataTree} variant="outline" className="h-8 gap-1">
+                        <RefreshCw className={`h-3.5 w-3.5 ${loadingDataTree ? 'animate-spin' : ''}`} /> Reload Data
+                      </Button>
                     )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* ===== Disaster Recovery ===== */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Download className="h-4 w-4 text-primary" />
-                  Disaster Recovery
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button
-                  onClick={() => setConfirmAction({
-                    open: true, title: "สำรองข้อมูล", desc: "ดาวน์โหลดข้อมูล Firestore ทั้งหมดเป็นไฟล์ JSON",
-                    action: handleExport,
-                  })}
-                  disabled={exporting}
-                  size="sm"
-                  className="w-full justify-start gap-2"
-                >
-                  {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                  Backup to JSON
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json"
-                  onChange={handleImportFile}
-                  className="hidden"
-                />
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  size="sm"
-                  variant="outline"
-                  className="w-full justify-start gap-2"
-                >
-                  <Upload className="h-4 w-4" />
-                  Import from JSON
-                </Button>
-
-                {/* Diff Preview */}
-                {showDiff && importData && (
-                  <div className="text-xs p-3 rounded-lg bg-muted/50 space-y-2">
-                    <p className="font-medium text-foreground">Import Preview:</p>
-                    <p className="text-muted-foreground">
-                      ผู้ใช้: {Object.keys(importData.users || {}).length} | 
-                      Exported: {importData.exported_at || "N/A"}
-                    </p>
-                    {Object.entries(importData.users || {}).slice(0, 3).map(([uid, data]: [string, any]) => (
-                      <div key={uid} className="pl-2 border-l-2 border-primary/30">
-                        <p className="text-foreground">{uid.slice(0, 12)}...</p>
-                        <p className="text-muted-foreground">
-                          Subcollections: {Object.keys(data.subcollections || {}).join(", ")}
-                        </p>
+                  {/* Tabs */}
+                  <div className="flex gap-4 overflow-x-auto no-scrollbar">
+                    <button 
+                      className={`pb-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${dbTab === 'schemas' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                      onClick={() => handleTabChange('schemas')}
+                    >
+                      <FileJson className="h-3.5 w-3.5" /> Schema
+                    </button>
+                    <button 
+                      className={`pb-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${dbTab === 'data' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                      onClick={() => handleTabChange('data')}
+                    >
+                      <Server className="h-3.5 w-3.5" /> Live Tree
+                    </button>
+                    <button 
+                      className={`pb-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${dbTab === 'recovery' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                      onClick={() => handleTabChange('recovery')}
+                    >
+                      <ShieldAlert className="h-3.5 w-3.5" /> Recovery
+                    </button>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="pt-4">
+                  {/* ----- Tab 1: Schemas ----- */}
+                  {dbTab === "schemas" && (
+                    schemas.length === 0 ? (
+                      <div className="text-center py-8 border border-dashed rounded-lg bg-muted/30">
+                        <FileJson className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                        <p className="text-sm text-muted-foreground">ยังไม่มีข้อมูล Schema ในระบบ</p>
                       </div>
-                    ))}
-                    <div className="flex gap-2 pt-1">
-                      <Button size="sm" variant="destructive" onClick={() => { setImportData(null); setShowDiff(false); }} className="flex-1">
-                        ยกเลิก
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => setConfirmAction({
-                          open: true, title: "ยืนยันนำเข้าข้อมูล",
-                          desc: `จะ merge ข้อมูล ${Object.keys(importData.users || {}).length} ผู้ใช้เข้าสู่ฐานข้อมูล`,
-                          action: handleImportConfirm,
-                        })}
-                        className="flex-1"
-                      >
-                        ยืนยันนำเข้า
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-4">
+                        {schemas.map((schema) => (
+                          <div key={schema.id} className="relative p-4 rounded-lg border border-border bg-card hover:bg-muted/10 transition-colors group">
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <h3 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                                  <FileJson className="h-3.5 w-3.5 text-primary" /> {schema.id}
+                                </h3>
+                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                                  {schema.description || "ไม่มีคำอธิบาย"}
+                                </p>
+                              </div>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleOpenSchemaModal(schema)}>
+                                  <Edit className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteSchema(schema.id)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="bg-muted/50 p-2 rounded text-[10px] font-mono text-muted-foreground h-20 overflow-hidden relative">
+                              <pre>{schema.schemaJson}</pre>
+                              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-muted/50 to-transparent" />
+                            </div>
+                            <p className="text-[9px] text-muted-foreground mt-2 text-right">
+                              Updated: {format(schema.updatedAt, "dd MMM yyyy HH:mm")}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  )}
 
-            {/* ===== Global Controls ===== */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Radio className="h-4 w-4 text-primary" />
-                  Global Controls
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Maintenance Mode */}
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-sm font-medium text-foreground">Maintenance Mode</Label>
-                    <p className="text-xs text-muted-foreground">จำกัดการเขียนข้อมูลสำหรับผู้ใช้ทั่วไป</p>
-                  </div>
-                  <Switch
-                    checked={maintenanceMode}
-                    onCheckedChange={handleToggleMaintenance}
-                  />
-                </div>
-                <Separator />
-
-                {/* Broadcast */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium flex items-center gap-1.5 text-foreground">
-                    <Megaphone className="h-3.5 w-3.5" />
-                    System Broadcast
-                  </Label>
-                  {currentBroadcast && (
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-[hsl(var(--debt))]/10 border border-[hsl(var(--debt))]/20">
-                      <p className="text-xs flex-1 text-foreground">{currentBroadcast}</p>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={handleClearBroadcast}>
-                        ลบ
-                      </Button>
+                  {/* ----- Tab 2: Data Tree ----- */}
+                  {dbTab === "data" && (
+                    <div className="rounded-md border border-border bg-[#1e1e1e] overflow-hidden">
+                      {loadingDataTree ? (
+                        <div className="flex flex-col items-center justify-center h-[450px] space-y-3">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                          <p className="text-xs text-muted-foreground">กำลังโหลดข้อมูลจาก Firestore...</p>
+                        </div>
+                      ) : allUsersData ? (
+                        <ScrollArea className="h-[500px] w-full p-4">
+                          <TreeNode label="database_root" value={allUsersData} defaultOpen={true} />
+                        </ScrollArea>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-[450px] space-y-3 text-muted-foreground">
+                          <Server className="h-8 w-8 opacity-20" />
+                          <p className="text-xs">คลิก "Reload Data" เพื่อดึงข้อมูล</p>
+                        </div>
+                      )}
                     </div>
                   )}
-                  <div className="flex gap-2">
-                    <Input
-                      value={broadcastMsg}
-                      onChange={(e) => setBroadcastMsg(e.target.value)}
-                      placeholder="ข้อความประกาศ..."
-                      className="flex-1 h-9 text-sm"
-                      maxLength={200}
-                    />
-                    <Button size="sm" onClick={handleBroadcast} disabled={!broadcastMsg.trim()} className="h-9">
-                      ส่ง
-                    </Button>
-                  </div>
-                </div>
-                <Separator />
 
-                {/* Force Refresh */}
-                <Button
-                  onClick={handleForceRefresh}
-                  size="sm"
-                  variant="destructive"
-                  className="w-full justify-start gap-2"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Force Refresh All Clients
-                </Button>
-              </CardContent>
-            </Card>
+                  {/* ----- Tab 3: Disaster Recovery ----- */}
+                  {dbTab === "recovery" && (
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-lg bg-[hsl(var(--debt))]/10 border border-[hsl(var(--debt))]/20 flex items-start gap-3">
+                        <ShieldAlert className="h-5 w-5 text-[hsl(var(--debt))] shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="text-sm font-semibold text-foreground">Disaster Recovery Zone</h4>
+                          <p className="text-xs text-muted-foreground mt-1">เครื่องมือสำหรับสำรองและกู้คืนฐานข้อมูล กรุณาใช้งานด้วยความระมัดระวัง</p>
+                        </div>
+                      </div>
 
-            {/* ===== Cross-App Connector ===== */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Plug className="h-4 w-4 text-primary" />
-                  Cross-App Connector
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="p-4 rounded-lg border border-dashed border-border text-center space-y-2">
-                  <Plug className="h-8 w-8 mx-auto text-muted-foreground/50" />
-                  <p className="text-sm font-medium text-foreground">Inventory App Connector</p>
-                  <p className="text-xs text-muted-foreground">
-                    เชื่อมต่อระบบสต็อกสินค้ากับบัญชีสินทรัพย์การเงิน — กำลังพัฒนา
-                  </p>
-                  <Badge variant="outline" className="text-xs">Coming Soon</Badge>
-                </div>
-                <Button size="sm" variant="outline" className="w-full gap-2" disabled>
-                  <Plug className="h-4 w-4" />
-                  Run Diagnostic
-                </Button>
-              </CardContent>
-            </Card>
+                      <div className="space-y-3 pt-2">
+                        <Button
+                          onClick={() => setConfirmAction({
+                            open: true, title: "สำรองข้อมูล", desc: "ดาวน์โหลดข้อมูล Firestore ทั้งหมดเป็นไฟล์ JSON",
+                            action: handleExport,
+                          })}
+                          disabled={exporting}
+                          size="sm"
+                          className="w-full justify-start gap-2"
+                        >
+                          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                          Backup to JSON
+                        </Button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".json"
+                          onChange={handleImportFile}
+                          className="hidden"
+                        />
+                        <Button
+                          onClick={() => fileInputRef.current?.click()}
+                          size="sm"
+                          variant="outline"
+                          className="w-full justify-start gap-2 border-dashed"
+                        >
+                          <Upload className="h-4 w-4" />
+                          Import from JSON
+                        </Button>
+                      </div>
 
-            {/* ===== Migration Script Editor ===== */}
-            <Card className="lg:col-span-2">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Code className="h-4 w-4 text-primary" />
-                    Migration Script Editor
-                  </CardTitle>
-                  <Button
-                    size="sm"
-                    onClick={() => setConfirmAction({
-                      open: true,
-                      title: "รันสคริปต์ Migration",
-                      desc: "สคริปต์จะทำงานโดยตรงกับฐานข้อมูล การกระทำนี้ไม่สามารถย้อนกลับได้ กรุณาตรวจสอบโค้ดให้แน่ใจก่อนดำเนินการ",
-                      action: handleRunScript,
-                    })}
-                    disabled={scriptRunning || !scriptCode.trim()}
-                    className="gap-1.5 h-8"
-                  >
-                    {scriptRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-                    Run Script
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="text-xs text-muted-foreground flex flex-wrap gap-1.5">
-                  <Badge variant="outline" className="text-[10px] font-mono">db</Badge>
-                  <Badge variant="outline" className="text-[10px] font-mono">log(msg)</Badge>
-                  <Badge variant="outline" className="text-[10px] font-mono">collection</Badge>
-                  <Badge variant="outline" className="text-[10px] font-mono">doc</Badge>
-                  <Badge variant="outline" className="text-[10px] font-mono">getDocs</Badge>
-                  <Badge variant="outline" className="text-[10px] font-mono">setDoc</Badge>
-                  <Badge variant="outline" className="text-[10px] font-mono">updateDoc</Badge>
-                  <Badge variant="outline" className="text-[10px] font-mono">deleteDoc</Badge>
-                  <Badge variant="outline" className="text-[10px] font-mono">writeBatch</Badge>
-                  <Badge variant="outline" className="text-[10px] font-mono">query</Badge>
-                  <Badge variant="outline" className="text-[10px] font-mono">where</Badge>
-                </div>
-                <Textarea
-                  value={scriptCode}
-                  onChange={(e) => setScriptCode(e.target.value)}
-                  className="font-mono text-xs min-h-[240px] bg-muted/30 border-border resize-y leading-relaxed"
-                  placeholder="// เขียนสคริปต์ migration ที่นี่..."
-                  spellCheck={false}
-                />
-              </CardContent>
-            </Card>
+                      {/* Diff Preview */}
+                      {showDiff && importData && (
+                        <div className="text-xs p-3 mt-4 rounded-lg bg-muted/50 space-y-2 border border-border">
+                          <p className="font-medium text-foreground">Import Preview:</p>
+                          <p className="text-muted-foreground">
+                            พบผู้ใช้: <span className="text-foreground">{Object.keys(importData.users || {}).length}</span> รายการ | 
+                            วันที่ Export: <span className="text-foreground">{importData.exported_at || "N/A"}</span>
+                          </p>
+                          <div className="max-h-32 overflow-y-auto space-y-1 my-2">
+                            {Object.entries(importData.users || {}).slice(0, 5).map(([uid, data]: [string, any]) => (
+                              <div key={uid} className="pl-2 border-l-2 border-primary/30">
+                                <p className="text-foreground">{uid.slice(0, 15)}...</p>
+                                <p className="text-muted-foreground text-[10px]">
+                                  Sub: {Object.keys(data.subcollections || {}).join(", ") || "none"}
+                                </p>
+                              </div>
+                            ))}
+                            {Object.keys(importData.users || {}).length > 5 && (
+                              <p className="text-muted-foreground italic pl-2">...และอีกมากมาย</p>
+                            )}
+                          </div>
+                          <div className="flex gap-2 pt-2 border-t border-border">
+                            <Button size="sm" variant="ghost" onClick={() => { setImportData(null); setShowDiff(false); }} className="flex-1">
+                              ยกเลิก
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setConfirmAction({
+                                open: true, title: "ยืนยันนำเข้าข้อมูล (อันตราย)",
+                                desc: `ระบบจะทำการ Merge ข้อมูล ${Object.keys(importData.users || {}).length} ผู้ใช้ เข้าสู่ฐานข้อมูลหลักทันที คุณแน่ใจหรือไม่?`,
+                                action: handleImportConfirm,
+                              })}
+                              className="flex-1 gap-1"
+                            >
+                              <ShieldAlert className="h-3.5 w-3.5" /> ยืนยันนำเข้า
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
+            </div>
           </div>
         </div>
         <AppFooter />
