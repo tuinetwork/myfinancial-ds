@@ -31,7 +31,7 @@ import {
   ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Download,
   MoreHorizontal, Pencil, Trash2, Loader2, CalendarIcon,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfWeek, startOfMonth, subDays, endOfDay, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { BudgetData, Transaction, formatCurrency } from "@/hooks/useBudgetData";
 import {
