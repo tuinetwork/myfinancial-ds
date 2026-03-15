@@ -29,7 +29,7 @@ import {
   Terminal, ShieldCheck, Database, Download, Upload, Radio, AlertTriangle,
   Loader2, Search, RefreshCw, Megaphone, Plug, CheckCircle, XCircle,
   Info, Trash2, Code, Play, FileJson, Plus, Edit, Save, X, ShieldAlert, 
-  Bookmark, BookmarkPlus, Users, Activity, PlayCircle, Ban, Unlock, Zap, BarChart3, DatabaseBackup
+  Bookmark, BookmarkPlus, PlayCircle, Ban, Unlock, BarChart3, DatabaseBackup
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -142,10 +142,6 @@ export default function CommandCenter() {
   const [isSaveScriptModalOpen, setIsSaveScriptModalOpen] = useState(false);
   const [newScriptName, setNewScriptName] = useState("");
 
-  // Metrics States (Real Data)
-  const [sysMetrics, setSysMetrics] = useState({ users: 0, txToday: 0, active: 0, health: "100%" });
-  const [loadingMetrics, setLoadingMetrics] = useState(false);
-
   // User Management States
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [searchedUser, setSearchedUser] = useState<any>(null);
@@ -197,7 +193,6 @@ export default function CommandCenter() {
       if (isMfaSessionValid()) {
         setMfaVerified(true);
         addLog({ timestamp: Date.now(), level: "info", message: "MFA session ยังไม่หมดอายุ — เข้าถึงได้" });
-        fetchSystemMetrics(); // Fetch REAL metrics on load
       } else {
         setShowMfa(true);
       }
@@ -271,67 +266,6 @@ export default function CommandCenter() {
     setMfaVerified(true);
     setShowMfa(false);
     addLog({ timestamp: Date.now(), level: "success", message: "MFA ยืนยันสำเร็จ — เข้าสู่ Command Center" });
-    fetchSystemMetrics();
-  };
-
-  // --- Real Data Metrics Fetching ---
-  const fetchSystemMetrics = async () => {
-    setLoadingMetrics(true);
-    const startTime = Date.now(); // เริ่มจับเวลา Ping (Latency)
-    
-    try {
-      // 1. ดึงข้อมูลจำนวน Users ทั้งหมด
-      const usersRef = collection(firestore, "users");
-      const userSnap = await getDocs(usersRef);
-      const totalUsers = userSnap.size;
-
-      // 2. ดึงข้อมูล Transactions ของวันนี้
-      let txTodayCount = 0;
-      try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // เริ่มต้นเที่ยงคืนของวันนี้
-        // หมายเหตุ: เจ้านายต้องตรวจสอบชื่อฟิลด์ 'createdAt' ใน DB ว่าตรงกันหรือไม่ ถ้าไม่ตรงให้แก้ตรงนี้นะครับ
-        const txQuery = query(collection(firestore, "transactions"), where("createdAt", ">=", today));
-        const txSnap = await getDocs(txQuery);
-        txTodayCount = txSnap.size;
-      } catch (err: any) {
-        console.warn("ไม่สามารถดึงข้อมูล transactions วันนี้ได้ (อาจจะไม่มีฟิลด์ createdAt หรือยังไม่ได้ทำ Index)", err);
-      }
-
-      // 3. ดึงข้อมูล Active Sessions (ผู้ใช้ที่ล็อกอินภายใน 30 นาทีที่ผ่านมา)
-      let activeCount = 0;
-      try {
-        const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
-        // หมายเหตุ: ต้องมีฟิลด์ 'lastLoginAt' ใน collection users
-        const activeQuery = query(usersRef, where("lastLoginAt", ">=", thirtyMinsAgo));
-        const activeSnap = await getDocs(activeQuery);
-        activeCount = activeSnap.size;
-      } catch (err: any) {
-         console.warn("ไม่สามารถดึงข้อมูล active users ได้", err);
-      }
-
-      // 4. คำนวณ System Health จาก Latency
-      const endTime = Date.now();
-      const pingMs = endTime - startTime;
-      let calculatedHealth = 100;
-      if (pingMs > 500 && pingMs <= 1000) calculatedHealth = 98;
-      else if (pingMs > 1000 && pingMs <= 3000) calculatedHealth = 90;
-      else if (pingMs > 3000) calculatedHealth = 80;
-
-      // อัปเดตข้อมูลขึ้นจอ
-      setSysMetrics({
-        users: totalUsers,
-        txToday: txTodayCount,
-        active: activeCount,
-        health: `${calculatedHealth}%`
-      });
-      
-      addLog({ timestamp: Date.now(), level: "info", message: `อัปเดต Real Data เรียบร้อย (DB Latency: ${pingMs}ms)` });
-    } catch (e: any) {
-      addLog({ timestamp: Date.now(), level: "error", message: `โหลดสถิติล้มเหลว: ${e.message}` });
-      setSysMetrics(prev => ({ ...prev, health: "ERROR" }));
-    }
-    setLoadingMetrics(false);
   };
 
   // --- User Management ---
@@ -602,58 +536,8 @@ export default function CommandCenter() {
         </header>
 
         <div className="flex-1 p-4 sm:p-6 space-y-6 pb-20">
-          
-          {/* ===== 1. System Metrics (Top Row - Real Data) ===== */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="bg-card/50 backdrop-blur">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Total Users</p>
-                  <p className="text-2xl font-bold">{loadingMetrics ? "-" : sysMetrics.users.toLocaleString()}</p>
-                </div>
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Users className="h-4 w-4 text-primary" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/50 backdrop-blur">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Transactions Today</p>
-                  <p className="text-2xl font-bold">{loadingMetrics ? "-" : sysMetrics.txToday.toLocaleString()}</p>
-                </div>
-                <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                  <Activity className="h-4 w-4 text-emerald-500" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/50 backdrop-blur">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Active Sessions</p>
-                  <p className="text-2xl font-bold">{loadingMetrics ? "-" : sysMetrics.active}</p>
-                </div>
-                <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center">
-                  <Zap className="h-4 w-4 text-blue-500" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/50 backdrop-blur">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">System Health</p>
-                  <p className={`text-2xl font-bold ${sysMetrics.health === "100%" || sysMetrics.health === "98%" ? "text-emerald-500" : "text-amber-500"}`}>
-                    {loadingMetrics ? "-" : sysMetrics.health}
-                  </p>
-                </div>
-                <div className={`h-8 w-8 rounded-full flex items-center justify-center ${sysMetrics.health === "100%" || sysMetrics.health === "98%" ? "bg-emerald-500/10" : "bg-amber-500/10"}`}>
-                  <ShieldCheck className={`h-4 w-4 ${sysMetrics.health === "100%" || sysMetrics.health === "98%" ? "text-emerald-500" : "text-amber-500"}`} />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
 
-          {/* ===== 2. Operation Terminal (Full Width) ===== */}
+          {/* ===== 1. Operation Terminal (Full Width) ===== */}
           <Card className="border-border">
             <CardHeader className="pb-3 px-4 pt-4">
               <div className="flex items-center justify-between">
@@ -662,9 +546,6 @@ export default function CommandCenter() {
                   Operation Terminal
                 </CardTitle>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={fetchSystemMetrics} className="h-7 text-xs gap-1">
-                    <RefreshCw className={`h-3 w-3 ${loadingMetrics ? "animate-spin" : ""}`} /> Refresh Data
-                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => setLogs([])} className="h-7 text-xs">
                     <Trash2 className="h-3 w-3 mr-1" /> Clear
                   </Button>
@@ -687,7 +568,7 @@ export default function CommandCenter() {
             </CardContent>
           </Card>
 
-          {/* ===== 3. Split Layout (Left / Right) ===== */}
+          {/* ===== 2. Split Layout (Left / Right) ===== */}
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
             
             {/* ========== LEFT COLUMN (Tools & Controls) ========== */}
@@ -938,7 +819,7 @@ export default function CommandCenter() {
                 </CardHeader>
                 <CardContent className="pt-4 space-y-6">
                   
-                  {/* --- Section: Data Migration (ตามรูปภาพ) --- */}
+                  {/* --- Section: Data Migration --- */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <DatabaseBackup className="h-4 w-4 text-primary" />
