@@ -19,7 +19,7 @@ export function YearlySummaryCard({ yearlyData }: Props) {
     .reduce((s, t) => s + t.amount, 0);
 
   const totalExpense = allTransactions
-    .filter((t) => t.type !== "รายรับ")
+    .filter((t) => t.type !== "รายรับ" && t.type !== "โอน")
     .reduce((s, t) => s + t.amount, 0);
 
   const netBalance = totalIncome - totalExpense;
