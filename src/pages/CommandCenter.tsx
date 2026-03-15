@@ -568,7 +568,59 @@ export default function CommandCenter() {
             </CardContent>
           </Card>
 
-          {/* ===== 2. Split Layout (Left / Right) ===== */}
+          {/* ===== 2. Migration Script Editor (Full Width) ===== */}
+          <Card className="border-primary/20 shadow-sm">
+            <CardHeader className="pb-3 bg-primary/5 border-b border-primary/10">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Code className="h-4 w-4 text-primary" />
+                  Migration Script Editor
+                </CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setIsSaveScriptModalOpen(true)} className="gap-1.5 h-7 text-xs bg-background">
+                    <BookmarkPlus className="h-3 w-3" /> Save Template
+                  </Button>
+                  <Button size="sm" onClick={() => setConfirmAction({
+                      open: true, title: "รันสคริปต์", desc: "สคริปต์จะทำงานโดยตรงกับฐานข้อมูล ยืนยัน?", action: handleRunScript
+                    })} disabled={scriptRunning || !scriptCode.trim()} className="gap-1.5 h-7 text-xs"
+                  >
+                    {scriptRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />} Run
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-3">
+              {/* Script Templates Quick Load */}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                <span className="text-xs font-semibold text-muted-foreground shrink-0 flex items-center gap-1">
+                  <Bookmark className="h-3 w-3" /> Templates:
+                </span>
+                {DEFAULT_SCRIPTS.map(script => (
+                  <Badge key={script.id} variant="secondary" className="cursor-pointer whitespace-nowrap hover:bg-secondary/80 text-[10px]" onClick={() => { setScriptCode(script.code); toast.success(`โหลด: ${script.name}`); }}>
+                    {script.name}
+                  </Badge>
+                ))}
+                {savedScripts.map(script => (
+                  <Badge key={script.id} variant="outline" className="cursor-pointer whitespace-nowrap flex items-center gap-1 hover:bg-muted text-[10px] border-primary/30" onClick={() => { setScriptCode(script.code); toast.success(`โหลด: ${script.name}`); }}>
+                    {script.name}
+                    <div className="ml-1 p-0.5 rounded-full hover:bg-destructive/20 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteScriptTemplate(script.id); }}>
+                      <X className="h-2 w-2" />
+                    </div>
+                  </Badge>
+                ))}
+              </div>
+
+              <Textarea
+                value={scriptCode}
+                onChange={(e) => setScriptCode(e.target.value)}
+                className="font-mono text-xs min-h-[220px] bg-muted/30 border-border resize-y leading-relaxed"
+                placeholder="// เขียนสคริปต์ migration หรือโหลดจาก Template..."
+                spellCheck={false}
+              />
+            </CardContent>
+          </Card>
+
+          {/* ===== 3. Split Layout (Left / Right) ===== */}
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
             
             {/* ========== LEFT COLUMN (Tools & Controls) ========== */}
@@ -708,60 +760,8 @@ export default function CommandCenter() {
 
             </div>
 
-            {/* ========== RIGHT COLUMN (Scripts & DB) ========== */}
+            {/* ========== RIGHT COLUMN (Database & Recovery) ========== */}
             <div className="xl:col-span-7 space-y-6">
-              
-              {/* Migration Script Editor & Templates */}
-              <Card className="border-primary/20 shadow-sm">
-                <CardHeader className="pb-3 bg-primary/5 border-b border-primary/10">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Code className="h-4 w-4 text-primary" />
-                      Migration Script Editor
-                    </CardTitle>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setIsSaveScriptModalOpen(true)} className="gap-1.5 h-7 text-xs bg-background">
-                        <BookmarkPlus className="h-3 w-3" /> Save Template
-                      </Button>
-                      <Button size="sm" onClick={() => setConfirmAction({
-                          open: true, title: "รันสคริปต์", desc: "สคริปต์จะทำงานโดยตรงกับฐานข้อมูล ยืนยัน?", action: handleRunScript
-                        })} disabled={scriptRunning || !scriptCode.trim()} className="gap-1.5 h-7 text-xs"
-                      >
-                        {scriptRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />} Run
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-4 space-y-3">
-                  {/* Script Templates Quick Load */}
-                  <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-                    <span className="text-xs font-semibold text-muted-foreground shrink-0 flex items-center gap-1">
-                      <Bookmark className="h-3 w-3" /> Templates:
-                    </span>
-                    {DEFAULT_SCRIPTS.map(script => (
-                      <Badge key={script.id} variant="secondary" className="cursor-pointer whitespace-nowrap hover:bg-secondary/80 text-[10px]" onClick={() => { setScriptCode(script.code); toast.success(`โหลด: ${script.name}`); }}>
-                        {script.name}
-                      </Badge>
-                    ))}
-                    {savedScripts.map(script => (
-                      <Badge key={script.id} variant="outline" className="cursor-pointer whitespace-nowrap flex items-center gap-1 hover:bg-muted text-[10px] border-primary/30" onClick={() => { setScriptCode(script.code); toast.success(`โหลด: ${script.name}`); }}>
-                        {script.name}
-                        <div className="ml-1 p-0.5 rounded-full hover:bg-destructive/20 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteScriptTemplate(script.id); }}>
-                          <X className="h-2 w-2" />
-                        </div>
-                      </Badge>
-                    ))}
-                  </div>
-
-                  <Textarea
-                    value={scriptCode}
-                    onChange={(e) => setScriptCode(e.target.value)}
-                    className="font-mono text-xs min-h-[220px] bg-muted/30 border-border resize-y leading-relaxed"
-                    placeholder="// เขียนสคริปต์ migration หรือโหลดจาก Template..."
-                    spellCheck={false}
-                  />
-                </CardContent>
-              </Card>
 
               {/* Database Schemas */}
               <Card>
