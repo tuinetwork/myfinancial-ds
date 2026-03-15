@@ -136,6 +136,8 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
   const [pageSize, setPageSize] = useState(50);
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(0);
@@ -206,6 +208,22 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
       );
     }
 
+    // Date range filter
+    if (dateFrom || dateTo) {
+      items = items.filter((t) => {
+        const ts = parseDateValue(t.date);
+        if (dateFrom) {
+          const from = new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate()).getTime();
+          if (ts < from) return false;
+        }
+        if (dateTo) {
+          const to = new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate(), 23, 59, 59, 999).getTime();
+          if (ts > to) return false;
+        }
+        return true;
+      });
+    }
+
     const indexed = items.map((t, i) => ({ ...t, _idx: i }));
 
     if (sortDir === null) return indexed;
@@ -231,7 +249,7 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
     });
 
     return indexed;
-  }, [data.transactions, filter, search, sortKey, sortDir]);
+  }, [data.transactions, filter, search, sortKey, sortDir, dateFrom, dateTo]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((sum, t) => sum + t.amount, 0),
@@ -242,7 +260,7 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
   // Reset page when filter/search/pageSize changes
-  useMemo(() => { setPage(0); }, [filter, search, pageSize]);
+  useMemo(() => { setPage(0); }, [filter, search, pageSize, dateFrom, dateTo]);
 
   const exportCSV = () => {
     const BOM = "\uFEFF";
@@ -433,6 +451,48 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* Date range filter */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0">
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {dateFrom ? format(dateFrom, "dd/MM/yy") : "เริ่ม"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={setDateFrom}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-xs text-muted-foreground">ถึง</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0">
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {dateTo ? format(dateTo, "dd/MM/yy") : "สิ้นสุด"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={setDateTo}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              {(dateFrom || dateTo) && (
+                <Button variant="ghost" size="sm" className="h-8 text-xs px-2" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+                  ✕
+                </Button>
+              )}
 
               <div className="flex items-center gap-2 ml-auto">
                 <Input
