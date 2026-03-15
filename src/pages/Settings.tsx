@@ -1825,7 +1825,7 @@ const CategorySettings = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-orange-500" />
+                  <Wallet className="h-4 w-4 text-[hsl(var(--debt))]" />
                   หมวดหมู่รายจ่าย
                 </CardTitle>
               </CardHeader>
