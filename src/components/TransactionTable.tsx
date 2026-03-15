@@ -252,7 +252,7 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
       t.type,
       t.category,
       t.description || "",
-      t.type === "รายรับ" ? t.amount : -t.amount,
+      t.type === "รายรับ" ? t.amount : t.type === "โอน" ? t.amount : -t.amount,
     ]);
     const csv = BOM + [headers.join(","), ...rows.map((r) => r.map((v) => `"${v}"`).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
