@@ -65,6 +65,8 @@ function getTypeBadgeClass(type: string) {
       return "bg-primary/15 text-primary hover:bg-primary/20 border-none";
     case "เงินออมและการลงทุน":
       return "bg-investment/15 text-investment hover:bg-investment/20 border-none";
+    case "โอน":
+      return "bg-muted text-foreground hover:bg-muted/80 border-none";
     default:
       return "bg-muted text-muted-foreground border-none";
   }
@@ -250,7 +252,7 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
       t.type,
       t.category,
       t.description || "",
-      t.type === "รายรับ" ? t.amount : -t.amount,
+      t.type === "รายรับ" ? t.amount : t.type === "โอน" ? t.amount : -t.amount,
     ]);
     const csv = BOM + [headers.join(","), ...rows.map((r) => r.map((v) => `"${v}"`).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -487,10 +489,10 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
                     </TableCell>
                     <TableCell
                       className={`text-xs sm:text-sm text-right font-medium font-display py-2 sm:py-2.5 whitespace-nowrap ${
-                        t.type === "รายรับ" ? "text-income" : "text-expense"
+                        t.type === "รายรับ" ? "text-income" : t.type === "โอน" ? "text-muted-foreground" : "text-expense"
                       }`}
                     >
-                      {t.type === "รายรับ" ? "+" : "-"}
+                      {t.type === "รายรับ" ? "+" : t.type === "โอน" ? "" : "-"}
                       {formatCurrency(t.amount)}
                     </TableCell>
                     {canEdit && (
