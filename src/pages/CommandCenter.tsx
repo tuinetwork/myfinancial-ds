@@ -27,12 +27,20 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Terminal, ShieldCheck, Database, Download, Upload, Radio, AlertTriangle,
-  Loader2, Search, RefreshCw, Megaphone, Power, Plug, CheckCircle, XCircle,
-  Info, Trash2, Code, Play,
+  Loader2, Search, RefreshCw, Megaphone, Plug, CheckCircle, XCircle,
+  Info, Trash2, Code, Play, FileJson, Plus, Edit, Save, X
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Textarea } from "@/components/ui/textarea";
+
+// ===== Types =====
+interface SchemaDoc {
+  id: string; // ชื่อ Collection (เช่น users, transactions)
+  description: string;
+  schemaJson: string; // โครงสร้าง Fields แบบ JSON
+  updatedAt: number;
+}
 
 // ===== Operation Terminal Log Item =====
 function LogItem({ log }: { log: OperationLog }) {
@@ -75,6 +83,14 @@ export default function CommandCenter() {
   const [orphans, setOrphans] = useState<OrphanedRecord[] | null>(null);
   const [scanning, setScanning] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  // Schema Management States
+  const [schemas, setSchemas] = useState<SchemaDoc[]>([]);
+  const [isSchemaModalOpen, setIsSchemaModalOpen] = useState(false);
+  const [schemaForm, setSchemaForm] = useState<Partial<SchemaDoc>>({
+    id: "", description: "", schemaJson: "{\n  \"field_name\": \"string\"\n}"
+  });
+  const [isEditingSchema, setIsEditingSchema] = useState(false);
 
   // Global controls
   const [maintenanceMode, setMaintenanceMode] = useState(false);
@@ -151,17 +167,34 @@ export default function CommandCenter() {
     };
   }, [mfaVerified]);
 
-  // Listen to system_config for maintenance/broadcast
+  // Listen to system_config & schemas
   useEffect(() => {
     if (!mfaVerified) return;
-    const unsub = onSnapshot(doc(firestore, "system_config", "global"), (snap) => {
+    
+    // Config listener
+    const unsubConfig = onSnapshot(doc(firestore, "system_config", "global"), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
         setMaintenanceMode(data.maintenance_mode ?? false);
         setCurrentBroadcast(data.broadcast_message ?? "");
       }
     });
-    return () => unsub();
+
+    // Schemas listener
+    const unsubSchemas = onSnapshot(collection(firestore, "system_schemas"), (snap) => {
+      const fetchedSchemas = snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as SchemaDoc[];
+      // เรียงตามชื่อตัวอักษร A-Z
+      fetchedSchemas.sort((a, b) => a.id.localeCompare(b.id));
+      setSchemas(fetchedSchemas);
+    });
+
+    return () => {
+      unsubConfig();
+      unsubSchemas();
+    };
   }, [mfaVerified]);
 
   // ===== Handlers =====
@@ -171,6 +204,58 @@ export default function CommandCenter() {
     addLog({ timestamp: Date.now(), level: "success", message: "MFA ยืนยันสำเร็จ — เข้าสู่ Command Center" });
   };
 
+  // Schema Handlers
+  const handleOpenSchemaModal = (schema?: SchemaDoc) => {
+    if (schema) {
+      setSchemaForm(schema);
+      setIsEditingSchema(true);
+    } else {
+      setSchemaForm({ id: "", description: "", schemaJson: "{\n  \"field_name\": \"type\"\n}" });
+      setIsEditingSchema(false);
+    }
+    setIsSchemaModalOpen(true);
+  };
+
+  const handleSaveSchema = async () => {
+    if (!schemaForm.id?.trim()) {
+      toast.error("กรุณาระบุชื่อ Collection");
+      return;
+    }
+    
+    try {
+      // Validate JSON format
+      JSON.parse(schemaForm.schemaJson || "{}");
+      
+      const schemaData = {
+        description: schemaForm.description || "",
+        schemaJson: schemaForm.schemaJson || "{}",
+        updatedAt: Date.now()
+      };
+
+      await setDoc(doc(firestore, "system_schemas", schemaForm.id.trim()), schemaData, { merge: true });
+      addLog({ timestamp: Date.now(), level: "success", message: `บันทึก Schema: ${schemaForm.id.trim()} สำเร็จ` });
+      toast.success("บันทึก Schema สำเร็จ");
+      setIsSchemaModalOpen(false);
+    } catch (err: any) {
+      toast.error("รูปแบบ JSON ไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง");
+      addLog({ timestamp: Date.now(), level: "error", message: `JSON Invalid: ${err.message}` });
+    }
+  };
+
+  const handleDeleteSchema = (schemaId: string) => {
+    setConfirmAction({
+      open: true,
+      title: "ลบ Schema",
+      desc: `คุณแน่ใจหรือไม่ที่จะลบ Schema ของ ${schemaId}? (การกระทำนี้จะไม่ลบข้อมูลจริงใน Collection)`,
+      action: async () => {
+        await deleteDoc(doc(firestore, "system_schemas", schemaId));
+        addLog({ timestamp: Date.now(), level: "info", message: `ลบ Schema: ${schemaId}` });
+        toast.success("ลบ Schema สำเร็จ");
+      },
+    });
+  };
+
+  // Other Handlers (Scan, Export, Import, Config, Script)
   const handleOrphanScan = async () => {
     setScanning(true);
     addLog({ timestamp: Date.now(), level: "info", message: "เริ่มสแกนข้อมูลกำพร้า..." });
@@ -341,7 +426,7 @@ export default function CommandCenter() {
   return (
     <>
       <AppSidebar />
-      <main className="flex-1 flex flex-col min-h-screen overflow-auto">
+      <main className="flex-1 flex flex-col min-h-screen overflow-auto relative">
         {/* Header */}
         <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 sm:px-6">
           <SidebarTrigger />
@@ -359,7 +444,7 @@ export default function CommandCenter() {
           </div>
         </header>
 
-        <div className="flex-1 p-4 sm:p-6 space-y-6">
+        <div className="flex-1 p-4 sm:p-6 space-y-6 pb-20">
           {/* ===== Operation Terminal ===== */}
           <Card className="border-border">
             <CardHeader className="pb-3">
@@ -390,6 +475,62 @@ export default function CommandCenter() {
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* ===== Database Schema Management ===== */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Database className="h-4 w-4 text-primary" />
+                    Database Schemas
+                  </CardTitle>
+                  <Button size="sm" onClick={() => handleOpenSchemaModal()} className="h-8 gap-1">
+                    <Plus className="h-4 w-4" /> Add Schema
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {schemas.length === 0 ? (
+                  <div className="text-center py-8 border border-dashed rounded-lg bg-muted/30">
+                    <FileJson className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">ยังไม่มีข้อมูล Schema ในระบบ</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {schemas.map((schema) => (
+                      <div key={schema.id} className="relative p-4 rounded-lg border border-border bg-card hover:bg-muted/10 transition-colors group">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                              <FileJson className="h-3.5 w-3.5 text-primary" /> {schema.id}
+                            </h3>
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                              {schema.description || "ไม่มีคำอธิบาย"}
+                            </p>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleOpenSchemaModal(schema)}>
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteSchema(schema.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="bg-muted/50 p-2 rounded text-[10px] font-mono text-muted-foreground h-20 overflow-hidden relative">
+                          <pre>{schema.schemaJson}</pre>
+                          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-muted/50 to-transparent" />
+                        </div>
+                        <p className="text-[9px] text-muted-foreground mt-2 text-right">
+                          Updated: {format(schema.updatedAt, "dd MMM yyyy HH:mm")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* ===== Data Scan & Integrity ===== */}
             <Card>
               <CardHeader className="pb-3">
@@ -589,6 +730,7 @@ export default function CommandCenter() {
                 </Button>
               </CardContent>
             </Card>
+
             {/* ===== Migration Script Editor ===== */}
             <Card className="lg:col-span-2">
               <CardHeader className="pb-3">
@@ -636,10 +778,73 @@ export default function CommandCenter() {
                 />
               </CardContent>
             </Card>
+
           </div>
         </div>
         <AppFooter />
       </main>
+
+      {/* ===== Custom Native Modal for Schema Form ===== */}
+      {isSchemaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="bg-card text-card-foreground border border-border shadow-lg rounded-xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-5 py-4 border-b flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <FileJson className="h-5 w-5 text-primary" />
+                {isEditingSchema ? "แก้ไข Schema" : "สร้าง Schema ใหม่"}
+              </h2>
+              <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => setIsSchemaModalOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              <div className="space-y-1.5">
+                <Label htmlFor="schema-id">Collection Name <span className="text-destructive">*</span></Label>
+                <Input 
+                  id="schema-id" 
+                  placeholder="เช่น users, transactions" 
+                  value={schemaForm.id} 
+                  onChange={(e) => setSchemaForm(p => ({ ...p, id: e.target.value }))}
+                  disabled={isEditingSchema}
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <Label htmlFor="schema-desc">คำอธิบาย</Label>
+                <Input 
+                  id="schema-desc" 
+                  placeholder="เช่น ข้อมูลผู้ใช้งานระบบ" 
+                  value={schemaForm.description} 
+                  onChange={(e) => setSchemaForm(p => ({ ...p, description: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="schema-json" className="flex items-center justify-between">
+                  <span>โครงสร้าง JSON <span className="text-destructive">*</span></span>
+                  <Badge variant="outline" className="text-[10px] font-mono">Format: JSON</Badge>
+                </Label>
+                <Textarea 
+                  id="schema-json" 
+                  placeholder='{ "field_name": "string" }' 
+                  value={schemaForm.schemaJson} 
+                  onChange={(e) => setSchemaForm(p => ({ ...p, schemaJson: e.target.value }))}
+                  className="font-mono text-xs min-h-[200px]"
+                  spellCheck={false}
+                />
+              </div>
+            </div>
+
+            <div className="px-5 py-4 border-t bg-muted/30 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsSchemaModalOpen(false)}>ยกเลิก</Button>
+              <Button onClick={handleSaveSchema} className="gap-2">
+                <Save className="h-4 w-4" /> บันทึก
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MFA Dialog */}
       <TwoFactorAuth open={showMfa} onVerified={handleMfaVerified} onCancel={() => navigate("/")} />
