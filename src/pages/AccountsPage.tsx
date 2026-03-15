@@ -294,6 +294,35 @@ export default function AccountsPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {/* Edit Account Dialog */}
+          <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+            <DialogContent className="bg-card border-border">
+              <DialogHeader>
+                <DialogTitle>แก้ไขบัญชี</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div>
+                  <Label>ชื่อบัญชี</Label>
+                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="mt-1" />
+                </div>
+                <div>
+                  <Label>ประเภท</Label>
+                  <Select value={editType} onValueChange={(v) => setEditType(v as AccountType)}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {accountTypes.map((t) => (
+                        <SelectItem key={t} value={t}>{accountTypeConfig[t].label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={handleEdit} disabled={editSaving || !editName.trim()} className="w-full">
+                  {editSaving ? "กำลังบันทึก..." : "บันทึก"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     </>
