@@ -167,7 +167,19 @@ export default function AccountsPage() {
               )}>
                 {formatBalance(totalNetWorth)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">{accounts.length} บัญชีที่ใช้งาน</p>
+              <div className="flex items-center gap-4 mt-3 text-sm">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2 w-2 rounded-full bg-accent" />
+                  <span className="text-muted-foreground">สินทรัพย์</span>
+                  <span className="font-semibold text-accent">{formatBalance(totalAssets)}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2 w-2 rounded-full bg-destructive" />
+                  <span className="text-muted-foreground">หนี้สิน</span>
+                  <span className="font-semibold text-destructive">{formatBalance(totalLiabilities)}</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">{accounts.length} บัญชีที่ใช้งาน</p>
             </CardContent>
           </Card>
 
