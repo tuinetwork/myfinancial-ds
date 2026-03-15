@@ -452,6 +452,50 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
                 </SelectContent>
               </Select>
 
+              {/* Quick date presets */}
+              <Select
+                value="custom"
+                onValueChange={(val) => {
+                  const today = new Date();
+                  switch (val) {
+                    case "7days":
+                      setDateFrom(subDays(today, 6));
+                      setDateTo(today);
+                      break;
+                    case "this_week":
+                      setDateFrom(startOfWeek(today, { weekStartsOn: 1 }));
+                      setDateTo(today);
+                      break;
+                    case "this_month":
+                      setDateFrom(startOfMonth(today));
+                      setDateTo(today);
+                      break;
+                    case "30days":
+                      setDateFrom(subDays(today, 29));
+                      setDateTo(today);
+                      break;
+                    case "clear":
+                      setDateFrom(undefined);
+                      setDateTo(undefined);
+                      break;
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[120px] sm:w-[140px] h-8 text-xs">
+                  <SelectValue placeholder="ช่วงเวลา" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7days">7 วันล่าสุด</SelectItem>
+                  <SelectItem value="this_week">สัปดาห์นี้</SelectItem>
+                  <SelectItem value="this_month">เดือนนี้</SelectItem>
+                  <SelectItem value="30days">30 วันล่าสุด</SelectItem>
+                  <SelectItem value="custom" disabled className="hidden">กำหนดเอง</SelectItem>
+                  {(dateFrom || dateTo) && (
+                    <SelectItem value="clear">ล้างตัวกรอง</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+
               {/* Date range filter */}
               <Popover>
                 <PopoverTrigger asChild>
