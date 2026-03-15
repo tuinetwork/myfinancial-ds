@@ -200,6 +200,7 @@ async function calculateCarryOverFromHistory(userId: string, currentPeriod: stri
   let expenses = 0;
   txSnap.docs.forEach((d) => {
     const data = d.data();
+    if (data.type === "transfer") return; // skip transfers
     if (data.type === "income") {
       income += (data.amount as number) ?? 0;
     } else {
