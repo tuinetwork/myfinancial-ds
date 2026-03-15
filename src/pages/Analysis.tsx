@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -32,12 +32,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
   AreaChart, Area, LineChart, Line, ReferenceLine,
 } from "recharts";
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, PieChart as PieIcon } from "lucide-react";
-import { useEffect } from "react";
+import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, PieChart as PieIcon, ArrowUpRight, ArrowDownRight, PiggyBank, Wallet } from "lucide-react";
 
 const COLORS = [
   "hsl(199 89% 48%)", "hsl(166 72% 56%)", "hsl(280 65% 60%)",
@@ -45,14 +44,6 @@ const COLORS = [
   "hsl(120 50% 50%)", "hsl(220 70% 60%)", "hsl(0 72% 51%)",
   "hsl(180 60% 45%)", "hsl(260 50% 55%)", "hsl(90 60% 45%)",
 ];
-
-const EXPENSE_TYPE_MAP: Record<string, string> = {
-  "ค่าใช้จ่าย": "general",
-  "บิล/สาธารณูปโภค": "bills",
-  "หนี้สิน": "debts",
-  "ค่าสมาชิกรายเดือน": "subscriptions",
-  "เงินออม/การลงทุน": "savings",
-};
 
 const Analysis = () => {
   const { data: months, isLoading: monthsLoading } = useAvailableMonths();
@@ -83,11 +74,11 @@ const Analysis = () => {
   }, [selectedYear, selectedMonthKey]);
 
   const { data, isLoading } = useBudgetData(selectedPeriod);
-  const { data: yearlyData, isLoading: yearlyLoading } = useYearlyData(selectedYear);
+  const { data: yearlyData } = useYearlyData(selectedYear);
 
   const isPageLoading = isLoading || monthsLoading || !selectedPeriod;
 
-  // Monthly comparison data
+  // Monthly comparison data for the Hero Chart
   const monthlyComparison = useMemo(() => {
     if (!yearlyData) return [];
     const THAI_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -121,6 +112,7 @@ const Analysis = () => {
 
     const totalIncome = incomeTransactions.reduce((s, t) => s + t.amount, 0);
     const totalExpense = expenseTransactions.reduce((s, t) => s + t.amount, 0);
+    const netBalance = totalIncome - totalExpense;
 
     // Category breakdown for expenses
     const categorySpend: Record<string, number> = {};
@@ -158,31 +150,6 @@ const Analysis = () => {
       })
       .sort((a, b) => b.pct - a.pct);
 
-    // Daily spending trend
-    const dailySpend: Record<string, number> = {};
-    const dailyIncome: Record<string, number> = {};
-    data.transactions.forEach((t) => {
-      if (t.type === "รายรับ") {
-        dailyIncome[t.date] = (dailyIncome[t.date] || 0) + t.amount;
-      } else {
-        dailySpend[t.date] = (dailySpend[t.date] || 0) + t.amount;
-      }
-    });
-
-    const allDates = Array.from(new Set([...Object.keys(dailySpend), ...Object.keys(dailyIncome)])).sort();
-    const dailyTrend = allDates.map((date) => {
-      const parts = date.split("-");
-      const day = parseInt(parts[parts.length - 1] || "0", 10);
-      return {
-        date: `${day}`,
-        รายจ่าย: dailySpend[date] || 0,
-        รายรับ: dailyIncome[date] || 0,
-      };
-    });
-
-    // Top spending categories
-    const topCategories = pieData.slice(0, 5);
-
     // Expense type breakdown
     const typeBreakdown: Record<string, number> = {};
     expenseTransactions.forEach((t) => {
@@ -192,24 +159,13 @@ const Analysis = () => {
       .sort((a, b) => b[1] - a[1])
       .map(([name, value]) => ({ name, value }));
 
-    // Budget totals
-    const totalBudget = allBudgetItems.reduce((s, b) => s + b.budget, 0);
-    const overBudgetCount = budgetPerformance.filter((b) => b.status === "over").length;
-    const warningCount = budgetPerformance.filter((b) => b.status === "warning" || b.status === "full").length;
-    const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
-
     return {
       totalIncome,
       totalExpense,
-      totalBudget,
+      netBalance,
       pieData,
       budgetPerformance,
-      dailyTrend,
-      topCategories,
       typeData,
-      overBudgetCount,
-      warningCount,
-      savingsRate,
       transactionCount: data.transactions.length,
     };
   }, [data]);
@@ -217,13 +173,13 @@ const Analysis = () => {
   return (
     <>
       <AppSidebar />
-      <div className="flex-1 flex flex-col min-h-screen">
-        <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
+      <div className="flex-1 flex flex-col min-h-screen bg-muted/10">
+        <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-30">
           <div className="flex items-center gap-4">
             <SidebarTrigger />
             <div className="flex items-center gap-2">
               <PieIcon className="h-5 w-5 text-primary" />
-              <h1 className="text-lg font-semibold">วิเคราะห์</h1>
+              <h1 className="text-lg font-semibold">ภาพรวมการวิเคราะห์</h1>
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -232,197 +188,215 @@ const Analysis = () => {
           </div>
         </header>
 
-        <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbPage className="flex items-center gap-1">
-                      <PieIcon className="h-4 w-4" />
-                      <span className="hidden sm:inline">วิเคราะห์</span>
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
+        <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden space-y-6 max-w-7xl mx-auto w-full">
+          
+          {/* Top Controls */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbPage className="flex items-center gap-1">
+                    <PieIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">วิเคราะห์ทางการเงิน</span>
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
 
-              <div className="flex items-center gap-2">
-                {years.length > 0 && (
-                  <Select value={selectedYear} onValueChange={setSelectedYear}>
-                    <SelectTrigger className="w-28 bg-card border-border shadow-sm text-xs">
-                      <SelectValue placeholder="ปี" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border shadow-lg z-50">
-                      {years.map((y) => (
-                        <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                {monthsForYear.length > 0 && (
-                  <Select value={selectedMonthKey} onValueChange={setSelectedMonthKey}>
-                    <SelectTrigger className="w-32 bg-card border-border shadow-sm text-xs">
-                      <SelectValue placeholder="เดือน" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border shadow-lg z-50">
-                      {monthsForYear.map((m) => (
-                        <SelectItem key={m.month} value={m.month}>{m.monthName}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+            <div className="flex items-center gap-2">
+              {years.length > 0 && (
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger className="w-28 bg-card border-border shadow-sm text-xs h-9">
+                    <SelectValue placeholder="ปี" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border shadow-lg z-50">
+                    {years.map((y) => (
+                      <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {monthsForYear.length > 0 && (
+                <Select value={selectedMonthKey} onValueChange={setSelectedMonthKey}>
+                  <SelectTrigger className="w-32 bg-card border-border shadow-sm text-xs h-9">
+                    <SelectValue placeholder="เดือน" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border shadow-lg z-50">
+                    {monthsForYear.map((m) => (
+                      <SelectItem key={m.month} value={m.month}>{m.monthName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+
+          {isPageLoading ? (
+            <div className="space-y-6">
+              <Skeleton className="h-[400px] w-full rounded-2xl" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Skeleton className="h-80 rounded-2xl" />
+                <Skeleton className="h-80 rounded-2xl" />
               </div>
             </div>
+          ) : !data || !analytics ? (
+            <div className="flex items-center justify-center h-64 border border-dashed rounded-2xl">
+              <p className="text-muted-foreground">ไม่พบข้อมูลในเดือนที่เลือก</p>
+            </div>
+          ) : (
+            <>
+              {/* ===== HERO CHART SECTION (ตามรูปภาพอ้างอิง) ===== */}
+              <Card className="border-border/50 shadow-sm overflow-hidden bg-card/40 backdrop-blur-md">
+                <CardHeader className="pb-0 pt-6 px-6 sm:px-8">
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm font-medium text-muted-foreground">ยอดคงเหลือสุทธิ (Net Balance)</p>
+                    <div className="flex items-baseline gap-3">
+                      <h2 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground font-display">
+                        ฿ {formatCurrency(analytics.netBalance)}
+                      </h2>
+                    </div>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="p-0">
+                  {/* Area Chart - Monthly Net Balance */}
+                  <div className="h-[220px] w-full mt-6 px-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={monthlyComparison} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorNet" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <RechartsTooltip
+                          formatter={(value: number) => ["฿ " + formatCurrency(value), "คงเหลือ"]}
+                          contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "13px", fontWeight: 500 }}
+                          itemStyle={{ color: "#10b981" }}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="คงเหลือ" 
+                          stroke="#10b981" 
+                          strokeWidth={3}
+                          fillOpacity={1} 
+                          fill="url(#colorNet)" 
+                          activeDot={{ r: 6, fill: "#10b981", stroke: "hsl(var(--background))", strokeWidth: 2 }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
 
-            {isPageLoading ? (
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[...Array(4)].map((_, i) => (
-                    <Skeleton key={i} className="h-24 rounded-lg" />
-                  ))}
-                </div>
-                <Skeleton className="h-80 rounded-lg" />
-              </div>
-            ) : !data || !analytics ? (
-              <div className="flex items-center justify-center h-64">
-                <p className="text-destructive">ไม่สามารถโหลดข้อมูลได้</p>
-              </div>
-            ) : (
-              <>
-                {/* Summary Stats */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Card className="border-none shadow-sm animate-fade-in">
-                    <CardContent className="p-4">
-                      <p className="text-xs text-muted-foreground mb-1">จำนวนรายการ</p>
-                      <p className="text-2xl font-bold font-display">{analytics.transactionCount}</p>
-                      <p className="text-xs text-muted-foreground mt-1">รายการทั้งหมด</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "80ms" }}>
-                    <CardContent className="p-4">
-                      <p className="text-xs text-muted-foreground mb-1">อัตราการออม</p>
-                      <p className={`text-2xl font-bold font-display ${analytics.savingsRate >= 0 ? "text-income" : "text-expense"}`}>
-                        {analytics.savingsRate.toFixed(1)}%
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">ของรายรับ</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "160ms" }}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-1 mb-1">
-                        <AlertTriangle className="h-3 w-3 text-amber-500" />
-                        <p className="text-xs text-muted-foreground">เกินงบประมาณ</p>
+                  {/* 3 Summary Cards Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border border-t border-border bg-muted/20">
+                    
+                    {/* Income */}
+                    <div className="p-6 flex items-center gap-4 hover:bg-muted/30 transition-colors">
+                      <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                        <ArrowDownRight className="h-6 w-6 text-emerald-500" />
                       </div>
-                      <p className="text-2xl font-bold font-display text-expense">{analytics.overBudgetCount}</p>
-                      <p className="text-xs text-muted-foreground mt-1">หมวดหมู่</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "240ms" }}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-1 mb-1">
-                        <CheckCircle className="h-3 w-3 text-income" />
-                        <p className="text-xs text-muted-foreground">ใกล้เต็มงบ</p>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">รายรับรวม</p>
+                        <p className="text-xl font-semibold text-foreground mt-0.5">฿ {formatCurrency(analytics.totalIncome)}</p>
                       </div>
-                      <p className="text-2xl font-bold font-display text-amber-500">{analytics.warningCount}</p>
-                      <p className="text-xs text-muted-foreground mt-1">หมวดหมู่ (&gt;80%)</p>
-                    </CardContent>
-                  </Card>
-                </div>
+                    </div>
 
-                {/* Daily Trend + Pie */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                  <Card className="xl:col-span-2 border-none shadow-sm animate-fade-in" style={{ animationDelay: "300ms" }}>
+                    {/* Expenses */}
+                    <div className="p-6 flex items-center gap-4 hover:bg-muted/30 transition-colors">
+                      <div className="h-12 w-12 rounded-full bg-rose-500/10 flex items-center justify-center shrink-0">
+                        <ArrowUpRight className="h-6 w-6 text-rose-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">รายจ่ายรวม</p>
+                        <p className="text-xl font-semibold text-foreground mt-0.5">฿ {formatCurrency(analytics.totalExpense)}</p>
+                      </div>
+                    </div>
+
+                    {/* Savings / Investments */}
+                    <div className="p-6 flex items-center gap-4 hover:bg-muted/30 transition-colors">
+                      <div className="h-12 w-12 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
+                        <PiggyBank className="h-6 w-6 text-indigo-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">เงินออม / คงเหลือ</p>
+                        <p className="text-xl font-semibold text-foreground mt-0.5">฿ {formatCurrency(analytics.netBalance)}</p>
+                      </div>
+                    </div>
+
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* ===== DETAILED ANALYTICS (รักษาฟีเจอร์เดิมไว้แต่ปรับ UI) ===== */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
+                
+                {/* Pie Chart: Expense Breakdown */}
+                <Card className="border-border/50 shadow-sm bg-card/40 backdrop-blur-md">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base font-semibold">สัดส่วนรายจ่ายตามหมวดหมู่</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {analytics.pieData.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-12">ยังไม่มีการบันทึกรายจ่าย</p>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row items-center gap-6 mt-4">
+                        <div className="h-[200px] w-full sm:w-[200px] shrink-0">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={analytics.pieData}
+                                cx="50%" cy="50%"
+                                innerRadius={60} outerRadius={85}
+                                paddingAngle={3}
+                                dataKey="value"
+                                stroke="none"
+                              >
+                                {analytics.pieData.map((_, i) => (
+                                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <RechartsTooltip
+                                formatter={(value: number) => formatCurrency(value) + " ฿"}
+                                contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))", fontSize: "12px" }}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="flex-1 w-full space-y-2.5">
+                          {analytics.pieData.slice(0, 5).map((item, i) => (
+                            <div key={item.name} className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-3 h-3 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
+                                <span className="truncate max-w-[140px] text-muted-foreground">{item.name}</span>
+                              </div>
+                              <span className="font-medium tabular-nums text-foreground">฿ {formatCurrency(item.value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Bar Chart: Expense Type */}
+                {analytics.typeData.length > 0 && (
+                  <Card className="border-border/50 shadow-sm bg-card/40 backdrop-blur-md">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-semibold">แนวโน้มรายวัน</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-2 sm:px-6">
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={analytics.dailyTrend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 90%)" />
-                            <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                            <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
-                            <Tooltip
-                              formatter={(value: number) => new Intl.NumberFormat("th-TH").format(value) + " ฿"}
-                              contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "12px" }}
-                            />
-                            <Area type="monotone" dataKey="รายรับ" stroke="hsl(199 89% 48%)" fill="hsl(199 89% 48%)" fillOpacity={0.15} strokeWidth={2} />
-                            <Area type="monotone" dataKey="รายจ่าย" stroke="hsl(0 72% 51%)" fill="hsl(0 72% 51%)" fillOpacity={0.15} strokeWidth={2} />
-                            <Legend wrapperStyle={{ fontSize: "11px" }} />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "380ms" }}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-semibold">สัดส่วนรายจ่าย</CardTitle>
+                      <CardTitle className="text-base font-semibold">สรุปตามประเภทรายจ่าย</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {analytics.pieData.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-8">ยังไม่มีข้อมูล</p>
-                      ) : (
-                        <>
-                          <div className="h-48">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <PieChart>
-                                <Pie
-                                  data={analytics.pieData}
-                                  cx="50%"
-                                  cy="50%"
-                                  innerRadius={45}
-                                  outerRadius={75}
-                                  paddingAngle={2}
-                                  dataKey="value"
-                                >
-                                  {analytics.pieData.map((_, i) => (
-                                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                                  ))}
-                                </Pie>
-                                <Tooltip
-                                  formatter={(value: number) => formatCurrency(value) + " ฿"}
-                                  contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "12px" }}
-                                />
-                              </PieChart>
-                            </ResponsiveContainer>
-                          </div>
-                          <div className="space-y-1.5 mt-2">
-                            {analytics.pieData.slice(0, 5).map((item, i) => (
-                              <div key={item.name} className="flex items-center justify-between text-xs">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
-                                  <span className="truncate max-w-[120px]">{item.name}</span>
-                                </div>
-                                <span className="font-medium tabular-nums">{formatCurrency(item.value)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Expense Type Breakdown */}
-                {analytics.typeData.length > 0 && (
-                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "440ms" }}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-semibold">สัดส่วนตามประเภทรายจ่าย</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-2 sm:px-6">
-                      <div className="h-56">
+                      <div className="h-[230px] w-full mt-4">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={analytics.typeData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 90%)" />
-                            <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                            <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
-                            <Tooltip
+                          <BarChart data={analytics.typeData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }} layout="vertical">
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+                            <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} axisLine={false} tickLine={false} />
+                            <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={90} axisLine={false} tickLine={false} />
+                            <RechartsTooltip
+                              cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }}
                               formatter={(value: number) => formatCurrency(value) + " ฿"}
-                              contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "12px" }}
+                              contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))", fontSize: "12px" }}
                             />
-                            <Bar dataKey="value" name="ยอดรวม" radius={[6, 6, 0, 0]} barSize={40}>
+                            <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={24}>
                               {analytics.typeData.map((_, i) => (
                                 <Cell key={i} fill={COLORS[i % COLORS.length]} />
                               ))}
@@ -433,174 +407,57 @@ const Analysis = () => {
                     </CardContent>
                   </Card>
                 )}
+              </div>
 
-                {/* Monthly Comparison Chart */}
-                {monthlyComparison.length > 1 && (
-                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "560ms" }}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-semibold">เปรียบเทียบรายเดือน (ปี {selectedYear ? String(Number(selectedYear) + 543) : ""})</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-2 sm:px-6">
-                      <div className="h-72">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={monthlyComparison} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 90%)" />
-                            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                            <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
-                            <Tooltip
-                              formatter={(value: number) => formatCurrency(value) + " ฿"}
-                              contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "12px" }}
-                            />
-                            <Legend wrapperStyle={{ fontSize: "11px" }} />
-                            <Bar dataKey="รายรับ" fill="hsl(199 89% 48%)" radius={[4, 4, 0, 0]} barSize={20} />
-                            <Bar dataKey="รายจ่าย" fill="hsl(0 72% 51%)" radius={[4, 4, 0, 0]} barSize={20} />
-                            <Bar dataKey="คงเหลือ" fill="hsl(166 72% 56%)" radius={[4, 4, 0, 0]} barSize={20} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-
-                      {/* Monthly Comparison Summary Table */}
-                      <div className="overflow-x-auto mt-4">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="border-border/50">
-                              <TableHead className="text-xs">เดือน</TableHead>
-                              <TableHead className="text-xs text-right">รายรับ</TableHead>
-                              <TableHead className="text-xs text-right">รายจ่าย</TableHead>
-                              <TableHead className="text-xs text-right">คงเหลือ</TableHead>
-                              <TableHead className="text-xs text-right">อัตราออม</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {monthlyComparison.map((m) => (
-                              <TableRow key={m.name} className="border-border/30">
-                                <TableCell className="text-xs font-medium py-2">{m.name}</TableCell>
-                                <TableCell className="text-xs text-right py-2 text-income">{formatCurrency(m.รายรับ)}</TableCell>
-                                <TableCell className="text-xs text-right py-2 text-expense">{formatCurrency(m.รายจ่าย)}</TableCell>
-                                <TableCell className={`text-xs text-right py-2 font-semibold ${m.คงเหลือ >= 0 ? "text-income" : "text-expense"}`}>
-                                  {formatCurrency(m.คงเหลือ)}
-                                </TableCell>
-                                <TableCell className={`text-xs text-right py-2 ${m.อัตราการออม >= 0 ? "text-income" : "text-expense"}`}>
-                                  {m.อัตราการออม.toFixed(1)}%
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                            {/* Total row */}
-                            <TableRow className="border-t-2 border-border bg-muted/30 font-semibold">
-                              <TableCell className="text-xs py-2">รวมทั้งปี</TableCell>
-                              <TableCell className="text-xs text-right py-2 text-income">
-                                {formatCurrency(monthlyComparison.reduce((s, m) => s + m.รายรับ, 0))}
-                              </TableCell>
-                              <TableCell className="text-xs text-right py-2 text-expense">
-                                {formatCurrency(monthlyComparison.reduce((s, m) => s + m.รายจ่าย, 0))}
-                              </TableCell>
-                              <TableCell className={`text-xs text-right py-2 font-bold ${monthlyComparison.reduce((s, m) => s + m.คงเหลือ, 0) >= 0 ? "text-income" : "text-expense"}`}>
-                                {formatCurrency(monthlyComparison.reduce((s, m) => s + m.คงเหลือ, 0))}
-                              </TableCell>
-                              <TableCell className="text-xs text-right py-2">
-                                {(() => {
-                                  const totalIncome = monthlyComparison.reduce((s, m) => s + m.รายรับ, 0);
-                                  const totalExpense = monthlyComparison.reduce((s, m) => s + m.รายจ่าย, 0);
-                                  const rate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
-                                  return <span className={rate >= 0 ? "text-income" : "text-expense"}>{rate.toFixed(1)}%</span>;
-                                })()}
-                              </TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Savings Rate Trend */}
-                {monthlyComparison.length > 1 && (
-                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "620ms" }}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-semibold">แนวโน้มอัตราการออมรายเดือน (%)</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-2 sm:px-6">
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={monthlyComparison} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 90%)" />
-                            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                            <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${v}%`} />
-                            <Tooltip
-                              formatter={(value: number) => `${value.toFixed(1)}%`}
-                              contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "12px" }}
-                            />
-                            <ReferenceLine y={0} stroke="hsl(0 72% 51%)" strokeDasharray="4 4" strokeOpacity={0.6} />
-                            <Line
-                              type="monotone"
-                              dataKey="อัตราการออม"
-                              stroke="hsl(166 72% 56%)"
-                              strokeWidth={2.5}
-                              dot={{ r: 5, fill: "hsl(166 72% 56%)", stroke: "white", strokeWidth: 2 }}
-                              activeDot={{ r: 7 }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Budget Performance Table */}
-                <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "500ms" }}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base font-semibold">ประสิทธิภาพงบประมาณ</CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-0 sm:px-6">
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="border-border/50">
-                            <TableHead className="text-xs">หมวดหมู่</TableHead>
-                            <TableHead className="text-xs">กลุ่ม</TableHead>
-                            <TableHead className="text-xs text-right">งบประมาณ</TableHead>
-                            <TableHead className="text-xs text-right">ใช้จริง</TableHead>
-                            <TableHead className="text-xs text-right">ส่วนต่าง</TableHead>
-                            <TableHead className="text-xs text-right">%</TableHead>
-                            <TableHead className="text-xs text-center">สถานะ</TableHead>
+              {/* Budget Performance Table */}
+              <Card className="border-border/50 shadow-sm bg-card/40 backdrop-blur-md mt-6">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base font-semibold">ประสิทธิภาพงบประมาณรายหมวดหมู่</CardTitle>
+                </CardHeader>
+                <CardContent className="px-0 sm:px-6">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-border/50">
+                          <TableHead className="text-xs">หมวดหมู่</TableHead>
+                          <TableHead className="text-xs text-right">งบประมาณตั้งไว้</TableHead>
+                          <TableHead className="text-xs text-right">ใช้จริง</TableHead>
+                          <TableHead className="text-xs text-right">ส่วนต่าง</TableHead>
+                          <TableHead className="text-xs text-center">สถานะ</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {analytics.budgetPerformance.map((item) => (
+                          <TableRow key={item.label} className="border-border/30 hover:bg-muted/30">
+                            <TableCell>
+                              <p className="text-sm font-medium">{item.label}</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">{item.group}</p>
+                            </TableCell>
+                            <TableCell className="text-sm text-right tabular-nums text-muted-foreground">{formatCurrency(item.budget)}</TableCell>
+                            <TableCell className="text-sm text-right tabular-nums font-medium text-foreground">{formatCurrency(item.actual)}</TableCell>
+                            <TableCell className={`text-sm text-right tabular-nums font-medium ${item.diff >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                              {item.diff >= 0 ? "+" : ""}{formatCurrency(item.diff)}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {item.status === "over" ? (
+                                <Badge variant="destructive" className="text-[10px] px-2 py-0.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border-none">เกินงบ ({item.pct.toFixed(0)}%)</Badge>
+                              ) : item.status === "full" ? (
+                                <Badge className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-none">เต็มงบ</Badge>
+                              ) : item.status === "warning" ? (
+                                <Badge className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-none">ใกล้เต็ม ({item.pct.toFixed(0)}%)</Badge>
+                              ) : (
+                                <Badge className="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-none">ปกติ ({item.pct.toFixed(0)}%)</Badge>
+                              )}
+                            </TableCell>
                           </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {analytics.budgetPerformance.map((item) => (
-                            <TableRow key={item.label} className="border-border/50 hover:bg-muted/30">
-                              <TableCell className="text-sm font-medium">{item.label}</TableCell>
-                              <TableCell className="text-xs text-muted-foreground">{item.group}</TableCell>
-                              <TableCell className="text-sm text-right tabular-nums">{formatCurrency(item.budget)}</TableCell>
-                              <TableCell className="text-sm text-right tabular-nums">{formatCurrency(item.actual)}</TableCell>
-                              <TableCell className={`text-sm text-right tabular-nums font-medium ${item.diff >= 0 ? "text-income" : "text-expense"}`}>
-                                {item.diff >= 0 ? "+" : ""}{formatCurrency(item.diff)}
-                              </TableCell>
-                              <TableCell className={`text-sm text-right tabular-nums font-semibold ${
-                                item.status === "over" ? "text-expense" : item.status === "warning" ? "text-amber-500" : "text-income"
-                              }`}>
-                                {item.pct > 999 ? ">999" : item.pct.toFixed(0)}%
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {item.status === "over" ? (
-                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0">เกินงบ</Badge>
-                                ) : item.status === "full" ? (
-                                  <Badge className="text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-500/30">เต็มแล้ว</Badge>
-                                ) : item.status === "warning" ? (
-                                  <Badge className="text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-500/30">ใกล้เต็ม</Badge>
-                                ) : (
-                                  <Badge className="text-[10px] px-1.5 py-0 bg-income/10 text-income border-income/30">ปกติ</Badge>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            )}
-          </div>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </main>
         <AppFooter />
       </div>
