@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Wallet, Landmark, TrendingUp, CreditCard, Building2, Package, Plus, Eye, EyeOff, Trash2, Pencil, UserCheck } from "lucide-react";
+import { Wallet, Landmark, TrendingUp, CreditCard, Building2, Package, Plus, Eye, EyeOff, Trash2, Pencil, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -25,10 +25,11 @@ const accountTypeConfig: Record<AccountType, { label: string; icon: React.Compon
   credit_card: { label: "บัตรเครดิต", icon: CreditCard, group: "Credit / Loans" },
   loan: { label: "สินเชื่อ", icon: Building2, group: "Credit / Loans" },
   receivable: { label: "ลูกหนี้", icon: UserCheck, group: "Receivables" },
+  payable: { label: "เจ้าหนี้", icon: UserX, group: "Payables" },
   inventory: { label: "สินค้าคงคลัง", icon: Package, group: "Inventory / Business" },
 };
 
-const accountTypes: AccountType[] = ["cash", "bank", "investment", "credit_card", "loan", "receivable", "inventory"];
+const accountTypes: AccountType[] = ["cash", "bank", "investment", "credit_card", "loan", "receivable", "payable", "inventory"];
 
 export default function AccountsPage() {
   const { userId } = useAuth();
