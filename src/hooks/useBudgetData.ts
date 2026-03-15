@@ -163,6 +163,8 @@ function mapTransaction(docId: string, docData: Record<string, unknown>): Transa
   let mappedType: string;
   if (type === "income") {
     mappedType = "รายรับ";
+  } else if (type === "transfer") {
+    mappedType = "โอน";
   } else {
     mappedType = MAIN_CATEGORY_TYPE_MAP[mainCategory] ?? "ค่าใช้จ่าย";
   }
@@ -200,6 +202,7 @@ async function calculateCarryOverFromHistory(userId: string, currentPeriod: stri
   let expenses = 0;
   txSnap.docs.forEach((d) => {
     const data = d.data();
+    if (data.type === "transfer") return; // skip transfers
     if (data.type === "income") {
       income += (data.amount as number) ?? 0;
     } else {

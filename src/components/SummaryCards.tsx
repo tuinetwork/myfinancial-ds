@@ -81,7 +81,7 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
     .filter((t) => t.type === "รายรับ")
     .reduce((s, t) => s + t.amount, 0);
   const actualNonIncome = data.transactions
-    .filter((t) => t.type !== "รายรับ")
+    .filter((t) => t.type !== "รายรับ" && t.type !== "โอน")
     .reduce((s, t) => s + t.amount, 0);
 
   const totalIncome = data.income.reduce((s, i) => s + i.budget, 0);
