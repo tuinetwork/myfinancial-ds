@@ -1,67 +1,49 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { collection, onSnapshot } from "firebase/firestore";
+import { firestore } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  Loader2,
+  ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Download,
+  MoreHorizontal, Pencil, Trash2, Loader2, CalendarIcon,
 } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { BudgetData, Transaction, formatCurrency } from "@/hooks/useBudgetData";
 import {
-  deleteTransactionAtomic,
-  updateTransactionAtomic,
+  deleteTransactionAtomic, updateTransactionAtomic,
 } from "@/lib/firestore-services";
 import { toast } from "sonner";
+
+interface CategoryData {
+  label: string;
+  main_categories: Record<string, string[]>;
+  category_icons?: Record<string, string>;
+}
 
 interface Props {
   data: BudgetData;
@@ -160,13 +142,30 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
   const [editTx, setEditTx] = useState<Transaction | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editNote, setEditNote] = useState("");
+  const [editDate, setEditDate] = useState<Date>(new Date());
+  const [editMainCategory, setEditMainCategory] = useState("");
+  const [editSubCategory, setEditSubCategory] = useState("");
   const [editSaving, setEditSaving] = useState(false);
+
+  // Category data
+  const [categories, setCategories] = useState<Record<string, CategoryData>>({});
 
   // Delete state
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const canEdit = !!userId;
+
+  // Load categories
+  useEffect(() => {
+    if (!userId) return;
+    const unsub = onSnapshot(collection(firestore, "users", userId, "categories"), (snap) => {
+      const cats: Record<string, CategoryData> = {};
+      snap.forEach((d) => { cats[d.id] = d.data() as CategoryData; });
+      setCategories(cats);
+    });
+    return () => unsub();
+  }, [userId]);
 
   const types = useMemo(() => {
     const available = Array.from(new Set(data.transactions.map((t) => t.type)));
@@ -268,7 +267,36 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
     setEditTx(tx);
     setEditAmount(String(tx.amount));
     setEditNote(tx.description || "");
+    // Parse date string to Date object
+    const parts = tx.date.split("-");
+    if (parts.length === 3 && parts[0].length === 4) {
+      setEditDate(new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
+    } else {
+      setEditDate(new Date());
+    }
+    // Find main category from sub_category (tx.category = sub_category)
+    const txType = tx.type === "รายรับ" ? "income" : "expense";
+    const catData = categories[txType];
+    if (catData?.main_categories) {
+      for (const [main, subs] of Object.entries(catData.main_categories)) {
+        if (subs.includes(tx.category)) {
+          setEditMainCategory(main);
+          setEditSubCategory(tx.category);
+          return;
+        }
+      }
+    }
+    setEditMainCategory("");
+    setEditSubCategory(tx.category);
   };
+
+  // Derived category lists for edit
+  const editTxType = editTx?.type === "รายรับ" ? "income" : "expense";
+  const editCatData = categories[editTxType];
+  const editMainCats = editCatData?.main_categories ? Object.keys(editCatData.main_categories) : [];
+  const editSubCats = editMainCategory && editCatData?.main_categories?.[editMainCategory]
+    ? editCatData.main_categories[editMainCategory]
+    : [];
 
   const handleSaveEdit = async () => {
     if (!editTx || !userId) return;
@@ -281,23 +309,26 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
       toast.error("บันทึกต้องไม่เกิน 500 ตัวอักษร");
       return;
     }
+    if (!editSubCategory) {
+      toast.error("กรุณาเลือกหมวดหมู่");
+      return;
+    }
 
     setEditSaving(true);
     try {
       const amountChanged = newAmount !== editTx.amount;
+      const newDateStr = format(editDate, "yyyy-MM-dd");
+      const newMonthYear = format(editDate, "yyyy-MM");
 
-      // Compute old reversals (undo old effect)
+      // Compute balance adjustments
       const oldReversals: { accountId: string; delta: number }[] = [];
-      // Compute new updates (apply new effect)
       const newUpdates: { accountId: string; delta: number }[] = [];
 
       if (amountChanged) {
-        // Reverse old
         const oldDeltas = getBalanceDeltas(editTx);
         for (const d of oldDeltas) {
-          oldReversals.push({ accountId: d.accountId, delta: -d.delta }); // reverse
+          oldReversals.push({ accountId: d.accountId, delta: -d.delta });
         }
-        // Apply new with updated amount
         const newTx = { ...editTx, amount: newAmount };
         const newDeltas = getBalanceDeltas(newTx);
         for (const d of newDeltas) {
@@ -311,6 +342,10 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
         {
           amount: newAmount,
           note: editNote.trim(),
+          date: newDateStr,
+          month_year: newMonthYear,
+          main_category: editMainCategory,
+          sub_category: editSubCategory,
         },
         oldReversals,
         newUpdates
@@ -553,7 +588,7 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
 
       {/* ===== Edit Dialog ===== */}
       <Dialog open={!!editTx} onOpenChange={(o) => !o && setEditTx(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pencil className="h-4 w-4 text-primary" />
@@ -561,16 +596,84 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
             </DialogTitle>
             <DialogDescription>
               {editTx && (
-                <span>
-                  {formatDate(editTx.date)} — {editTx.category}
-                  <Badge variant="secondary" className={`ml-2 text-xs ${getTypeBadgeClass(editTx.type)}`}>
-                    {editTx.type}
-                  </Badge>
-                </span>
+                <Badge variant="secondary" className={`text-xs ${getTypeBadgeClass(editTx.type)}`}>
+                  {editTx.type}
+                </Badge>
               )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Date Picker */}
+            <div className="space-y-2">
+              <Label>วันที่</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !editDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {editDate ? format(editDate, "dd/MM/yyyy") : "เลือกวันที่"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={editDate}
+                    onSelect={(d) => d && setEditDate(d)}
+                    disabled={(d) => d > new Date() || d < new Date(new Date().getFullYear() - 5, 0, 1)}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Category Selection */}
+            {editTx?.type !== "โอนเงิน" && editMainCats.length > 0 && (
+              <div className="space-y-2">
+                <Label>หมวดหมู่หลัก</Label>
+                <Select value={editMainCategory} onValueChange={(v) => { setEditMainCategory(v); setEditSubCategory(""); }}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="เลือกหมวดหมู่หลัก" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {editMainCats.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {editSubCats.length > 0 && (
+              <div className="space-y-2">
+                <Label>หมวดหมู่ย่อย</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {editSubCats.map((sub) => (
+                    <button
+                      key={sub}
+                      onClick={() => setEditSubCategory(sub)}
+                      className={cn(
+                        "px-3 py-1.5 text-xs rounded-full border transition-colors",
+                        editSubCategory === sub
+                          ? editTx?.type === "รายรับ"
+                            ? "bg-income/20 text-income border-income/40 font-medium"
+                            : "bg-expense/20 text-expense border-expense/40 font-medium"
+                          : "bg-muted/50 text-muted-foreground border-border hover:bg-muted"
+                      )}
+                    >
+                      {sub}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Amount */}
             <div className="space-y-2">
               <Label>จำนวนเงิน</Label>
               <Input
@@ -581,9 +684,10 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
                 value={editAmount}
                 onChange={(e) => setEditAmount(e.target.value)}
                 className="text-lg font-mono"
-                autoFocus
               />
             </div>
+
+            {/* Note */}
             <div className="space-y-2">
               <Label>บันทึก</Label>
               <Textarea
