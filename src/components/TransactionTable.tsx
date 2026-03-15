@@ -208,6 +208,22 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
       );
     }
 
+    // Date range filter
+    if (dateFrom || dateTo) {
+      items = items.filter((t) => {
+        const ts = parseDateValue(t.date);
+        if (dateFrom) {
+          const from = new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate()).getTime();
+          if (ts < from) return false;
+        }
+        if (dateTo) {
+          const to = new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate(), 23, 59, 59, 999).getTime();
+          if (ts > to) return false;
+        }
+        return true;
+      });
+    }
+
     const indexed = items.map((t, i) => ({ ...t, _idx: i }));
 
     if (sortDir === null) return indexed;
