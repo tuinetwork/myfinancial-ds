@@ -62,6 +62,29 @@ export default function AccountsPage() {
     }
   };
 
+  const openEdit = (acc: Account) => {
+    setEditTarget(acc);
+    setEditName(acc.name);
+    setEditType(acc.type);
+  };
+
+  const handleEdit = async () => {
+    if (!userId || !editTarget || !editName.trim()) return;
+    setEditSaving(true);
+    try {
+      await updateAccount(userId, editTarget.id, {
+        name: editName.trim(),
+        type: editType,
+      });
+      toast.success("แก้ไขบัญชีสำเร็จ");
+      setEditTarget(null);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   useEffect(() => {
     if (!userId) return;
     const unsub = onSnapshot(collection(firestore, "users", userId, "accounts"), (snap) => {
