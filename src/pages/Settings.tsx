@@ -538,8 +538,8 @@ const BudgetTable = ({
     const diff = budget - actual;
     if (actual === 0) return "text-muted-foreground";
     if (diff < 0) return "text-destructive font-medium";
-    if (diff < budget * 0.2) return "text-orange-500 font-medium";
-    return "text-emerald-600";
+    if (diff < budget * 0.2) return "text-[hsl(var(--debt))] font-medium";
+    return "text-accent";
   };
 
   return (
