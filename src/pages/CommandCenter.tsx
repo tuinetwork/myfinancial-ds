@@ -92,6 +92,16 @@ export default function CommandCenter() {
   const [importData, setImportData] = useState<Record<string, any> | null>(null);
   const [showDiff, setShowDiff] = useState(false);
 
+  // Script editor
+  const [scriptCode, setScriptCode] = useState<string>(
+`// Migration Script Editor
+// ใช้ตัวแปรที่พร้อมใช้: db (firestore), log(msg), collection, doc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch, query, where, orderBy, limit
+// ตัวอย่าง:
+// const users = await getDocs(collection(db, "users"));
+// log(\`พบ \${users.size} ผู้ใช้\`);
+`);
+  const [scriptRunning, setScriptRunning] = useState(false);
+
   // Idle timeout
   const idleRef = useRef<ReturnType<typeof setTimeout>>();
 
