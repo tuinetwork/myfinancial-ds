@@ -183,6 +183,8 @@ export default function AccountsPage() {
               <p className="text-xs text-muted-foreground mt-2">{accounts.length} บัญชีที่ใช้งาน</p>
             </CardContent>
           </Card>
+          {/* Asset Allocation Pie Chart */}
+          <AssetPieChart accounts={accounts} privacyMode={privacyMode} formatBalance={formatBalance} liabilityTypes={liabilityTypes} />
 
           {/* New Account Button */}
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
