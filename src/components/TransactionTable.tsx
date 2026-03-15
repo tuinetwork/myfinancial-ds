@@ -142,13 +142,30 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
   const [editTx, setEditTx] = useState<Transaction | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editNote, setEditNote] = useState("");
+  const [editDate, setEditDate] = useState<Date>(new Date());
+  const [editMainCategory, setEditMainCategory] = useState("");
+  const [editSubCategory, setEditSubCategory] = useState("");
   const [editSaving, setEditSaving] = useState(false);
+
+  // Category data
+  const [categories, setCategories] = useState<Record<string, CategoryData>>({});
 
   // Delete state
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const canEdit = !!userId;
+
+  // Load categories
+  useEffect(() => {
+    if (!userId) return;
+    const unsub = onSnapshot(collection(firestore, "users", userId, "categories"), (snap) => {
+      const cats: Record<string, CategoryData> = {};
+      snap.forEach((d) => { cats[d.id] = d.data() as CategoryData; });
+      setCategories(cats);
+    });
+    return () => unsub();
+  }, [userId]);
 
   const types = useMemo(() => {
     const available = Array.from(new Set(data.transactions.map((t) => t.type)));
