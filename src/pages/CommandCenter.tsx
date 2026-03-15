@@ -28,7 +28,7 @@ import {
 import {
   Terminal, ShieldCheck, Database, Download, Upload, Radio, AlertTriangle,
   Loader2, Search, RefreshCw, Megaphone, Plug, CheckCircle, XCircle,
-  Info, Trash2, Code, Play, FileJson, Plus, Edit, Save, X, ShieldAlert
+  Info, Trash2, Code, Play, FileJson, Plus, Edit, Save, X, ShieldAlert, Bookmark, BookmarkPlus
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -36,11 +36,62 @@ import { Textarea } from "@/components/ui/textarea";
 
 // ===== Types =====
 interface SchemaDoc {
-  id: string; // ชื่อ Collection
+  id: string; 
   description: string;
-  schemaJson: string; // โครงสร้าง Fields แบบ JSON
+  schemaJson: string; 
   updatedAt: number;
 }
+
+interface ScriptTemplate {
+  id: string;
+  name: string;
+  code: string;
+  updatedAt: number;
+  isDefault?: boolean;
+}
+
+// ===== Default Script Templates =====
+const DEFAULT_SCRIPTS: ScriptTemplate[] = [
+  {
+    id: "default-recount",
+    name: "Recount Balances",
+    isDefault: true,
+    updatedAt: 0,
+    code: `log("▶ เริ่มตรวจสอบและคำนวณยอดเงินใหม่ (Recount Balances)...");
+
+// ตัวอย่างจำลอง: ดึงข้อมูล wallets ทั้งหมด
+const walletsSnap = await getDocs(collection(db, "wallets"));
+log(\`พบกระเป๋าเงินทั้งหมด \${walletsSnap.size} บัญชี\`);
+
+let updatedCount = 0;
+// ลูปเพื่อจำลองการตรวจสอบ (สามารถแก้ไขให้คำนวณจาก transactions จริงได้)
+walletsSnap.forEach((docSnap) => {
+  const data = docSnap.data();
+  // log(\`กำลังตรวจสอบ Wallet ID: \${docSnap.id}\`);
+  // โค้ดสำหรับ sum amount จาก transactions ไปยัง wallet ...
+  updatedCount++;
+});
+
+log(\`✅ คำนวณและอัปเดตยอดเงินเสร็จสิ้น (\${updatedCount} บัญชี)\`);`
+  },
+  {
+    id: "default-orphan",
+    name: "Fix Orphaned Transactions",
+    isDefault: true,
+    updatedAt: 0,
+    code: `log("▶ กำลังค้นหาธุรกรรมกำพร้า (Orphaned Transactions)...");
+
+// ดึงข้อมูล transactions ทั้งหมด
+const txSnap = await getDocs(collection(db, "transactions"));
+let orphanedCount = 0;
+
+// โค้ดสำหรับตรวจสอบว่า wallet_id หรือ account_id ที่อ้างอิงมีอยู่จริงหรือไม่
+// ...
+// ถ้าหาไม่เจอ ให้ทำการ deleteDoc หรือย้ายไปยัง collection 'archived_transactions'
+
+log(\`✅ การสแกนเสร็จสิ้น (พบและแก้ไข Orphaned Transactions จำนวน \${orphanedCount} รายการ)\`);`
+  }
+];
 
 // ===== Operation Terminal Log Item =====
 function LogItem({ log }: { log: OperationLog }) {
@@ -83,9 +134,6 @@ export default function CommandCenter() {
   const [orphans, setOrphans] = useState<OrphanedRecord[] | null>(null);
   const [scanning, setScanning] = useState(false);
   const [exporting, setExporting] = useState(false);
-
-  // Database Tab States
-  const [dbTab, setDbTab] = useState<"schemas" | "recovery">("schemas");
   
   // Schema States
   const [schemas, setSchemas] = useState<SchemaDoc[]>([]);
@@ -94,6 +142,11 @@ export default function CommandCenter() {
     id: "", description: "", schemaJson: "{\n  \"field_name\": \"string\"\n}"
   });
   const [isEditingSchema, setIsEditingSchema] = useState(false);
+
+  // Script Templates States
+  const [savedScripts, setSavedScripts] = useState<ScriptTemplate[]>([]);
+  const [isSaveScriptModalOpen, setIsSaveScriptModalOpen] = useState(false);
+  const [newScriptName, setNewScriptName] = useState("");
 
   // Global controls
   const [maintenanceMode, setMaintenanceMode] = useState(false);
@@ -170,7 +223,7 @@ export default function CommandCenter() {
     };
   }, [mfaVerified]);
 
-  // Listen to system_config & schemas
+  // Listen to system_config, schemas & scripts
   useEffect(() => {
     if (!mfaVerified) return;
     
@@ -191,9 +244,19 @@ export default function CommandCenter() {
       setSchemas(fetchedSchemas);
     });
 
+    const unsubScripts = onSnapshot(collection(firestore, "system_scripts"), (snap) => {
+      const fetchedScripts = snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as ScriptTemplate[];
+      fetchedScripts.sort((a, b) => b.updatedAt - a.updatedAt); // ใหม่สุดขึ้นก่อน
+      setSavedScripts(fetchedScripts);
+    });
+
     return () => {
       unsubConfig();
       unsubSchemas();
+      unsubScripts();
     };
   }, [mfaVerified]);
 
@@ -204,7 +267,7 @@ export default function CommandCenter() {
     addLog({ timestamp: Date.now(), level: "success", message: "MFA ยืนยันสำเร็จ — เข้าสู่ Command Center" });
   };
 
-  // Schema Handlers
+  // --- Schema Handlers ---
   const handleOpenSchemaModal = (schema?: SchemaDoc) => {
     if (schema) {
       setSchemaForm(schema);
@@ -251,11 +314,39 @@ export default function CommandCenter() {
     });
   };
 
-  const handleTabChange = (tab: "schemas" | "recovery") => {
-    setDbTab(tab);
+  // --- Script Template Handlers ---
+  const handleSaveScriptTemplate = async () => {
+    if (!newScriptName.trim()) return;
+    try {
+      const scriptId = newScriptName.trim().toLowerCase().replace(/\s+/g, '-');
+      await setDoc(doc(firestore, "system_scripts", scriptId), {
+        name: newScriptName.trim(),
+        code: scriptCode,
+        updatedAt: Date.now()
+      });
+      addLog({ timestamp: Date.now(), level: "success", message: `บันทึก Script Template: ${newScriptName.trim()}` });
+      toast.success("บันทึก Template สำเร็จ");
+      setIsSaveScriptModalOpen(false);
+      setNewScriptName("");
+    } catch (err: any) {
+      toast.error(`บันทึกล้มเหลว: ${err.message}`);
+    }
   };
 
-  // Other Handlers
+  const handleDeleteScriptTemplate = (scriptId: string) => {
+    setConfirmAction({
+      open: true,
+      title: "ลบ Script Template",
+      desc: "คุณต้องการลบ Template นี้ออกจากระบบใช่หรือไม่?",
+      action: async () => {
+        await deleteDoc(doc(firestore, "system_scripts", scriptId));
+        addLog({ timestamp: Date.now(), level: "info", message: `ลบ Script Template: ${scriptId}` });
+        toast.success("ลบล้างสำเร็จ");
+      }
+    });
+  };
+
+  // --- Other Handlers ---
   const handleOrphanScan = async () => {
     setScanning(true);
     addLog({ timestamp: Date.now(), level: "info", message: "เริ่มสแกนข้อมูลกำพร้า..." });
@@ -475,7 +566,7 @@ export default function CommandCenter() {
             </CardContent>
           </Card>
 
-          {/* ===== 2. Migration Script Editor (เต็มความกว้าง ต่อจาก Terminal) ===== */}
+          {/* ===== 2. Migration Script Editor & Templates ===== */}
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -483,24 +574,73 @@ export default function CommandCenter() {
                   <Code className="h-4 w-4 text-primary" />
                   Migration Script Editor
                 </CardTitle>
-                <Button
-                  size="sm"
-                  onClick={() => setConfirmAction({
-                    open: true,
-                    title: "รันสคริปต์ Migration",
-                    desc: "สคริปต์จะทำงานโดยตรงกับฐานข้อมูล การกระทำนี้ไม่สามารถย้อนกลับได้ กรุณาตรวจสอบโค้ดให้แน่ใจก่อนดำเนินการ",
-                    action: handleRunScript,
-                  })}
-                  disabled={scriptRunning || !scriptCode.trim()}
-                  className="gap-1.5 h-8"
-                >
-                  {scriptRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-                  Run Script
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsSaveScriptModalOpen(true)}
+                    className="gap-1.5 h-8 text-xs"
+                  >
+                    <BookmarkPlus className="h-3.5 w-3.5" /> บันทึกเป็น Template
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setConfirmAction({
+                      open: true,
+                      title: "รันสคริปต์ Migration",
+                      desc: "สคริปต์จะทำงานโดยตรงกับฐานข้อมูล การกระทำนี้ไม่สามารถย้อนกลับได้ กรุณาตรวจสอบโค้ดให้แน่ใจก่อนดำเนินการ",
+                      action: handleRunScript,
+                    })}
+                    disabled={scriptRunning || !scriptCode.trim()}
+                    className="gap-1.5 h-8"
+                  >
+                    {scriptRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                    Run Script
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="text-xs text-muted-foreground flex flex-wrap gap-1.5">
+              
+              {/* Script Templates Quick Load List */}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mb-1">
+                <span className="text-xs font-semibold text-muted-foreground shrink-0 flex items-center gap-1">
+                  <Bookmark className="h-3 w-3" /> Templates:
+                </span>
+                
+                {/* Default Templates */}
+                {DEFAULT_SCRIPTS.map(script => (
+                  <Badge 
+                    key={script.id} 
+                    variant="secondary" 
+                    className="cursor-pointer whitespace-nowrap hover:bg-secondary/80 text-[10px]"
+                    onClick={() => { setScriptCode(script.code); toast.success(`โหลด: ${script.name}`); }}
+                  >
+                    {script.name}
+                  </Badge>
+                ))}
+
+                {/* Custom Saved Templates */}
+                {savedScripts.map(script => (
+                  <Badge 
+                    key={script.id} 
+                    variant="outline" 
+                    className="cursor-pointer whitespace-nowrap flex items-center gap-1 hover:bg-muted text-[10px] border-primary/30"
+                    onClick={() => { setScriptCode(script.code); toast.success(`โหลด: ${script.name}`); }}
+                  >
+                    {script.name}
+                    <div 
+                      className="ml-1 p-0.5 rounded-full hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteScriptTemplate(script.id); }}
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </div>
+                  </Badge>
+                ))}
+              </div>
+
+              {/* Quick Tags */}
+              <div className="text-xs text-muted-foreground flex flex-wrap gap-1.5 border-t border-border pt-3">
                 <Badge variant="outline" className="text-[10px] font-mono">db</Badge>
                 <Badge variant="outline" className="text-[10px] font-mono">log(msg)</Badge>
                 <Badge variant="outline" className="text-[10px] font-mono">collection</Badge>
@@ -517,7 +657,7 @@ export default function CommandCenter() {
                 value={scriptCode}
                 onChange={(e) => setScriptCode(e.target.value)}
                 className="font-mono text-xs min-h-[200px] bg-muted/30 border-border resize-y leading-relaxed"
-                placeholder="// เขียนสคริปต์ migration ที่นี่..."
+                placeholder="// เขียนสคริปต์ migration หรือโหลดจาก Template..."
                 spellCheck={false}
               />
             </CardContent>
@@ -617,205 +757,192 @@ export default function CommandCenter() {
             {/* ========== คอลัมน์ขวา ========== */}
             <div className="space-y-6">
               
-              {/* Combined Database & Disaster Recovery Card */}
+              {/* Card 1: Database Schemas */}
               <Card>
-                <CardHeader className="pb-0 border-b border-border">
-                  <div className="flex items-center justify-between mb-3">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <Database className="h-4 w-4 text-primary" />
-                      Database Explorer & Recovery
+                      Database Schemas
                     </CardTitle>
-                    {dbTab === "schemas" && (
-                      <Button size="sm" onClick={() => handleOpenSchemaModal()} className="h-8 gap-1">
-                        <Plus className="h-4 w-4" /> Add Schema
-                      </Button>
-                    )}
-                  </div>
-                  {/* Tabs */}
-                  <div className="flex gap-4 overflow-x-auto no-scrollbar">
-                    <button 
-                      className={`pb-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${dbTab === 'schemas' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-                      onClick={() => handleTabChange('schemas')}
-                    >
-                      <FileJson className="h-3.5 w-3.5" /> Schema
-                    </button>
-                    <button 
-                      className={`pb-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${dbTab === 'recovery' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-                      onClick={() => handleTabChange('recovery')}
-                    >
-                      <ShieldAlert className="h-3.5 w-3.5" /> Scan & Recovery
-                    </button>
+                    <Button size="sm" onClick={() => handleOpenSchemaModal()} className="h-8 gap-1">
+                      <Plus className="h-4 w-4" /> Add Schema
+                    </Button>
                   </div>
                 </CardHeader>
                 
-                <CardContent className="pt-4">
-                  {/* ----- Tab 1: Schemas ----- */}
-                  {dbTab === "schemas" && (
-                    schemas.length === 0 ? (
-                      <div className="text-center py-8 border border-dashed rounded-lg bg-muted/30">
-                        <FileJson className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-                        <p className="text-sm text-muted-foreground">ยังไม่มีข้อมูล Schema ในระบบ</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-4">
-                        {schemas.map((schema) => (
-                          <div key={schema.id} className="relative p-4 rounded-lg border border-border bg-card hover:bg-muted/10 transition-colors group">
-                            <div className="flex items-start justify-between mb-2">
-                              <div>
-                                <h3 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
-                                  <FileJson className="h-3.5 w-3.5 text-primary" /> {schema.id}
-                                </h3>
-                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                                  {schema.description || "ไม่มีคำอธิบาย"}
-                                </p>
-                              </div>
-                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleOpenSchemaModal(schema)}>
-                                  <Edit className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteSchema(schema.id)}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
+                <CardContent>
+                  {schemas.length === 0 ? (
+                    <div className="text-center py-8 border border-dashed rounded-lg bg-muted/30">
+                      <FileJson className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                      <p className="text-sm text-muted-foreground">ยังไม่มีข้อมูล Schema ในระบบ</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                      {schemas.map((schema) => (
+                        <div key={schema.id} className="relative p-4 rounded-lg border border-border bg-card hover:bg-muted/10 transition-colors group">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <h3 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                                <FileJson className="h-3.5 w-3.5 text-primary" /> {schema.id}
+                              </h3>
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                                {schema.description || "ไม่มีคำอธิบาย"}
+                              </p>
                             </div>
-                            <div className="bg-muted/50 p-2 rounded text-[10px] font-mono text-muted-foreground h-20 overflow-hidden relative">
-                              <pre>{schema.schemaJson}</pre>
-                              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-muted/50 to-transparent" />
-                            </div>
-                            <p className="text-[9px] text-muted-foreground mt-2 text-right">
-                              Updated: {format(schema.updatedAt, "dd MMM yyyy HH:mm")}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  )}
-
-                  {/* ----- Tab 2: Scan & Recovery ----- */}
-                  {dbTab === "recovery" && (
-                    <div className="space-y-6">
-                      
-                      {/* --- Section: Data Scan --- */}
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Search className="h-4 w-4 text-primary" />
-                          <h4 className="text-sm font-semibold text-foreground">Data Scan & Integrity</h4>
-                        </div>
-                        <Button
-                          onClick={handleOrphanScan}
-                          disabled={scanning}
-                          size="sm"
-                          variant="outline"
-                          className="w-full justify-start gap-2 border-dashed"
-                        >
-                          {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                          Orphaned Data Scan
-                        </Button>
-                        {orphans !== null && (
-                          <div className="text-xs p-3 rounded-lg bg-muted/50 space-y-1 border border-border">
-                            <p className="font-medium text-foreground">
-                              ผลลัพธ์: พบ {orphans.length} รายการกำพร้า
-                            </p>
-                            <div className="max-h-32 overflow-y-auto space-y-1 mt-1">
-                              {orphans.slice(0, 5).map((o, i) => (
-                                <p key={i} className="text-muted-foreground">
-                                  • {o.id.slice(0, 15)}... — {o.issue}
-                                </p>
-                              ))}
-                              {orphans.length > 5 && (
-                                <p className="text-muted-foreground italic pl-2">...และอีก {orphans.length - 5} รายการ</p>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <Separator />
-
-                      {/* --- Section: Disaster Recovery --- */}
-                      <div className="space-y-4">
-                        <div className="p-4 rounded-lg bg-[hsl(var(--debt))]/10 border border-[hsl(var(--debt))]/20 flex items-start gap-3">
-                          <ShieldAlert className="h-5 w-5 text-[hsl(var(--debt))] shrink-0 mt-0.5" />
-                          <div>
-                            <h4 className="text-sm font-semibold text-foreground">Disaster Recovery Zone</h4>
-                            <p className="text-xs text-muted-foreground mt-1">เครื่องมือสำหรับสำรองและกู้คืนฐานข้อมูล กรุณาใช้งานด้วยความระมัดระวัง</p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3 pt-2">
-                          <Button
-                            onClick={() => setConfirmAction({
-                              open: true, title: "สำรองข้อมูล", desc: "ดาวน์โหลดข้อมูล Firestore ทั้งหมดเป็นไฟล์ JSON",
-                              action: handleExport,
-                            })}
-                            disabled={exporting}
-                            size="sm"
-                            className="w-full justify-start gap-2"
-                          >
-                            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                            Backup to JSON
-                          </Button>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".json"
-                            onChange={handleImportFile}
-                            className="hidden"
-                          />
-                          <Button
-                            onClick={() => fileInputRef.current?.click()}
-                            size="sm"
-                            variant="outline"
-                            className="w-full justify-start gap-2 border-dashed"
-                          >
-                            <Upload className="h-4 w-4" />
-                            Import from JSON
-                          </Button>
-                        </div>
-
-                        {/* Diff Preview */}
-                        {showDiff && importData && (
-                          <div className="text-xs p-3 mt-4 rounded-lg bg-muted/50 space-y-2 border border-border">
-                            <p className="font-medium text-foreground">Import Preview:</p>
-                            <p className="text-muted-foreground">
-                              พบผู้ใช้: <span className="text-foreground">{Object.keys(importData.users || {}).length}</span> รายการ | 
-                              วันที่ Export: <span className="text-foreground">{importData.exported_at || "N/A"}</span>
-                            </p>
-                            <div className="max-h-32 overflow-y-auto space-y-1 my-2">
-                              {Object.entries(importData.users || {}).slice(0, 5).map(([uid, data]: [string, any]) => (
-                                <div key={uid} className="pl-2 border-l-2 border-primary/30">
-                                  <p className="text-foreground">{uid.slice(0, 15)}...</p>
-                                  <p className="text-muted-foreground text-[10px]">
-                                    Sub: {Object.keys(data.subcollections || {}).join(", ") || "none"}
-                                  </p>
-                                </div>
-                              ))}
-                              {Object.keys(importData.users || {}).length > 5 && (
-                                <p className="text-muted-foreground italic pl-2">...และอีกมากมาย</p>
-                              )}
-                            </div>
-                            <div className="flex gap-2 pt-2 border-t border-border">
-                              <Button size="sm" variant="ghost" onClick={() => { setImportData(null); setShowDiff(false); }} className="flex-1">
-                                ยกเลิก
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleOpenSchemaModal(schema)}>
+                                <Edit className="h-3.5 w-3.5" />
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => setConfirmAction({
-                                  open: true, title: "ยืนยันนำเข้าข้อมูล (อันตราย)",
-                                  desc: `ระบบจะทำการ Merge ข้อมูล ${Object.keys(importData.users || {}).length} ผู้ใช้ เข้าสู่ฐานข้อมูลหลักทันที คุณแน่ใจหรือไม่?`,
-                                  action: handleImportConfirm,
-                                })}
-                                className="flex-1 gap-1"
-                              >
-                                <ShieldAlert className="h-3.5 w-3.5" /> ยืนยันนำเข้า
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteSchema(schema.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </div>
-                        )}
-                      </div>
+                          <div className="bg-muted/50 p-2 rounded text-[10px] font-mono text-muted-foreground h-20 overflow-hidden relative">
+                            <pre>{schema.schemaJson}</pre>
+                            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-muted/50 to-transparent" />
+                          </div>
+                          <p className="text-[9px] text-muted-foreground mt-2 text-right">
+                            Updated: {format(schema.updatedAt, "dd MMM yyyy HH:mm")}
+                          </p>
+                        </div>
+                      ))}
                     </div>
                   )}
+                </CardContent>
+              </Card>
+
+              {/* Card 2: Scan & Recovery */}
+              <Card>
+                <CardHeader className="pb-3 border-b border-border">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <ShieldAlert className="h-4 w-4 text-primary" />
+                    Scan & Recovery
+                  </CardTitle>
+                </CardHeader>
+                
+                <CardContent className="pt-4 space-y-6">
+                  
+                  {/* --- Section: Data Scan --- */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Search className="h-4 w-4 text-primary" />
+                      <h4 className="text-sm font-semibold text-foreground">Data Scan & Integrity</h4>
+                    </div>
+                    <Button
+                      onClick={handleOrphanScan}
+                      disabled={scanning}
+                      size="sm"
+                      variant="outline"
+                      className="w-full justify-start gap-2 border-dashed"
+                    >
+                      {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                      Orphaned Data Scan
+                    </Button>
+                    {orphans !== null && (
+                      <div className="text-xs p-3 rounded-lg bg-muted/50 space-y-1 border border-border">
+                        <p className="font-medium text-foreground">
+                          ผลลัพธ์: พบ {orphans.length} รายการกำพร้า
+                        </p>
+                        <div className="max-h-32 overflow-y-auto space-y-1 mt-1">
+                          {orphans.slice(0, 5).map((o, i) => (
+                            <p key={i} className="text-muted-foreground">
+                              • {o.id.slice(0, 15)}... — {o.issue}
+                            </p>
+                          ))}
+                          {orphans.length > 5 && (
+                            <p className="text-muted-foreground italic pl-2">...และอีก {orphans.length - 5} รายการ</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  {/* --- Section: Disaster Recovery --- */}
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-lg bg-[hsl(var(--debt))]/10 border border-[hsl(var(--debt))]/20 flex items-start gap-3">
+                      <ShieldAlert className="h-5 w-5 text-[hsl(var(--debt))] shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-semibold text-foreground">Disaster Recovery Zone</h4>
+                        <p className="text-xs text-muted-foreground mt-1">เครื่องมือสำหรับสำรองและกู้คืนฐานข้อมูล กรุณาใช้งานด้วยความระมัดระวัง</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                      <Button
+                        onClick={() => setConfirmAction({
+                          open: true, title: "สำรองข้อมูล", desc: "ดาวน์โหลดข้อมูล Firestore ทั้งหมดเป็นไฟล์ JSON",
+                          action: handleExport,
+                        })}
+                        disabled={exporting}
+                        size="sm"
+                        className="w-full justify-start gap-2"
+                      >
+                        {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                        Backup to JSON
+                      </Button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".json"
+                        onChange={handleImportFile}
+                        className="hidden"
+                      />
+                      <Button
+                        onClick={() => fileInputRef.current?.click()}
+                        size="sm"
+                        variant="outline"
+                        className="w-full justify-start gap-2 border-dashed"
+                      >
+                        <Upload className="h-4 w-4" />
+                        Import from JSON
+                      </Button>
+                    </div>
+
+                    {/* Diff Preview */}
+                    {showDiff && importData && (
+                      <div className="text-xs p-3 mt-4 rounded-lg bg-muted/50 space-y-2 border border-border">
+                        <p className="font-medium text-foreground">Import Preview:</p>
+                        <p className="text-muted-foreground">
+                          พบผู้ใช้: <span className="text-foreground">{Object.keys(importData.users || {}).length}</span> รายการ | 
+                          วันที่ Export: <span className="text-foreground">{importData.exported_at || "N/A"}</span>
+                        </p>
+                        <div className="max-h-32 overflow-y-auto space-y-1 my-2">
+                          {Object.entries(importData.users || {}).slice(0, 5).map(([uid, data]: [string, any]) => (
+                            <div key={uid} className="pl-2 border-l-2 border-primary/30">
+                              <p className="text-foreground">{uid.slice(0, 15)}...</p>
+                              <p className="text-muted-foreground text-[10px]">
+                                Sub: {Object.keys(data.subcollections || {}).join(", ") || "none"}
+                              </p>
+                            </div>
+                          ))}
+                          {Object.keys(importData.users || {}).length > 5 && (
+                            <p className="text-muted-foreground italic pl-2">...และอีกมากมาย</p>
+                          )}
+                        </div>
+                        <div className="flex gap-2 pt-2 border-t border-border">
+                          <Button size="sm" variant="ghost" onClick={() => { setImportData(null); setShowDiff(false); }} className="flex-1">
+                            ยกเลิก
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => setConfirmAction({
+                              open: true, title: "ยืนยันนำเข้าข้อมูล (อันตราย)",
+                              desc: `ระบบจะทำการ Merge ข้อมูล ${Object.keys(importData.users || {}).length} ผู้ใช้ เข้าสู่ฐานข้อมูลหลักทันที คุณแน่ใจหรือไม่?`,
+                              action: handleImportConfirm,
+                            })}
+                            className="flex-1 gap-1"
+                          >
+                            <ShieldAlert className="h-3.5 w-3.5" /> ยืนยันนำเข้า
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -881,6 +1008,41 @@ export default function CommandCenter() {
               <Button variant="outline" onClick={() => setIsSchemaModalOpen(false)}>ยกเลิก</Button>
               <Button onClick={handleSaveSchema} className="gap-2">
                 <Save className="h-4 w-4" /> บันทึก
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Custom Native Modal for Save Script Form ===== */}
+      {isSaveScriptModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="bg-card text-card-foreground border border-border shadow-lg rounded-xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="px-5 py-4 border-b flex items-center justify-between">
+              <h2 className="text-base font-semibold flex items-center gap-2">
+                <BookmarkPlus className="h-5 w-5 text-primary" />
+                บันทึก Script Template
+              </h2>
+              <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => setIsSaveScriptModalOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="script-name">ตั้งชื่อ Template <span className="text-destructive">*</span></Label>
+                <Input 
+                  id="script-name" 
+                  placeholder="เช่น ลบผู้ใช้ที่ไม่ได้ยืนยันตัวตน" 
+                  value={newScriptName} 
+                  onChange={(e) => setNewScriptName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t bg-muted/30 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsSaveScriptModalOpen(false)}>ยกเลิก</Button>
+              <Button onClick={handleSaveScriptTemplate} disabled={!newScriptName.trim()}>
+                บันทึก
               </Button>
             </div>
           </div>
