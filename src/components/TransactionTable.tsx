@@ -452,6 +452,48 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
                 </SelectContent>
               </Select>
 
+              {/* Date range filter */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0">
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {dateFrom ? format(dateFrom, "dd/MM/yy") : "เริ่ม"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={setDateFrom}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-xs text-muted-foreground">ถึง</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0">
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {dateTo ? format(dateTo, "dd/MM/yy") : "สิ้นสุด"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={setDateTo}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              {(dateFrom || dateTo) && (
+                <Button variant="ghost" size="sm" className="h-8 text-xs px-2" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+                  ✕
+                </Button>
+              )}
+
               <div className="flex items-center gap-2 ml-auto">
                 <Input
                   placeholder="ค้นหา..."
