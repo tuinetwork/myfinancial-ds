@@ -41,6 +41,10 @@ export default function AccountsPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Account | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editTarget, setEditTarget] = useState<Account | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editType, setEditType] = useState<AccountType>("cash");
+  const [editSaving, setEditSaving] = useState(false);
 
   const isMainAccount = (acc: Account) => acc.name === "กระเป๋าเงินสดหลัก";
 
