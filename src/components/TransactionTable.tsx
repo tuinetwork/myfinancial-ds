@@ -588,7 +588,7 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
 
       {/* ===== Edit Dialog ===== */}
       <Dialog open={!!editTx} onOpenChange={(o) => !o && setEditTx(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pencil className="h-4 w-4 text-primary" />
@@ -596,16 +596,84 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
             </DialogTitle>
             <DialogDescription>
               {editTx && (
-                <span>
-                  {formatDate(editTx.date)} — {editTx.category}
-                  <Badge variant="secondary" className={`ml-2 text-xs ${getTypeBadgeClass(editTx.type)}`}>
-                    {editTx.type}
-                  </Badge>
-                </span>
+                <Badge variant="secondary" className={`text-xs ${getTypeBadgeClass(editTx.type)}`}>
+                  {editTx.type}
+                </Badge>
               )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Date Picker */}
+            <div className="space-y-2">
+              <Label>วันที่</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !editDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {editDate ? format(editDate, "dd/MM/yyyy") : "เลือกวันที่"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={editDate}
+                    onSelect={(d) => d && setEditDate(d)}
+                    disabled={(d) => d > new Date() || d < new Date(new Date().getFullYear() - 5, 0, 1)}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Category Selection */}
+            {editTx?.type !== "โอนเงิน" && editMainCats.length > 0 && (
+              <div className="space-y-2">
+                <Label>หมวดหมู่หลัก</Label>
+                <Select value={editMainCategory} onValueChange={(v) => { setEditMainCategory(v); setEditSubCategory(""); }}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="เลือกหมวดหมู่หลัก" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {editMainCats.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {editSubCats.length > 0 && (
+              <div className="space-y-2">
+                <Label>หมวดหมู่ย่อย</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {editSubCats.map((sub) => (
+                    <button
+                      key={sub}
+                      onClick={() => setEditSubCategory(sub)}
+                      className={cn(
+                        "px-3 py-1.5 text-xs rounded-full border transition-colors",
+                        editSubCategory === sub
+                          ? editTx?.type === "รายรับ"
+                            ? "bg-income/20 text-income border-income/40 font-medium"
+                            : "bg-expense/20 text-expense border-expense/40 font-medium"
+                          : "bg-muted/50 text-muted-foreground border-border hover:bg-muted"
+                      )}
+                    >
+                      {sub}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Amount */}
             <div className="space-y-2">
               <Label>จำนวนเงิน</Label>
               <Input
@@ -616,9 +684,10 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
                 value={editAmount}
                 onChange={(e) => setEditAmount(e.target.value)}
                 className="text-lg font-mono"
-                autoFocus
               />
             </div>
+
+            {/* Note */}
             <div className="space-y-2">
               <Label>บันทึก</Label>
               <Textarea
