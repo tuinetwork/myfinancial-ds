@@ -50,7 +50,6 @@ export default function InvestmentsPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  // 1. ดึงข้อมูลกระเป๋าเงินประเภทการลงทุน
   useEffect(() => {
     if (!userId) return;
     const unsub = onSnapshot(collection(firestore, "users", userId, "accounts"), (snap) => {
@@ -63,7 +62,6 @@ export default function InvestmentsPage() {
     return () => unsub();
   }, [userId]);
 
-  // 2. ดึงข้อมูล Transactions เพื่อใช้คำนวณ Auto-Cost และ Yield
   useEffect(() => {
     if (!userId) return;
     const unsub = onSnapshot(collection(firestore, "users", userId, "transactions"), (snap) => {
@@ -74,7 +72,7 @@ export default function InvestmentsPage() {
 
   const fmt = (n: number) => privacyMode ? "***" : n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // 3. Logic คำนวณอัตโนมัติ
+  // 3. Hybrid Logic: Auto สำหรับ Share, Manual สำหรับอย่างอื่น
   const { totalMarketValue, totalCostBasis, totalYield, netPnL, pnlPct } = useMemo(() => {
     let mv = 0;
     let cost = 0;
@@ -82,20 +80,23 @@ export default function InvestmentsPage() {
 
     investmentAccounts.forEach(acc => {
       const units = acc.total_units || 1;
-      
-      // มูลค่าตลาด = ดึงจากยอดเงินในกระเป๋าล่าสุด
-      const currentMarketValue = Number(acc.balance) || 0;
-      mv += currentMarketValue;
+      const isShare = acc.asset_class === 'share';
 
-      // ต้นทุนสะสม = รวมยอดเงินที่โอน (Transfer) เข้ากระเป๋านี้ทั้งหมด
+      // --- Calculation for Market Value ---
+      const accMV = isShare ? (Number(acc.balance) || 0) : (units * (acc.market_price || 0));
+      mv += accMV;
+
+      // --- Calculation for Cost ---
       const transferInSum = transactions.filter(t => 
         t.type === 'transfer' && t.to_account_id === acc.id && !t.is_deleted
       ).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-      const currentAccCost = ((acc.average_cost || 0) * units) + transferInSum;
-      cost += currentAccCost;
+      const accCost = isShare 
+        ? (((acc.average_cost || 0) * units) + transferInSum)
+        : (units * (acc.average_cost || 0));
+      cost += accCost;
 
-      // ดอกเบี้ยสะสม = ค้นหาจากประวัติรายรับอัตโนมัติ + ยอดที่เจ้านายบันทึกเอง (Manual Yield)
+      // --- Yield Calculation ---
       const searchKey = (acc.symbol || acc.name).toLowerCase();
       const autoYield = transactions.filter(t => {
         if (t.type !== 'income' || t.is_deleted) return false;
@@ -115,7 +116,7 @@ export default function InvestmentsPage() {
   const handleOpenEdit = (acc: any) => {
     setEditForm({
       symbol: acc.symbol || acc.name,
-      asset_class: acc.asset_class || "share",
+      asset_class: acc.asset_class || "stock",
       total_units: String(acc.total_units || 1),
       avg_cost: String(acc.average_cost || 0),
       market_price: String(acc.market_price || acc.balance || 0),
@@ -128,14 +129,23 @@ export default function InvestmentsPage() {
     if (!userId || !editDialog.acc) return;
     setSaving(true);
     try {
-      await updateAccount(userId, editDialog.acc.id, {
+      const isShare = editForm.asset_class === 'share';
+      const updateData: any = {
         symbol: editForm.symbol.trim().toUpperCase(),
         asset_class: editForm.asset_class,
         total_units: parseFloat(editForm.total_units) || 1,
         average_cost: parseFloat(editForm.avg_cost) || 0,
         manual_yield: parseFloat(editForm.manual_yield) || 0,
-      } as any);
-      toast.success("อัปเดตข้อมูลสำเร็จ");
+      };
+
+      // ถ้าไม่ใช่แชร์ ให้บันทึกราคาตลาดและอัปเดต Balance ตามสูตร units * price
+      if (!isShare) {
+        updateData.market_price = parseFloat(editForm.market_price) || 0;
+        updateData.balance = updateData.total_units * updateData.market_price;
+      }
+
+      await updateAccount(userId, editDialog.acc.id, updateData);
+      toast.success("บันทึกข้อมูลสำเร็จ");
       setEditDialog({ open: false, acc: null });
     } catch (e: any) {
       toast.error(e.message);
@@ -147,10 +157,10 @@ export default function InvestmentsPage() {
   return (
     <>
       <AppSidebar />
-      <div className="flex-1 flex flex-col min-h-screen">
-        <header className="h-14 flex items-center border-b border-border px-4 gap-3 bg-background sticky top-0 z-10">
+      <div className="flex-1 flex flex-col min-h-screen bg-muted/5">
+        <header className="h-14 flex items-center border-b border-border px-4 gap-3 bg-background sticky top-0 z-20">
           <SidebarTrigger />
-          <h1 className="text-lg font-semibold">พอร์ตการลงทุน (Full Auto)</h1>
+          <h1 className="text-lg font-semibold">พอร์ตการลงทุน</h1>
           <div className="ml-auto">
             <Button variant="ghost" size="icon" onClick={togglePrivacy}>
               {privacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -159,72 +169,85 @@ export default function InvestmentsPage() {
         </header>
 
         <main className="flex-1 p-4 md:p-6 space-y-6 overflow-y-auto">
-          {/* Summary Section */}
+          {/* Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="bg-muted/30 border-border">
+            <Card className="border-border shadow-sm">
               <CardContent className="p-5">
-                <p className="text-xs text-muted-foreground">Market Value (รวม)</p>
-                <p className="text-xl font-bold font-display mt-1">฿{fmt(totalMarketValue)}</p>
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Market Value</p>
+                <p className="text-xl sm:text-2xl font-bold font-display mt-1">฿{fmt(totalMarketValue)}</p>
               </CardContent>
             </Card>
-            <Card className="bg-muted/30 border-border">
+            <Card className="border-border shadow-sm">
               <CardContent className="p-5">
-                <p className="text-xs text-muted-foreground">Total Cost (ทุนโอน)</p>
-                <p className="text-xl font-bold font-display mt-1">฿{fmt(totalCostBasis)}</p>
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Total Cost</p>
+                <p className="text-xl sm:text-2xl font-bold font-display mt-1">฿{fmt(totalCostBasis)}</p>
               </CardContent>
             </Card>
-            <Card className="bg-muted/30 border-border text-green-500">
+            <Card className="border-border shadow-sm text-green-500">
               <CardContent className="p-5">
-                <p className="text-xs text-muted-foreground flex items-center gap-1"><Banknote className="h-3 w-3"/> Yield (กำไร)</p>
-                <p className="text-xl font-bold font-display mt-1">+{fmt(totalYield)}</p>
+                <p className="text-xs text-muted-foreground uppercase font-semibold flex items-center gap-1"><Banknote className="h-3 w-3"/> Yield</p>
+                <p className="text-xl sm:text-2xl font-bold font-display mt-1">+{fmt(totalYield)}</p>
               </CardContent>
             </Card>
-            <Card className={cn("border-none", netPnL >= 0 ? "bg-accent/10 text-accent" : "bg-destructive/10 text-destructive")}>
+            <Card className={cn("border-none shadow-sm", netPnL >= 0 ? "bg-accent/10 text-accent" : "bg-destructive/10 text-destructive")}>
               <CardContent className="p-5">
-                <p className="text-xs opacity-70 flex items-center gap-1"><Percent className="h-3 w-3"/> Total ROI</p>
-                <p className="text-xl font-bold font-display mt-1">{privacyMode ? "***" : `${pnlPct.toFixed(2)}%`}</p>
+                <p className="text-xs uppercase font-semibold flex items-center gap-1 opacity-80"><Percent className="h-3 w-3"/> Total ROI</p>
+                <p className="text-xl sm:text-2xl font-bold font-display mt-1">{privacyMode ? "***" : `${pnlPct.toFixed(2)}%`}</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Asset Table */}
-          <Card className="overflow-hidden">
+          {/* Investment Table */}
+          <Card className="overflow-hidden border-border/50 shadow-md">
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-muted/50">
+                <TableHeader className="bg-muted/40">
                   <TableRow>
-                    <TableHead>สินทรัพย์</TableHead>
-                    <TableHead className="text-right">มือ (Units)</TableHead>
-                    <TableHead className="text-right">ทุนโอนสะสม</TableHead>
-                    <TableHead className="text-right">มูลค่าปัจจุบัน</TableHead>
-                    <TableHead className="text-right text-green-500">Yield</TableHead>
+                    <TableHead className="w-[180px]">บัญชี / Symbol</TableHead>
+                    <TableHead className="text-right">หน่วย/มือ</TableHead>
+                    <TableHead className="text-right">ทุน (Cost)</TableHead>
+                    <TableHead className="text-right">ราคาตลาด (Mkt)</TableHead>
+                    <TableHead className="text-right">มูลค่ารวม</TableHead>
+                    <TableHead className="text-right text-green-500 font-bold">Yield</TableHead>
                     <TableHead className="text-right font-bold">Net PnL</TableHead>
-                    <TableHead className="w-[80px]"></TableHead>
+                    <TableHead className="w-[60px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {investmentAccounts.map((acc) => {
                     const units = acc.total_units || 1;
+                    const isShare = acc.asset_class === 'share';
+                    
+                    // Logic คำนวณรายบรรทัด
                     const transferIn = transactions.filter(t => t.type === 'transfer' && t.to_account_id === acc.id && !t.is_deleted).reduce((s, t) => s + (Number(t.amount) || 0), 0);
-                    const costBasis = ((acc.average_cost || 0) * units) + transferIn;
-                    const mv = Number(acc.balance) || 0;
-                    const invYield = (Number(acc.manual_yield) || 0); // หรือดึง autoYield มาเพิ่มตาม Logic ด้านบน
+                    const costBasis = isShare ? (((acc.average_cost || 0) * units) + transferIn) : (units * (acc.average_cost || 0));
+                    const mv = isShare ? (Number(acc.balance) || 0) : (units * (acc.market_price || 0));
+                    const currentPrice = isShare ? (mv / units) : (acc.market_price || 0);
+                    
+                    const invYield = Number(acc.manual_yield) || 0;
                     const rowNet = (mv - costBasis) + invYield;
                     
                     return (
-                      <TableRow key={acc.id}>
-                        <TableCell className="font-medium">
-                          {acc.symbol || acc.name}
-                          <div className="block"><Badge variant="outline" className="text-[9px] h-4 mt-1">{assetClasses.find(a => a.value === acc.asset_class)?.label || "ทั่วไป"}</Badge></div>
+                      <TableRow key={acc.id} className="hover:bg-muted/20">
+                        <TableCell className="font-medium py-4">
+                          <span className="block text-sm">{acc.symbol || acc.name}</span>
+                          <Badge variant="secondary" className="text-[9px] h-4 mt-1 font-normal uppercase">
+                            {assetClasses.find(a => a.value === acc.asset_class)?.label || "ทั่วไป"}
+                          </Badge>
                         </TableCell>
-                        <TableCell className="text-right">{privacyMode ? "***" : units}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">฿{fmt(costBasis)}</TableCell>
-                        <TableCell className="text-right font-semibold">฿{fmt(mv)}</TableCell>
-                        <TableCell className="text-right text-green-500">+{fmt(invYield)}</TableCell>
-                        <TableCell className={cn("text-right font-bold", rowNet >= 0 ? "text-accent" : "text-destructive")}>
+                        <TableCell className="text-right font-mono">{privacyMode ? "***" : units}</TableCell>
+                        <TableCell className="text-right text-muted-foreground tabular-nums">฿{fmt(costBasis)}</TableCell>
+                        <TableCell className="text-right tabular-nums">฿{fmt(currentPrice)}</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">฿{fmt(mv)}</TableCell>
+                        <TableCell className="text-right text-green-500 tabular-nums">+{fmt(invYield)}</TableCell>
+                        <TableCell className={cn("text-right font-bold tabular-nums", rowNet >= 0 ? "text-accent" : "text-destructive")}>
                           {rowNet >= 0 ? "+" : ""}฿{fmt(rowNet)}
                         </TableCell>
-                        <TableCell><Button variant="ghost" size="icon" onClick={() => handleOpenEdit(acc)}><Pencil className="h-3 w-3" /></Button></TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(acc)} className="h-8 w-8">
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -234,22 +257,38 @@ export default function InvestmentsPage() {
           </Card>
         </main>
 
+        {/* Edit Dialog */}
         <Dialog open={editDialog.open} onOpenChange={(o) => setEditDialog({ open: o, acc: o ? editDialog.acc : null })}>
-          <DialogContent className="bg-card">
-            <DialogHeader><DialogTitle>ตั้งค่า: {editDialog.acc?.name}</DialogTitle></DialogHeader>
-            <div className="space-y-4 pt-2">
-              <div><Label>Symbol</Label><Input value={editForm.symbol} onChange={(e) => setEditForm({...editForm, symbol: e.target.value})} /></div>
-              <div><Label> Asset Class</Label>
-                <Select value={editForm.asset_class} onValueChange={(v) => setEditForm({...editForm, asset_class: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{assetClasses.map(a => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent>
-                </Select>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-primary"/> ตั้งค่าข้อมูลพอร์ต</DialogTitle></DialogHeader>
+            <div className="space-y-4 pt-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Symbol</Label><Input value={editForm.symbol} onChange={(e) => setEditForm({...editForm, symbol: e.target.value})} placeholder="เช่น SHR-1" /></div>
+                <div className="space-y-2">
+                  <Label>ประเภท</Label>
+                  <Select value={editForm.asset_class} onValueChange={(v) => setEditForm({...editForm, asset_class: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{assetClasses.map(a => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label>จำนวนมือ (Units)</Label><Input type="number" value={editForm.total_units} onChange={(e) => setEditForm({...editForm, total_units: e.target.value})} /></div>
-                <div><Label>ดอกเบี้ย/กำไร (Manual Yield)</Label><Input type="number" value={editForm.manual_yield} onChange={(e) => setEditForm({...editForm, manual_yield: e.target.value})} className="border-green-500/30" /></div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>จำนวนมือ / หน่วย</Label><Input type="number" value={editForm.total_units} onChange={(e) => setEditForm({...editForm, total_units: e.target.value})} /></div>
+                <div className="space-y-2"><Label>ต้นทุนเริ่ม (Avg Cost)</Label><Input type="number" value={editForm.avg_cost} onChange={(e) => setEditForm({...editForm, avg_cost: e.target.value})} /></div>
               </div>
-              <Button onClick={handleSaveEdit} disabled={saving} className="w-full">{saving ? "กำลังบันทึก..." : "บันทึก"}</Button>
+
+              {editForm.asset_class !== 'share' && (
+                <div className="space-y-2"><Label>ราคาตลาดปัจจุบัน</Label><Input type="number" value={editForm.market_price} onChange={(e) => setEditForm({...editForm, market_price: e.target.value})} className="border-primary/30" /></div>
+              )}
+
+              <div className="p-3 bg-green-500/5 rounded-lg border border-green-500/20">
+                <Label className="text-green-600 flex items-center gap-1.5 font-semibold"><Banknote className="h-4 w-4"/> ดอกเบี้ย / กำไรที่ได้รับ (Yield)</Label>
+                <Input type="number" value={editForm.manual_yield} onChange={(e) => setEditForm({...editForm, manual_yield: e.target.value})} className="mt-2 bg-background border-green-500/30" />
+                <p className="text-[10px] text-muted-foreground mt-2">* ใช้สำหรับบันทึกกำไรที่ได้จากวงแชร์หรือปันผล</p>
+              </div>
+
+              <Button onClick={handleSaveEdit} disabled={saving} className="w-full h-11 shadow-lg">{saving ? "กำลังประมวลผล..." : "บันทึกข้อมูล"}</Button>
             </div>
           </DialogContent>
         </Dialog>
