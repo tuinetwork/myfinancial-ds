@@ -67,27 +67,25 @@ export default function InvestmentsPage() {
 
   const fmt = (n: number) => privacyMode ? "***" : n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // 3. Logic คำนวณ (Full Auto สำหรับออมแชร์)
+  // 3. Logic คำนวณ (ล็อคไม่นำ MV คำนวณ Unrealized สำหรับแชร์)
   const { totalMarketValue, totalCostBasis, unrealizedPnL, totalYield, netPnL, pnlPct } = useMemo(() => {
     let mv = 0;
     let cost = 0; 
     let yieldSum = 0;
     let netSum = 0;
+    let unRealTotal = 0;
 
     investmentAccounts.forEach(acc => {
       const units = acc.total_units || 1;
       const isShare = acc.asset_class === 'share';
       const manualAvgCost = acc.average_cost || 0;
 
-      // Market Value: ถ้าเป็นแชร์ วิ่งตามยอด Balance จริง | อื่นๆ ใช้ units * price
       const accMV = isShare ? (Number(acc.balance) || 0) : (units * (acc.market_price || 0));
       mv += accMV;
 
-      // Cost Basis: ใช้ (Avg Cost ที่กรอก * จำนวนหน่วย)
       const accCost = units * manualAvgCost;
       cost += accCost;
 
-      // Yield: ดอกเบี้ย/กำไร
       const searchKey = (acc.symbol || acc.name).toLowerCase();
       const autoYield = transactions.filter(t => {
         if (t.type !== 'income' || t.is_deleted) return false;
@@ -98,15 +96,18 @@ export default function InvestmentsPage() {
       const invYield = autoYield + (Number(acc.manual_yield) || 0);
       yieldSum += invYield;
 
-      // Net PnL: ถ้าเป็นแชร์ = Yield เท่านั้น | อื่นๆ = (MV - Cost) + Yield
-      const rowNet = isShare ? invYield : (accMV - accCost + invYield);
+      // ล็อค Unrealized เป็น 0 สำหรับแชร์ ตามสั่ง
+      const rowUnreal = isShare ? 0 : (accMV - accCost);
+      unRealTotal += rowUnreal;
+
+      // Net PnL: ถ้าเป็นแชร์คิดแค่ Yield | อื่นๆ คิด Unreal + Yield
+      const rowNet = isShare ? invYield : (rowUnreal + invYield);
       netSum += rowNet;
     });
 
-    const unReal = mv - cost;
     const pct = cost > 0 ? (netSum / cost) * 100 : 0;
 
-    return { totalMarketValue: mv, totalCostBasis: cost, unrealizedPnL: unReal, totalYield: yieldSum, netPnL: netSum, pnlPct: pct };
+    return { totalMarketValue: mv, totalCostBasis: cost, unrealizedPnL: unRealTotal, totalYield: yieldSum, netPnL: netSum, pnlPct: pct };
   }, [investmentAccounts, transactions]);
 
   const handleOpenEdit = (acc: any) => {
@@ -162,7 +163,7 @@ export default function InvestmentsPage() {
         </header>
 
         <main className="flex-1 p-4 md:p-6 space-y-6 overflow-y-auto">
-          {/* Summary Cards (หัวตารางแบบเดิม) */}
+          {/* Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="border-border shadow-sm">
               <CardContent className="p-4 sm:p-5">
@@ -203,6 +204,7 @@ export default function InvestmentsPage() {
                     <TableHead className="text-right">Avg Cost</TableHead>
                     <TableHead className="text-right">Market Price</TableHead>
                     <TableHead className="text-right font-bold">Market Value</TableHead>
+                    <TableHead className="text-right">Unrealized PnL</TableHead>
                     <TableHead className="text-right text-green-500">Yield</TableHead>
                     <TableHead className="text-right font-bold">Net PnL</TableHead>
                     <TableHead className="w-[60px]"></TableHead>
@@ -214,17 +216,14 @@ export default function InvestmentsPage() {
                     const isShare = acc.asset_class === 'share';
                     const displayAvgCost = acc.average_cost || 0;
                     
-                    // Market Price: ถ้าเป็นแชร์ = Avg Cost * units | อื่นๆ = Market Price
                     const displayMktPrice = isShare ? (displayAvgCost * units) : (acc.market_price || displayAvgCost);
-                    
-                    // Market Value: ถ้าเป็นแชร์ = Balance | อื่นๆ = units * Market Price
                     const mv = isShare ? (Number(acc.balance) || 0) : (units * (acc.market_price || 0));
-                    
                     const costBasis = units * displayAvgCost;
                     const invYield = Number(acc.manual_yield) || 0;
                     
-                    // Net PnL: ถ้าเป็นแชร์ = Yield เท่านั้น
-                    const rowNet = isShare ? invYield : (mv - costBasis + invYield);
+                    // คำนวณรายบรรทัดตามเงื่อนไขเจ้านาย
+                    const rowUnreal = isShare ? 0 : (mv - costBasis);
+                    const rowNet = isShare ? invYield : (rowUnreal + invYield);
                     
                     return (
                       <TableRow key={acc.id} className="hover:bg-muted/20">
@@ -232,7 +231,6 @@ export default function InvestmentsPage() {
                           <span className="text-sm font-bold block">{acc.symbol || acc.name}</span>
                         </TableCell>
                         <TableCell>
-                          {/* แสดงผลตามประเภทที่เลือกใน Input */}
                           <Badge variant="outline" className="text-[9px] font-normal uppercase mt-1">
                             {assetClasses.find(a => a.value === acc.asset_class)?.label || "ทั่วไป"}
                           </Badge>
@@ -241,6 +239,9 @@ export default function InvestmentsPage() {
                         <TableCell className="text-right tabular-nums">฿{fmt(displayAvgCost)}</TableCell>
                         <TableCell className="text-right tabular-nums">฿{fmt(displayMktPrice)}</TableCell>
                         <TableCell className="text-right font-semibold tabular-nums">฿{fmt(mv)}</TableCell>
+                        <TableCell className={cn("text-right tabular-nums", rowUnreal >= 0 ? "text-accent" : "text-destructive")}>
+                           ฿{fmt(rowUnreal)}
+                        </TableCell>
                         <TableCell className="text-right text-green-500 tabular-nums">+{fmt(invYield)}</TableCell>
                         <TableCell className={cn("text-right font-bold tabular-nums", rowNet >= 0 ? "text-accent" : "text-destructive")}>
                           {rowNet >= 0 ? "+" : ""}฿{fmt(rowNet)}
