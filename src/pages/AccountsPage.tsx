@@ -126,7 +126,7 @@ function AssetPieChart({ accounts, privacyMode, formatBalance, liabilityTypes }:
   );
 }
 
-
+export default function AccountsPage() {
   const { userId } = useAuth();
   const { privacyMode, togglePrivacy, maskValue } = usePrivacy();
   const [accounts, setAccounts] = useState<Account[]>([]);
