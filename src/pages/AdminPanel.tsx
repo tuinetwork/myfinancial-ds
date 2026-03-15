@@ -28,7 +28,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   CheckCircle, XCircle, Loader2, ShieldCheck, Users, UsersRound,
-  Pencil, Trash2, Ban, Database,
+  Pencil, Trash2, Ban,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
