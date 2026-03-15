@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
@@ -47,6 +47,7 @@ const PIE_COLORS = [
 
 const liabilityTypes: string[] = ["credit_card", "loan", "payable"];
 
+// กราฟวงกลม: แสดงสัดส่วนตามประเภทบัญชี
 function AssetPieChart({ accounts, privacyMode, formatBalance, liabilityTypes }: {
   accounts: Account[];
   privacyMode: boolean;
@@ -72,7 +73,7 @@ function AssetPieChart({ accounts, privacyMode, formatBalance, liabilityTypes }:
   if (chartData.length === 0) return null;
 
   return (
-    <Card className="border-none shadow-sm">
+    <Card className="border-none shadow-sm h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm sm:text-base font-semibold">สัดส่วนตามประเภทบัญชี</CardTitle>
       </CardHeader>
@@ -109,7 +110,7 @@ function AssetPieChart({ accounts, privacyMode, formatBalance, liabilityTypes }:
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex-1 w-full space-y-1.5 max-h-60 overflow-y-auto">
+          <div className="flex-1 w-full space-y-1.5 max-h-60 overflow-y-auto pr-2">
             {chartData.map((item, i) => {
               const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
               return (
@@ -123,6 +124,53 @@ function AssetPieChart({ accounts, privacyMode, formatBalance, liabilityTypes }:
             })}
           </div>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// กราฟแท่ง: เปรียบเทียบสินทรัพย์และหนี้สิน
+function BalanceComparisonChart({ assets, liabilities, privacyMode, formatBalance }: { 
+  assets: number, 
+  liabilities: number,
+  privacyMode: boolean,
+  formatBalance: (v: number) => string 
+}) {
+  const chartData = [
+    { name: 'สินทรัพย์', value: assets, fill: 'hsl(var(--accent))' },
+    { name: 'หนี้สิน', value: liabilities, fill: 'hsl(var(--destructive))' }
+  ];
+
+  return (
+    <Card className="border-none shadow-sm h-full">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm sm:text-base font-semibold">สุขภาพการเงิน (สินทรัพย์ vs หนี้สิน)</CardTitle>
+      </CardHeader>
+      <CardContent className="h-52 sm:h-60 px-2 sm:px-6">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.15} />
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} dy={10} />
+            <YAxis 
+              axisLine={false} 
+              tickLine={false} 
+              tickFormatter={(val) => privacyMode ? "***" : `${(val / 1000).toFixed(0)}k`}
+              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+              width={45}
+            />
+            <Tooltip
+              cursor={{ fill: 'transparent' }}
+              formatter={(value: number) => [formatBalance(value), 'ยอดเงิน']}
+              contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "12px", color: "hsl(var(--foreground))" }}
+              itemStyle={{ color: 'hsl(var(--foreground))' }}
+            />
+            <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={80}>
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.fill} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </CardContent>
     </Card>
   );
@@ -293,7 +341,6 @@ export default function AccountsPage() {
     return `฿${balance.toLocaleString("th-TH", { minimumFractionDigits: 2 })}`;
   };
 
-  // Component สำหรับเรนเดอร์การ์ดกระเป๋าเงินเพื่อลดโค้ดซ้ำ
   const renderAccountCard = (acc: Account) => {
     const config = accountTypeConfig[acc.type];
     const IconComp = config?.icon || Wallet;
@@ -358,72 +405,79 @@ export default function AccountsPage() {
         </header>
 
         <main className="flex-1 p-4 md:p-6 space-y-6 overflow-y-auto">
-          {/* Net Worth Card */}
+          {/* Net Worth Summary Card */}
           <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
             <CardContent className="p-6">
-              <p className="text-sm text-muted-foreground mb-1">Total Net Worth</p>
-              <p className={cn(
-                "text-3xl font-bold font-display",
-                totalNetWorth >= 0 ? "text-accent" : "text-destructive"
-              )}>
-                {formatBalance(totalNetWorth)}
-              </p>
-              <div className="flex items-center gap-4 mt-3 text-sm">
-                <div className="flex items-center gap-1.5">
-                  <div className="h-2 w-2 rounded-full bg-accent" />
-                  <span className="text-muted-foreground">สินทรัพย์</span>
-                  <span className="font-semibold text-accent">{formatBalance(totalAssets)}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Total Net Worth</p>
+                  <p className={cn(
+                    "text-3xl md:text-4xl font-bold font-display",
+                    totalNetWorth >= 0 ? "text-accent" : "text-destructive"
+                  )}>
+                    {formatBalance(totalNetWorth)}
+                  </p>
+                  <div className="flex items-center gap-4 mt-3 text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2 w-2 rounded-full bg-accent" />
+                      <span className="text-muted-foreground">สินทรัพย์</span>
+                      <span className="font-semibold text-accent">{formatBalance(totalAssets)}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2 w-2 rounded-full bg-destructive" />
+                      <span className="text-muted-foreground">หนี้สิน</span>
+                      <span className="font-semibold text-destructive">{formatBalance(totalLiabilities)}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">{displayAccounts.length} บัญชีที่ใช้งาน</p>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-2 w-2 rounded-full bg-destructive" />
-                  <span className="text-muted-foreground">หนี้สิน</span>
-                  <span className="font-semibold text-destructive">{formatBalance(totalLiabilities)}</span>
-                </div>
+                
+                {/* New Account Button moved next to summary on large screens */}
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="gap-2 shrink-0">
+                      <Plus className="h-4 w-4" /> เพิ่มบัญชีใหม่
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-card border-border">
+                    <DialogHeader>
+                      <DialogTitle>สร้างบัญชีใหม่</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-2">
+                      <div>
+                        <Label>ชื่อบัญชี</Label>
+                        <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="เช่น กระเป๋าเงินสดหลัก" className="mt-1" />
+                      </div>
+                      <div>
+                        <Label>ประเภท</Label>
+                        <Select value={newType} onValueChange={(v) => setNewType(v as AccountType)}>
+                          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {accountTypes.map((t) => (
+                              <SelectItem key={t} value={t}>{accountTypeConfig[t].label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>ยอดเงินเริ่มต้น (฿)</Label>
+                        <Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} placeholder="0.00" className="mt-1" />
+                      </div>
+                      <Button onClick={handleCreate} disabled={saving || !newName.trim()} className="w-full">
+                        {saving ? "กำลังสร้าง..." : "สร้างบัญชี"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">{displayAccounts.length} บัญชีที่ใช้งาน</p>
             </CardContent>
           </Card>
 
-          {/* Asset Allocation Pie Chart */}
-          <AssetPieChart accounts={displayAccounts} privacyMode={privacyMode} formatBalance={formatBalance} liabilityTypes={liabilityTypes} />
-
-          {/* New Account Button */}
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" /> เพิ่มบัญชีใหม่
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-card border-border">
-              <DialogHeader>
-                <DialogTitle>สร้างบัญชีใหม่</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-2">
-                <div>
-                  <Label>ชื่อบัญชี</Label>
-                  <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="เช่น กระเป๋าเงินสดหลัก" className="mt-1" />
-                </div>
-                <div>
-                  <Label>ประเภท</Label>
-                  <Select value={newType} onValueChange={(v) => setNewType(v as AccountType)}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {accountTypes.map((t) => (
-                        <SelectItem key={t} value={t}>{accountTypeConfig[t].label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>ยอดเงินเริ่มต้น (฿)</Label>
-                  <Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} placeholder="0.00" className="mt-1" />
-                </div>
-                <Button onClick={handleCreate} disabled={saving || !newName.trim()} className="w-full">
-                  {saving ? "กำลังสร้าง..." : "สร้างบัญชี"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          {/* 📊 Charts Section (Grid: 1 column on mobile, 2 columns on desktop) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AssetPieChart accounts={displayAccounts} privacyMode={privacyMode} formatBalance={formatBalance} liabilityTypes={liabilityTypes} />
+            <BalanceComparisonChart assets={totalAssets} liabilities={totalLiabilities} privacyMode={privacyMode} formatBalance={formatBalance} />
+          </div>
 
           {/* Accounts List (Assets vs Liabilities) */}
           {loading ? (
@@ -431,7 +485,7 @@ export default function AccountsPage() {
           ) : displayAccounts.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">ยังไม่มีบัญชี กดปุ่มด้านบนเพื่อสร้าง</div>
           ) : (
-            <div className="space-y-8">
+            <div className="space-y-8 mt-2">
               {/* Assets Section */}
               {assetAccounts.length > 0 && (
                 <div className="space-y-3">
