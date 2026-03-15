@@ -618,8 +618,13 @@ export default function CommandCenter() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              confirmAction.action();
+            <AlertDialogAction onClick={async () => {
+              try {
+                await confirmAction.action();
+              } catch (err: any) {
+                addLog({ timestamp: Date.now(), level: "error", message: `Action failed: ${err.message}` });
+                toast.error(err.message || "ดำเนินการล้มเหลว");
+              }
               setConfirmAction((p) => ({ ...p, open: false }));
             }}>
               ยืนยัน
