@@ -303,6 +303,32 @@ export default function CommandCenter() {
     addLog({ timestamp: Date.now(), level: "info", message: "ลบข้อความประกาศ" });
   };
 
+  const handleRunScript = async () => {
+    if (!scriptCode.trim()) return;
+    setScriptRunning(true);
+    addLog({ timestamp: Date.now(), level: "info", message: "▶ เริ่มรันสคริปต์..." });
+
+    const logFn = (msg: string) => {
+      addLog({ timestamp: Date.now(), level: "info", message: `[script] ${msg}` });
+    };
+
+    try {
+      const asyncFn = new Function(
+        "db", "log", "collection", "doc", "getDocs", "getDoc", "setDoc", "updateDoc", "deleteDoc", "writeBatch", "query", "where", "orderBy", "limit",
+        `return (async () => { ${scriptCode} })();`
+      );
+      await asyncFn(
+        firestore, logFn, collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, query, where, orderBy, limit
+      );
+      addLog({ timestamp: Date.now(), level: "success", message: "✔ สคริปต์ทำงานเสร็จสมบูรณ์" });
+      toast.success("สคริปต์ทำงานเสร็จสมบูรณ์");
+    } catch (err: any) {
+      addLog({ timestamp: Date.now(), level: "error", message: `✖ สคริปต์ล้มเหลว: ${err.message}` });
+      toast.error(`สคริปต์ล้มเหลว: ${err.message}`);
+    }
+    setScriptRunning(false);
+  };
+
   const handleForceRefresh = () => {
     setConfirmAction({
       open: true,
