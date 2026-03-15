@@ -3,7 +3,7 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
-import { createAccount, deleteAccountWithTransactions } from "@/lib/firestore-services";
+import { createAccount, updateAccount, deleteAccountWithTransactions } from "@/lib/firestore-services";
 import type { Account, AccountType } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
