@@ -207,12 +207,24 @@ export default function AccountsPage() {
                             <p className="text-sm font-medium text-foreground truncate">{acc.name}</p>
                             <p className="text-xs text-muted-foreground">{config?.label}</p>
                           </div>
-                          <p className={cn(
-                            "text-sm font-semibold font-display tabular-nums",
-                            isNegativeType || acc.balance < 0 ? "text-destructive" : "text-foreground"
-                          )}>
-                            {formatBalance(acc.balance)}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className={cn(
+                              "text-sm font-semibold font-display tabular-nums",
+                              isNegativeType || acc.balance < 0 ? "text-destructive" : "text-foreground"
+                            )}>
+                              {formatBalance(acc.balance)}
+                            </p>
+                            {!isMainAccount(acc) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => setDeleteTarget(acc)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     );
