@@ -188,17 +188,11 @@ function getPreviousPeriod(period: string): string {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
-/** Calculate net balance for a period from its budget doc + transactions */
-async function calculateNetBalance(userId: string, period: string): Promise<number | null> {
-  const budgetSnap = await getDoc(doc(firestore, "users", userId, "budgets", period));
-  if (!budgetSnap.exists()) return null;
-
-  const budgetData = budgetSnap.data() as Record<string, unknown>;
-  const carryOver = (budgetData.carry_over as number) ?? 0;
-
+/** Calculate carry_over from ALL transactions before a given period */
+async function calculateCarryOverFromHistory(userId: string, currentPeriod: string): Promise<number> {
   const txQuery = query(
     transactionsCollection(userId),
-    where("month_year", "==", period)
+    where("month_year", "<", currentPeriod)
   );
   const txSnap = await getDocs(txQuery);
 
@@ -213,14 +207,12 @@ async function calculateNetBalance(userId: string, period: string): Promise<numb
     }
   });
 
-  return (income + carryOver) - expenses;
+  return income - expenses;
 }
 
-/** Auto-sync carry_over: calculate previous month's net balance and save to current month */
+/** Auto-sync carry_over: calculate from all historical transactions before current month */
 async function syncCarryOver(userId: string, currentPeriod: string): Promise<void> {
-  const prevPeriod = getPreviousPeriod(currentPeriod);
-  const netBalance = await calculateNetBalance(userId, prevPeriod);
-  if (netBalance === null) return; // no previous month data
+  const carryOver = await calculateCarryOverFromHistory(userId, currentPeriod);
 
   const currentDocRef = doc(firestore, "users", userId, "budgets", currentPeriod);
   const currentSnap = await getDoc(currentDocRef);
@@ -229,9 +221,9 @@ async function syncCarryOver(userId: string, currentPeriod: string): Promise<voi
   const currentData = currentSnap.data();
   const existingCarryOver = (currentData.carry_over as number) ?? 0;
 
-  // Only write if value changed
-  if (Math.abs(existingCarryOver - netBalance) > 0.01) {
-    await setDoc(currentDocRef, { carry_over: netBalance }, { merge: true });
+  // Only write if value changed (avoid unnecessary writes)
+  if (Math.abs(existingCarryOver - carryOver) > 0.01) {
+    await setDoc(currentDocRef, { carry_over: carryOver }, { merge: true });
   }
 }
 
