@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/select";
 
 const Transactions = () => {
+  const { userId } = useAuth();
+  const queryClient = useQueryClient();
   const { data: months, isLoading: monthsLoading } = useAvailableMonths();
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | undefined>(undefined);
