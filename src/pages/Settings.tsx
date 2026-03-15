@@ -1869,7 +1869,7 @@ const CategorySettings = () => {
                       }}
                     />
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addGroup("expense", newGroupName)}>
-                      <Check className="h-3 w-3 text-green-600" />
+                      <Check className="h-3 w-3 text-accent" />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingGroupType(null); setNewGroupName(""); }}>
                       <X className="h-3 w-3 text-destructive" />
