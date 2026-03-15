@@ -189,13 +189,13 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm truncate">
                   {bill.isRecurring && <RefreshCw className="h-3 w-3 inline-block mr-1 text-primary" />}
-                  {bill.isPaid && <CheckCircle2 className="h-3 w-3 inline-block mr-1 text-green-500" />}
+                  {bill.isPaid && <CheckCircle2 className="h-3 w-3 inline-block mr-1 text-accent" />}
                   {bill.label}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>{formatThaiDate(bill.dueDate)}</span>
                   {bill.isPaid ? (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-500/50 text-green-600">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-accent/50 text-accent">
                       ชำระแล้ว
                     </Badge>
                   ) : bill.isOverdue ? (

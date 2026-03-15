@@ -151,7 +151,7 @@ const EditableAmount = ({
         }}
       />
       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { onSave(Number(draft) || 0); setEditing(false); }}>
-        <Check className="h-3 w-3 text-green-600" />
+        <Check className="h-3 w-3 text-accent" />
       </Button>
       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditing(false)}>
         <X className="h-3 w-3 text-destructive" />
@@ -538,8 +538,8 @@ const BudgetTable = ({
     const diff = budget - actual;
     if (actual === 0) return "text-muted-foreground";
     if (diff < 0) return "text-destructive font-medium";
-    if (diff < budget * 0.2) return "text-orange-500 font-medium";
-    return "text-emerald-600";
+    if (diff < budget * 0.2) return "text-[hsl(var(--debt))] font-medium";
+    return "text-accent";
   };
 
   return (
@@ -1251,7 +1251,7 @@ const BudgetSettings = () => {
             />
             <BudgetTable
               title="รายรับ"
-              titleColor="text-emerald-600"
+              titleColor="text-accent"
               categories={budgetData.income_estimates as Record<string, Record<string, BudgetValue>>}
               allCategories={incomeCategories}
               selectedCategory={selectedIncomeCat}
@@ -1667,7 +1667,7 @@ const CategorySettings = () => {
                 }}
               />
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { renameGroup(type, groupName, groupDraft); setEditingGroup(false); }}>
-                <Check className="h-3 w-3 text-green-600" />
+                <Check className="h-3 w-3 text-accent" />
               </Button>
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditingGroup(false); setGroupDraft(groupName); }}>
                 <X className="h-3 w-3 text-destructive" />
@@ -1737,7 +1737,7 @@ const CategorySettings = () => {
                               }}
                             />
                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { renameSubCategory(type, groupName, sub, subDraft); setEditingSub(null); }}>
-                              <Check className="h-3 w-3 text-green-600" />
+                              <Check className="h-3 w-3 text-accent" />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingSub(null)}>
                               <X className="h-3 w-3 text-destructive" />
@@ -1785,7 +1785,7 @@ const CategorySettings = () => {
                       }}
                     />
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addSubCategory(type, groupName, newSubName)}>
-                      <Check className="h-3 w-3 text-green-600" />
+                      <Check className="h-3 w-3 text-accent" />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingTo(null); setNewSubName(""); }}>
                       <X className="h-3 w-3 text-destructive" />
@@ -1825,7 +1825,7 @@ const CategorySettings = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-orange-500" />
+                  <Wallet className="h-4 w-4 text-[hsl(var(--debt))]" />
                   หมวดหมู่รายจ่าย
                 </CardTitle>
               </CardHeader>
@@ -1869,7 +1869,7 @@ const CategorySettings = () => {
                       }}
                     />
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addGroup("expense", newGroupName)}>
-                      <Check className="h-3 w-3 text-green-600" />
+                      <Check className="h-3 w-3 text-accent" />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingGroupType(null); setNewGroupName(""); }}>
                       <X className="h-3 w-3 text-destructive" />
@@ -1889,7 +1889,7 @@ const CategorySettings = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-emerald-500" />
+                  <Wallet className="h-4 w-4 text-accent" />
                   หมวดหมู่รายรับ
                 </CardTitle>
               </CardHeader>
@@ -1933,7 +1933,7 @@ const CategorySettings = () => {
                       }}
                     />
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addGroup("income", newGroupName)}>
-                      <Check className="h-3 w-3 text-green-600" />
+                      <Check className="h-3 w-3 text-accent" />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingGroupType(null); setNewGroupName(""); }}>
                       <X className="h-3 w-3 text-destructive" />
