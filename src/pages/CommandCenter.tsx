@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { doc, getDoc, setDoc, onSnapshot, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot, collection, getDocs, updateDoc, deleteDoc, writeBatch, query, where, orderBy, limit } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -28,10 +28,11 @@ import {
 import {
   Terminal, ShieldCheck, Database, Download, Upload, Radio, AlertTriangle,
   Loader2, Search, RefreshCw, Megaphone, Power, Plug, CheckCircle, XCircle,
-  Info, Trash2,
+  Info, Trash2, Code, Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { Textarea } from "@/components/ui/textarea";
 
 // ===== Operation Terminal Log Item =====
 function LogItem({ log }: { log: OperationLog }) {
@@ -90,6 +91,16 @@ export default function CommandCenter() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importData, setImportData] = useState<Record<string, any> | null>(null);
   const [showDiff, setShowDiff] = useState(false);
+
+  // Script editor
+  const [scriptCode, setScriptCode] = useState<string>(
+`// Migration Script Editor
+// ใช้ตัวแปรที่พร้อมใช้: db (firestore), log(msg), collection, doc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch, query, where, orderBy, limit
+// ตัวอย่าง:
+// const users = await getDocs(collection(db, "users"));
+// log(\`พบ \${users.size} ผู้ใช้\`);
+`);
+  const [scriptRunning, setScriptRunning] = useState(false);
 
   // Idle timeout
   const idleRef = useRef<ReturnType<typeof setTimeout>>();
@@ -290,6 +301,32 @@ export default function CommandCenter() {
   const handleClearBroadcast = async () => {
     await setDoc(doc(firestore, "system_config", "global"), { broadcast_message: "" }, { merge: true });
     addLog({ timestamp: Date.now(), level: "info", message: "ลบข้อความประกาศ" });
+  };
+
+  const handleRunScript = async () => {
+    if (!scriptCode.trim()) return;
+    setScriptRunning(true);
+    addLog({ timestamp: Date.now(), level: "info", message: "▶ เริ่มรันสคริปต์..." });
+
+    const logFn = (msg: string) => {
+      addLog({ timestamp: Date.now(), level: "info", message: `[script] ${msg}` });
+    };
+
+    try {
+      const asyncFn = new Function(
+        "db", "log", "collection", "doc", "getDocs", "getDoc", "setDoc", "updateDoc", "deleteDoc", "writeBatch", "query", "where", "orderBy", "limit",
+        `return (async () => { ${scriptCode} })();`
+      );
+      await asyncFn(
+        firestore, logFn, collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, query, where, orderBy, limit
+      );
+      addLog({ timestamp: Date.now(), level: "success", message: "✔ สคริปต์ทำงานเสร็จสมบูรณ์" });
+      toast.success("สคริปต์ทำงานเสร็จสมบูรณ์");
+    } catch (err: any) {
+      addLog({ timestamp: Date.now(), level: "error", message: `✖ สคริปต์ล้มเหลว: ${err.message}` });
+      toast.error(`สคริปต์ล้มเหลว: ${err.message}`);
+    }
+    setScriptRunning(false);
   };
 
   const handleForceRefresh = () => {
@@ -599,6 +636,53 @@ export default function CommandCenter() {
                   <Plug className="h-4 w-4" />
                   Run Diagnostic
                 </Button>
+              </CardContent>
+            </Card>
+            {/* ===== Migration Script Editor ===== */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Code className="h-4 w-4 text-primary" />
+                    Migration Script Editor
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    onClick={() => setConfirmAction({
+                      open: true,
+                      title: "รันสคริปต์ Migration",
+                      desc: "สคริปต์จะทำงานโดยตรงกับฐานข้อมูล การกระทำนี้ไม่สามารถย้อนกลับได้ กรุณาตรวจสอบโค้ดให้แน่ใจก่อนดำเนินการ",
+                      action: handleRunScript,
+                    })}
+                    disabled={scriptRunning || !scriptCode.trim()}
+                    className="gap-1.5 h-8"
+                  >
+                    {scriptRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                    Run Script
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-xs text-muted-foreground flex flex-wrap gap-1.5">
+                  <Badge variant="outline" className="text-[10px] font-mono">db</Badge>
+                  <Badge variant="outline" className="text-[10px] font-mono">log(msg)</Badge>
+                  <Badge variant="outline" className="text-[10px] font-mono">collection</Badge>
+                  <Badge variant="outline" className="text-[10px] font-mono">doc</Badge>
+                  <Badge variant="outline" className="text-[10px] font-mono">getDocs</Badge>
+                  <Badge variant="outline" className="text-[10px] font-mono">setDoc</Badge>
+                  <Badge variant="outline" className="text-[10px] font-mono">updateDoc</Badge>
+                  <Badge variant="outline" className="text-[10px] font-mono">deleteDoc</Badge>
+                  <Badge variant="outline" className="text-[10px] font-mono">writeBatch</Badge>
+                  <Badge variant="outline" className="text-[10px] font-mono">query</Badge>
+                  <Badge variant="outline" className="text-[10px] font-mono">where</Badge>
+                </div>
+                <Textarea
+                  value={scriptCode}
+                  onChange={(e) => setScriptCode(e.target.value)}
+                  className="font-mono text-xs min-h-[240px] bg-muted/30 border-border resize-y leading-relaxed"
+                  placeholder="// เขียนสคริปต์ migration ที่นี่..."
+                  spellCheck={false}
+                />
               </CardContent>
             </Card>
           </div>
