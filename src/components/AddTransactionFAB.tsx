@@ -241,22 +241,21 @@ const AddTransactionFAB = () => {
 
       if (tags.length > 0) txData.tags = tags;
 
+      const balanceUpdates: { accountId: string; delta: number }[] = [];
+
       if (isTransfer) {
         txData.from_account_id = fromAccountId;
         txData.to_account_id = toAccountId;
         txData.main_category = "โอนเงิน";
         txData.sub_category = "โอนระหว่างบัญชี";
 
-        // Update balances
-        const fromAcc = accounts.find((a) => a.id === fromAccountId);
-        const toAcc = accounts.find((a) => a.id === toAccountId);
-        if (fromAcc) await updateAccount(userId, fromAccountId, { balance: fromAcc.balance - numAmount });
-        if (toAcc) await updateAccount(userId, toAccountId, { balance: toAcc.balance + numAmount });
+        if (fromAccountId) balanceUpdates.push({ accountId: fromAccountId, delta: -numAmount });
+        if (toAccountId) balanceUpdates.push({ accountId: toAccountId, delta: numAmount });
       } else {
         txData.main_category = mainCategory;
         txData.sub_category = subCategory;
 
-        // Auto-attach account + update balance
+        // Auto-attach account
         const accountId = selectedAccountId || null;
         let targetAccount: Account | null = null;
 
@@ -271,16 +270,17 @@ const AddTransactionFAB = () => {
         if (targetAccount) {
           if (type === "expense") {
             txData.from_account_id = targetAccount.id;
-            await updateAccount(userId, targetAccount.id, { balance: targetAccount.balance - numAmount });
+            balanceUpdates.push({ accountId: targetAccount.id, delta: -numAmount });
           }
           if (type === "income") {
             txData.to_account_id = targetAccount.id;
-            await updateAccount(userId, targetAccount.id, { balance: targetAccount.balance + numAmount });
+            balanceUpdates.push({ accountId: targetAccount.id, delta: numAmount });
           }
         }
       }
 
-      await setDoc(doc(firestore, "users", userId, "transactions", newId), txData);
+      // Atomic: write transaction + update balances in single Firestore transaction
+      await createTransactionAtomic(userId, newId, txData, balanceUpdates);
       queryClient.invalidateQueries({ queryKey: ["budget-data"] });
       toast.success("บันทึกรายการสำเร็จ");
       handleClose();
