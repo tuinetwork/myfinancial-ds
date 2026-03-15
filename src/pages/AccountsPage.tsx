@@ -3,7 +3,7 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
-import { createAccount } from "@/lib/firestore-services";
+import { createAccount, deleteAccountWithTransactions } from "@/lib/firestore-services";
 import type { Account, AccountType } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Wallet, Landmark, TrendingUp, CreditCard, Building2, Package, Plus, Eye, EyeOff } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Wallet, Landmark, TrendingUp, CreditCard, Building2, Package, Plus, Eye, EyeOff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +39,24 @@ export default function AccountsPage() {
   const [newType, setNewType] = useState<AccountType>("cash");
   const [newBalance, setNewBalance] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Account | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const isMainAccount = (acc: Account) => acc.name === "กระเป๋าเงินสดหลัก";
+
+  const handleDelete = async () => {
+    if (!userId || !deleteTarget) return;
+    setDeleting(true);
+    try {
+      const count = await deleteAccountWithTransactions(userId, deleteTarget.id);
+      toast.success(`ลบบัญชี "${deleteTarget.name}" สำเร็จ พร้อมธุรกรรม ${count} รายการ`);
+      setDeleteTarget(null);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (!userId) return;
@@ -188,12 +207,24 @@ export default function AccountsPage() {
                             <p className="text-sm font-medium text-foreground truncate">{acc.name}</p>
                             <p className="text-xs text-muted-foreground">{config?.label}</p>
                           </div>
-                          <p className={cn(
-                            "text-sm font-semibold font-display tabular-nums",
-                            isNegativeType || acc.balance < 0 ? "text-destructive" : "text-foreground"
-                          )}>
-                            {formatBalance(acc.balance)}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className={cn(
+                              "text-sm font-semibold font-display tabular-nums",
+                              isNegativeType || acc.balance < 0 ? "text-destructive" : "text-foreground"
+                            )}>
+                              {formatBalance(acc.balance)}
+                            </p>
+                            {!isMainAccount(acc) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => setDeleteTarget(acc)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     );
@@ -202,6 +233,32 @@ export default function AccountsPage() {
               </div>
             ))
           )}
+
+          {/* Delete Confirmation */}
+          <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>ยืนยันการลบบัญชี</AlertDialogTitle>
+                <AlertDialogDescription>
+                  คุณต้องการลบบัญชี "<span className="font-semibold">{deleteTarget?.name}</span>" หรือไม่?
+                  <br />
+                  <span className="text-destructive font-medium">
+                    ⚠️ รายการธุรกรรมทั้งหมดที่เชื่อมกับบัญชีนี้จะถูกลบถาวรด้วย
+                  </span>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>ยกเลิก</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleting ? "กำลังลบ..." : "ลบบัญชี"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </main>
       </div>
     </>

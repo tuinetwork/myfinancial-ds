@@ -1,6 +1,6 @@
 import {
-  collection, doc, getDocs, getDoc, setDoc, updateDoc, addDoc, query, where,
-  runTransaction,
+  collection, doc, getDocs, getDoc, setDoc, updateDoc, addDoc, deleteDoc, query, where,
+  runTransaction, writeBatch,
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import type { Account, Investment, Goal } from "@/types/finance";
@@ -52,6 +52,49 @@ export async function updateAccount(
 
 export async function softDeleteAccount(userId: string, accountId: string): Promise<void> {
   await updateAccount(userId, accountId, { is_deleted: true, is_active: false });
+}
+
+/**
+ * Hard-delete an account and all its associated transactions.
+ * Transactions linked via from_account_id or to_account_id will be removed.
+ */
+export async function deleteAccountWithTransactions(
+  userId: string,
+  accountId: string
+): Promise<number> {
+  const txCol = collection(firestore, "users", userId, "transactions");
+
+  // Find all transactions linked to this account
+  const [fromSnap, toSnap] = await Promise.all([
+    getDocs(query(txCol, where("from_account_id", "==", accountId))),
+    getDocs(query(txCol, where("to_account_id", "==", accountId))),
+  ]);
+
+  // Collect unique transaction doc refs
+  const txRefs = new Map<string, any>();
+  fromSnap.docs.forEach((d) => txRefs.set(d.id, d.ref));
+  toSnap.docs.forEach((d) => txRefs.set(d.id, d.ref));
+
+  const totalDeleted = txRefs.size;
+
+  // Batch delete (Firestore batch limit = 500, chunk if needed)
+  const refs = Array.from(txRefs.values());
+  const accountRef = doc(firestore, "users", userId, "accounts", accountId);
+
+  for (let i = 0; i < refs.length; i += 499) {
+    const batch = writeBatch(firestore);
+    const chunk = refs.slice(i, i + 499);
+    chunk.forEach((ref) => batch.delete(ref));
+    if (i === 0) batch.delete(accountRef); // delete account in first batch
+    await batch.commit();
+  }
+
+  // If no transactions, still delete the account
+  if (refs.length === 0) {
+    await deleteDoc(accountRef);
+  }
+
+  return totalDeleted;
 }
 
 // =============================================
