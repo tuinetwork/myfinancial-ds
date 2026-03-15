@@ -3,7 +3,7 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
-import { createAccount, deleteAccountWithTransactions } from "@/lib/firestore-services";
+import { createAccount, updateAccount, deleteAccountWithTransactions } from "@/lib/firestore-services";
 import type { Account, AccountType } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Wallet, Landmark, TrendingUp, CreditCard, Building2, Package, Plus, Eye, EyeOff, Trash2 } from "lucide-react";
+import { Wallet, Landmark, TrendingUp, CreditCard, Building2, Package, Plus, Eye, EyeOff, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +41,10 @@ export default function AccountsPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Account | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editTarget, setEditTarget] = useState<Account | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editType, setEditType] = useState<AccountType>("cash");
+  const [editSaving, setEditSaving] = useState(false);
 
   const isMainAccount = (acc: Account) => acc.name === "กระเป๋าเงินสดหลัก";
 
@@ -55,6 +59,29 @@ export default function AccountsPage() {
       toast.error(e.message);
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const openEdit = (acc: Account) => {
+    setEditTarget(acc);
+    setEditName(acc.name);
+    setEditType(acc.type);
+  };
+
+  const handleEdit = async () => {
+    if (!userId || !editTarget || !editName.trim()) return;
+    setEditSaving(true);
+    try {
+      await updateAccount(userId, editTarget.id, {
+        name: editName.trim(),
+        type: editType,
+      });
+      toast.success("แก้ไขบัญชีสำเร็จ");
+      setEditTarget(null);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -214,6 +241,14 @@ export default function AccountsPage() {
                             )}>
                               {formatBalance(acc.balance)}
                             </p>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-primary"
+                              onClick={() => openEdit(acc)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
                             {!isMainAccount(acc) && (
                               <Button
                                 variant="ghost"
@@ -259,6 +294,35 @@ export default function AccountsPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {/* Edit Account Dialog */}
+          <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+            <DialogContent className="bg-card border-border">
+              <DialogHeader>
+                <DialogTitle>แก้ไขบัญชี</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div>
+                  <Label>ชื่อบัญชี</Label>
+                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="mt-1" />
+                </div>
+                <div>
+                  <Label>ประเภท</Label>
+                  <Select value={editType} onValueChange={(v) => setEditType(v as AccountType)}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {accountTypes.map((t) => (
+                        <SelectItem key={t} value={t}>{accountTypeConfig[t].label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={handleEdit} disabled={editSaving || !editName.trim()} className="w-full">
+                  {editSaving ? "กำลังบันทึก..." : "บันทึก"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     </>
