@@ -233,6 +233,32 @@ export default function AccountsPage() {
               </div>
             ))
           )}
+
+          {/* Delete Confirmation */}
+          <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>ยืนยันการลบบัญชี</AlertDialogTitle>
+                <AlertDialogDescription>
+                  คุณต้องการลบบัญชี "<span className="font-semibold">{deleteTarget?.name}</span>" หรือไม่?
+                  <br />
+                  <span className="text-destructive font-medium">
+                    ⚠️ รายการธุรกรรมทั้งหมดที่เชื่อมกับบัญชีนี้จะถูกลบถาวรด้วย
+                  </span>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>ยกเลิก</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleting ? "กำลังลบ..." : "ลบบัญชี"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </main>
       </div>
     </>
