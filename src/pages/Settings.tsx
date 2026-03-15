@@ -1667,7 +1667,7 @@ const CategorySettings = () => {
                 }}
               />
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { renameGroup(type, groupName, groupDraft); setEditingGroup(false); }}>
-                <Check className="h-3 w-3 text-green-600" />
+                <Check className="h-3 w-3 text-accent" />
               </Button>
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditingGroup(false); setGroupDraft(groupName); }}>
                 <X className="h-3 w-3 text-destructive" />
