@@ -1,6 +1,6 @@
 import {
-  collection, doc, getDocs, getDoc, setDoc, updateDoc, addDoc, query, where,
-  runTransaction,
+  collection, doc, getDocs, getDoc, setDoc, updateDoc, addDoc, deleteDoc, query, where,
+  runTransaction, writeBatch,
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import type { Account, Investment, Goal } from "@/types/finance";
