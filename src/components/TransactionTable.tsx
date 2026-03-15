@@ -267,7 +267,36 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
     setEditTx(tx);
     setEditAmount(String(tx.amount));
     setEditNote(tx.description || "");
+    // Parse date string to Date object
+    const parts = tx.date.split("-");
+    if (parts.length === 3 && parts[0].length === 4) {
+      setEditDate(new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
+    } else {
+      setEditDate(new Date());
+    }
+    // Find main category from sub_category (tx.category = sub_category)
+    const txType = tx.type === "รายรับ" ? "income" : "expense";
+    const catData = categories[txType];
+    if (catData?.main_categories) {
+      for (const [main, subs] of Object.entries(catData.main_categories)) {
+        if (subs.includes(tx.category)) {
+          setEditMainCategory(main);
+          setEditSubCategory(tx.category);
+          return;
+        }
+      }
+    }
+    setEditMainCategory("");
+    setEditSubCategory(tx.category);
   };
+
+  // Derived category lists for edit
+  const editTxType = editTx?.type === "รายรับ" ? "income" : "expense";
+  const editCatData = categories[editTxType];
+  const editMainCats = editCatData?.main_categories ? Object.keys(editCatData.main_categories) : [];
+  const editSubCats = editMainCategory && editCatData?.main_categories?.[editMainCategory]
+    ? editCatData.main_categories[editMainCategory]
+    : [];
 
   const handleSaveEdit = async () => {
     if (!editTx || !userId) return;
@@ -280,23 +309,26 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
       toast.error("บันทึกต้องไม่เกิน 500 ตัวอักษร");
       return;
     }
+    if (!editSubCategory) {
+      toast.error("กรุณาเลือกหมวดหมู่");
+      return;
+    }
 
     setEditSaving(true);
     try {
       const amountChanged = newAmount !== editTx.amount;
+      const newDateStr = format(editDate, "yyyy-MM-dd");
+      const newMonthYear = format(editDate, "yyyy-MM");
 
-      // Compute old reversals (undo old effect)
+      // Compute balance adjustments
       const oldReversals: { accountId: string; delta: number }[] = [];
-      // Compute new updates (apply new effect)
       const newUpdates: { accountId: string; delta: number }[] = [];
 
       if (amountChanged) {
-        // Reverse old
         const oldDeltas = getBalanceDeltas(editTx);
         for (const d of oldDeltas) {
-          oldReversals.push({ accountId: d.accountId, delta: -d.delta }); // reverse
+          oldReversals.push({ accountId: d.accountId, delta: -d.delta });
         }
-        // Apply new with updated amount
         const newTx = { ...editTx, amount: newAmount };
         const newDeltas = getBalanceDeltas(newTx);
         for (const d of newDeltas) {
@@ -310,6 +342,10 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
         {
           amount: newAmount,
           note: editNote.trim(),
+          date: newDateStr,
+          month_year: newMonthYear,
+          main_category: editMainCategory,
+          sub_category: editSubCategory,
         },
         oldReversals,
         newUpdates
