@@ -1737,7 +1737,7 @@ const CategorySettings = () => {
                               }}
                             />
                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { renameSubCategory(type, groupName, sub, subDraft); setEditingSub(null); }}>
-                              <Check className="h-3 w-3 text-green-600" />
+                              <Check className="h-3 w-3 text-accent" />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingSub(null)}>
                               <X className="h-3 w-3 text-destructive" />
