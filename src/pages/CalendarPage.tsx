@@ -978,7 +978,7 @@ const CalendarPage = () => {
                                                 item.txDaysDiff !== undefined && item.txDaysDiff !== 0
                                                   ? item.txDaysDiff < 0
                                                     ? "border-primary/40 text-primary"
-                                                    : "border-orange-400 text-orange-500"
+                                                    : "border-[hsl(var(--debt))]/40 text-[hsl(var(--debt))]"
                                                   : "border-accent/40 text-accent"
                                               }`}>
                                                 {item.txDaysDiff !== undefined && item.txDaysDiff !== 0 && item.txDate

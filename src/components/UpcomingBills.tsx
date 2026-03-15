@@ -195,7 +195,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>{formatThaiDate(bill.dueDate)}</span>
                   {bill.isPaid ? (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-500/50 text-green-600">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-accent/50 text-accent">
                       ชำระแล้ว
                     </Badge>
                   ) : bill.isOverdue ? (
