@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
@@ -30,6 +31,100 @@ const accountTypeConfig: Record<AccountType, { label: string; icon: React.Compon
 };
 
 const accountTypes: AccountType[] = ["cash", "bank", "investment", "credit_card", "loan", "receivable", "payable", "inventory"];
+
+const PIE_COLORS = [
+  "hsl(var(--primary))",
+  "hsl(var(--accent))",
+  "hsl(217 72% 50%)",
+  "hsl(160 60% 45%)",
+  "hsl(35 90% 55%)",
+  "hsl(280 60% 55%)",
+  "hsl(190 70% 50%)",
+  "hsl(45 80% 50%)",
+  "hsl(320 60% 50%)",
+  "hsl(10 80% 55%)",
+];
+
+function AssetPieChart({ accounts, privacyMode, formatBalance, liabilityTypes }: {
+  accounts: Account[];
+  privacyMode: boolean;
+  formatBalance: (b: number) => string;
+  liabilityTypes: string[];
+}) {
+  const chartData = useMemo(() => {
+    const byType: Record<string, number> = {};
+    accounts.forEach((a) => {
+      const label = accountTypeConfig[a.type]?.label || a.type;
+      const value = liabilityTypes.includes(a.type) ? Math.abs(a.balance) : a.balance;
+      if (value > 0) {
+        byType[label] = (byType[label] || 0) + value;
+      }
+    });
+    return Object.entries(byType)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [accounts, liabilityTypes]);
+
+  const total = chartData.reduce((s, d) => s + d.value, 0);
+
+  if (chartData.length === 0) return null;
+
+  return (
+    <Card className="border-none shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm sm:text-base font-semibold">สัดส่วนตามประเภทบัญชี</CardTitle>
+      </CardHeader>
+      <CardContent className="px-2 sm:px-6">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="w-full sm:w-1/2 h-52 sm:h-60">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius="30%"
+                  outerRadius="65%"
+                  dataKey="value"
+                  stroke="none"
+                  label={({ name, percent, x, y, textAnchor }) =>
+                    percent > 0.05 ? (
+                      <text x={x} y={y} textAnchor={textAnchor} fontSize={10} fill="currentColor">
+                        {name} {(percent * 100).toFixed(0)}%
+                      </text>
+                    ) : null
+                  }
+                  labelLine={false}
+                >
+                  {chartData.map((_, i) => (
+                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number) => (privacyMode ? "***" : `฿${value.toLocaleString("th-TH", { minimumFractionDigits: 2 })}`)}
+                  contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "12px" }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex-1 w-full space-y-1.5 max-h-60 overflow-y-auto">
+            {chartData.map((item, i) => {
+              const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
+              return (
+                <div key={item.name} className="flex items-center gap-1.5 text-xs sm:text-sm">
+                  <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                  <span className="text-muted-foreground truncate min-w-0">{item.name}</span>
+                  <span className="ml-auto font-medium font-display whitespace-nowrap text-xs sm:text-sm">{formatBalance(item.value)}</span>
+                  <span className="text-[11px] sm:text-xs text-muted-foreground w-10 text-right">{pct}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function AccountsPage() {
   const { userId } = useAuth();
@@ -182,6 +277,8 @@ export default function AccountsPage() {
               <p className="text-xs text-muted-foreground mt-2">{accounts.length} บัญชีที่ใช้งาน</p>
             </CardContent>
           </Card>
+          {/* Asset Allocation Pie Chart */}
+          <AssetPieChart accounts={accounts} privacyMode={privacyMode} formatBalance={formatBalance} liabilityTypes={liabilityTypes} />
 
           {/* New Account Button */}
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
