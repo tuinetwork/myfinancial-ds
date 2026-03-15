@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TrendingUp, TrendingDown, Eye, EyeOff, Percent, Banknote, Pencil, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { AppFooter } from "@/components/AppFooter";
 
 const assetClasses: { value: AssetClass | string; label: string }[] = [
   { value: "stock", label: "หุ้น" },
