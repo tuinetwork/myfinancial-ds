@@ -48,6 +48,12 @@ service cloud.firestore {
       }
     }
 
+    // system_config — ทุกคนอ่านได้ (สำหรับ maintenance/broadcast), dev เขียนได้
+    match /system_config/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isDev();
+    }
+
     // ป้องกันการเข้าถึง Collection อื่นๆ
     match /{path=**} {
       allow read, write: if false;
