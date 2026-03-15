@@ -116,3 +116,87 @@ export async function updateGoal(
 export async function softDeleteGoal(userId: string, goalId: string): Promise<void> {
   await updateGoal(userId, goalId, { is_deleted: true });
 }
+
+// =============================================
+// ATOMIC TRANSACTION OPERATIONS (runTransaction)
+// =============================================
+
+/**
+ * Create a transaction AND update account balance atomically.
+ * Prevents race conditions where balance and transaction get out of sync.
+ */
+export async function createTransactionAtomic(
+  userId: string,
+  transactionId: string,
+  txData: Record<string, any>,
+  balanceUpdates: { accountId: string; delta: number }[]
+): Promise<void> {
+  const txRef = doc(firestore, "users", userId, "transactions", transactionId);
+
+  await runTransaction(firestore, async (transaction) => {
+    // Read all affected accounts first (Firestore requires reads before writes)
+    const accountRefs = balanceUpdates.map((u) =>
+      doc(firestore, "users", userId, "accounts", u.accountId)
+    );
+    const accountSnaps = await Promise.all(
+      accountRefs.map((ref) => transaction.get(ref))
+    );
+
+    // Validate all accounts exist
+    accountSnaps.forEach((snap, i) => {
+      if (!snap.exists()) {
+        throw new Error(`Account ${balanceUpdates[i].accountId} not found`);
+      }
+    });
+
+    // Write transaction document
+    transaction.set(txRef, txData);
+
+    // Update each account balance atomically
+    accountSnaps.forEach((snap, i) => {
+      const currentBalance = snap.data()!.balance ?? 0;
+      const newBalance = Math.round((currentBalance + balanceUpdates[i].delta) * 100) / 100;
+      transaction.update(accountRefs[i], {
+        balance: newBalance,
+        updated_at: Date.now(),
+      });
+    });
+  });
+}
+
+/**
+ * Delete a transaction AND reverse its balance effect atomically.
+ */
+export async function deleteTransactionAtomic(
+  userId: string,
+  transactionId: string,
+  balanceReversals: { accountId: string; delta: number }[]
+): Promise<void> {
+  const txRef = doc(firestore, "users", userId, "transactions", transactionId);
+
+  await runTransaction(firestore, async (transaction) => {
+    const txSnap = await transaction.get(txRef);
+    if (!txSnap.exists()) throw new Error("Transaction not found");
+
+    const accountRefs = balanceReversals.map((u) =>
+      doc(firestore, "users", userId, "accounts", u.accountId)
+    );
+    const accountSnaps = await Promise.all(
+      accountRefs.map((ref) => transaction.get(ref))
+    );
+
+    // Delete transaction
+    transaction.delete(txRef);
+
+    // Reverse balance changes
+    accountSnaps.forEach((snap, i) => {
+      if (!snap.exists()) return;
+      const currentBalance = snap.data()!.balance ?? 0;
+      const newBalance = Math.round((currentBalance + balanceReversals[i].delta) * 100) / 100;
+      transaction.update(accountRefs[i], {
+        balance: newBalance,
+        updated_at: Date.now(),
+      });
+    });
+  });
+}
