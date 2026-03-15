@@ -4,6 +4,8 @@ import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { AppFooter } from "@/components/AppFooter";
 import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
 import { TransactionTable } from "@/components/TransactionTable";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
