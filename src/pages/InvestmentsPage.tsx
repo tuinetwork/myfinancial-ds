@@ -26,6 +26,7 @@ const assetClasses: { value: AssetClass | string; label: string }[] = [
   { value: "loan", label: "สินเชื่อ/ปล่อยกู้" },
   { value: "business", label: "ธุรกิจ" },
   { value: "inventory", label: "สินค้าคงคลัง" },
+  { value: "share", label: "ออมแชร์" }, // เพิ่มหมวดออมแชร์ให้เลือกได้ง่ายขึ้น
 ];
 
 export default function InvestmentsPage() {
@@ -37,9 +38,16 @@ export default function InvestmentsPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // State สำหรับแก้ไขรายละเอียดการลงทุนของกระเป๋านั้นๆ
+  // State สำหรับแก้ไขรายละเอียดการลงทุนของกระเป๋านั้นๆ (เพิ่ม manual_yield)
   const [editDialog, setEditDialog] = useState<{ open: boolean; acc: any | null }>({ open: false, acc: null });
-  const [editForm, setEditForm] = useState({ symbol: "", asset_class: "stock", total_units: "1", avg_cost: "0", market_price: "0" });
+  const [editForm, setEditForm] = useState({ 
+    symbol: "", 
+    asset_class: "stock", 
+    total_units: "1", 
+    avg_cost: "0", 
+    market_price: "0",
+    manual_yield: "0" // <--- เพิ่มฟิลด์ดอกเบี้ยที่บันทึกเอง
+  });
   const [saving, setSaving] = useState(false);
 
   // 1. ดึงข้อมูลกระเป๋าเงินเฉพาะที่ type === 'investment'
@@ -83,15 +91,17 @@ export default function InvestmentsPage() {
       mv += (units * mktPrice);
       cost += (units * costPerUnit);
 
-      // หาดอกเบี้ยอ้างอิงจาก Symbol หรือ ชื่อกระเป๋า
+      // หาดอกเบี้ยอ้างอิงจาก Symbol หรือ ชื่อกระเป๋า (อัตโนมัติ)
       const searchKey = (acc.symbol || acc.name).toLowerCase();
-      const invYield = transactions.filter(t => {
+      const autoYield = transactions.filter(t => {
         if (t.type !== 'income' || t.is_deleted) return false;
         const text = `${t.category || ''} ${t.note || ''}`.toLowerCase();
         return yieldKeywords.some(k => text.includes(k)) && text.includes(searchKey);
       }).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
       
-      yieldSum += invYield;
+      // ดอกเบี้ยรวม = อัตโนมัติ + ที่บันทึกเอง (manual_yield)
+      const manualYield = Number(acc.manual_yield) || 0;
+      yieldSum += (autoYield + manualYield);
     });
 
     const unReal = mv - cost;
@@ -104,11 +114,12 @@ export default function InvestmentsPage() {
   // เปิด Dialog แก้ไขรายละเอียดและโหลดข้อมูลเดิม
   const handleOpenEdit = (acc: any) => {
     setEditForm({
-      symbol: acc.symbol || acc.name, // ใช้ชื่อกระเป๋าเป็น Symbol เริ่มต้น
+      symbol: acc.symbol || acc.name,
       asset_class: acc.asset_class || "stock",
       total_units: String(acc.total_units || 1),
       avg_cost: String(acc.average_cost || acc.balance || 0),
       market_price: String(acc.market_price || acc.balance || 0),
+      manual_yield: String(acc.manual_yield || 0), // <--- โหลดข้อมูลที่เคยบันทึกไว้
     });
     setEditDialog({ open: true, acc });
   };
@@ -120,7 +131,7 @@ export default function InvestmentsPage() {
     try {
       const units = parseFloat(editForm.total_units) || 0;
       const mktPrice = parseFloat(editForm.market_price) || 0;
-      const newBalance = units * mktPrice; // ความลับของระบบ: อัปเดต Balance ตามมูลค่าตลาด
+      const newBalance = units * mktPrice; // อัปเดต Balance ตามมูลค่าตลาด
 
       await updateAccount(userId, editDialog.acc.id, {
         symbol: editForm.symbol.trim().toUpperCase(),
@@ -128,7 +139,8 @@ export default function InvestmentsPage() {
         total_units: units,
         average_cost: parseFloat(editForm.avg_cost) || 0,
         market_price: mktPrice,
-        balance: newBalance, // อัปเดตกลับไปที่หน้า Accounts ทันที!
+        manual_yield: parseFloat(editForm.manual_yield) || 0, // <--- เซฟค่าใหม่ลง DB
+        balance: newBalance, // อัปเดตกลับไปที่หน้า Accounts
       } as any);
 
       toast.success("บันทึกรายละเอียดการลงทุนสำเร็จ");
@@ -227,6 +239,25 @@ export default function InvestmentsPage() {
                   <div><Label>ต้นทุนเฉลี่ย/หน่วย</Label><Input type="number" value={editForm.avg_cost} onChange={(e) => setEditForm({ ...editForm, avg_cost: e.target.value })} className="mt-1" /></div>
                 </div>
                 <div><Label>ราคาตลาดปัจจุบัน/หน่วย</Label><Input type="number" value={editForm.market_price} onChange={(e) => setEditForm({ ...editForm, market_price: e.target.value })} className="mt-1 text-accent" /></div>
+                
+                {/* --- ส่วนที่เพิ่มใหม่ --- */}
+                <div className="pt-2 border-t border-border mt-2">
+                  <Label className="text-green-500 font-semibold flex items-center gap-1.5">
+                    <Banknote className="h-4 w-4" /> ดอกเบี้ย/ปันผลสะสม (บันทึกเอง)
+                  </Label>
+                  <Input 
+                    type="number" 
+                    value={editForm.manual_yield} 
+                    onChange={(e) => setEditForm({ ...editForm, manual_yield: e.target.value })} 
+                    className="mt-1 border-green-500/30 focus-visible:ring-green-500/30" 
+                    placeholder="ใส่ยอดกำไร หรือ ดอกเบี้ยที่ได้"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    *กรอกยอดดอกเบี้ย/กำไรที่ได้จากวงแชร์หรือการลงทุนนี้ เพื่อนำไปคำนวณ Net PnL สุทธิ
+                  </p>
+                </div>
+                {/* ------------------- */}
+
                 <p className="text-xs text-muted-foreground mt-2">
                   *ระบบจะนำ (จำนวนหน่วย x ราคาตลาด) ไปอัปเดตเป็นยอดเงินคงเหลือในหน้ากระเป๋าเงินให้อัตโนมัติ
                 </p>
@@ -267,7 +298,12 @@ export default function InvestmentsPage() {
                       const mv = units * mktPrice;
                       const cost = units * costPerUnit;
                       const unReal = mv - cost;
-                      const invYield = getYieldForInv(acc.symbol || acc.name);
+                      
+                      // ดอกเบี้ยรวม (ระบบค้นหาให้ + ที่กรอกเอง)
+                      const autoYield = getYieldForInv(acc.symbol || acc.name);
+                      const manualYield = Number(acc.manual_yield) || 0;
+                      const invYield = autoYield + manualYield;
+
                       const rowNet = unReal + invYield;
                       
                       return (
