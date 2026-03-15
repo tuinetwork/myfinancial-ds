@@ -4,6 +4,8 @@ service cloud.firestore {
 
   match /databases/{database}/documents {
 
+    // --- HELPER FUNCTIONS ---
+
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -12,51 +14,112 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isAdminOrDev() {
-      return isAuthenticated()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['dev', 'admin'];
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      let data = getUserData();
+      return isAuthenticated() && data.role == 'admin';
     }
 
     function isDev() {
-      return isAuthenticated()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dev';
+      let data = getUserData();
+      return isAuthenticated() && data.role == 'dev';
     }
 
-    // กฎสำหรับ requester collection - ผู้ใช้ใหม่ที่รอการอนุมัติ
-    match /requester/{userId} {
-      allow create: if isOwner(userId);
-      allow read: if isOwner(userId) || isAdminOrDev();
-      allow delete: if isAdminOrDev();
-      allow update: if false;
+    // --- VALIDATION FUNCTIONS (The 10/10 Secret Sauce) ---
+
+    function isValidNumber(value) {
+      return value is number;
     }
 
-    // กฎสำหรับ Collection หลัก (users) และ Subcollection ทั้งหมด
+    function isValidString(value, min, max) {
+      return value is string && value.size() >= min && value.size() <= max;
+    }
+
+    function isUnchanged(field) {
+      return isDev() || !(field in request.resource.data) || request.resource.data[field] == resource.data[field];
+    }
+
+    function isServerTimestamp(field) {
+      return isDev() || request.resource.data[field] == request.time;
+    }
+
+    function isOneOf(value, list) {
+      return value in list;
+    }
+
+    // --- RULES ---
+
     match /users/{userId} {
-      // เจ้าของ doc อ่าน/เขียนได้เอง
-      allow read, write: if isOwner(userId);
-      // dev จัดการได้ทุกคน (ยกเว้นตัวเอง จัดการฝั่ง client)
-      allow read, create, update, delete: if isDev();
-      // admin อ่านได้ทุกคน, แก้ไข/ลบได้เฉพาะ user ที่ไม่ใช่ dev/admin
-      allow read: if isAdminOrDev();
-      allow update, delete: if isAdminOrDev()
-        && resource.data.role == 'user';
+      allow read: if isOwner(userId) || isDev() || isAdmin();
+      allow create: if isOwner(userId) && request.resource.data.role == 'user';
+      allow update: if (isOwner(userId) && isUnchanged('role') && resource.data.role == 'user')
+                    || isDev()
+                    || (isAdmin() && isUnchanged('role'));
+      allow write, delete: if isDev();
 
-      // subcollections (transactions, budgets, categories)
+      // 1. Accounts
+      match /accounts/{accountId} {
+        allow read: if isOwner(userId) || isDev();
+        allow write: if (isOwner(userId) || isDev())
+                     && isValidNumber(request.resource.data.balance)
+                     && isValidString(request.resource.data.name, 1, 50)
+                     && isOneOf(request.resource.data.type, ['cash', 'bank', 'investment', 'credit_card', 'loan', 'inventory'])
+                     && (request.method == 'create' || isUnchanged('created_at'));
+      }
+
+      // 2. Transactions
+      match /transactions/{transactionId} {
+        allow read: if isOwner(userId) || isDev();
+        allow write: if (isOwner(userId) || isDev())
+                     && isValidNumber(request.resource.data.amount)
+                     && request.resource.data.amount >= 0
+                     && isOneOf(request.resource.data.type, ['income', 'expense', 'transfer'])
+                     && (request.method == 'create' || isUnchanged('created_at'));
+      }
+
+      // 3. Investments
+      match /investments/{investmentId} {
+        allow read: if isOwner(userId) || isDev();
+        allow write: if (isOwner(userId) || isDev())
+                     && isValidNumber(request.resource.data.total_units)
+                     && isValidNumber(request.resource.data.current_market_price)
+                     && isOneOf(request.resource.data.asset_class, ['stock', 'mutual_fund', 'crypto', 'bond', 'loan', 'business', 'inventory']);
+      }
+
+      // 4. Goals
+      match /goals/{goalId} {
+        allow read: if isOwner(userId) || isDev();
+        allow write: if (isOwner(userId) || isDev())
+                     && isValidNumber(request.resource.data.target_amount)
+                     && isOneOf(request.resource.data.status, ['active', 'completed', 'cancelled']);
+      }
+
+      // --- FUTURE BIG MIGRATION AREA ---
       match /{document=**} {
-        allow read, write: if isOwner(userId);
-        allow read, create, update, delete: if isAdminOrDev();
+        // allow write: if isDev(); // <--- ปลดคอมเมนต์บรรทัดนี้เมื่อจะทำ Big Migration
+        allow read, write: if isOwner(userId) || isDev();
       }
     }
 
-    // system_config — ทุกคนอ่านได้ (สำหรับ maintenance/broadcast), dev เขียนได้
+    match /requester/{userId} {
+      allow create: if isOwner(userId) && request.resource.data.role == 'user';
+      allow read: if isOwner(userId) || isDev() || isAdmin();
+      allow delete: if isDev() || isAdmin();
+      allow update: if isAdmin() || isDev();
+    }
+
+    // system_config — ทุกคนอ่านได้ (maintenance/broadcast/force_refresh), dev เขียนได้
     match /system_config/{docId} {
       allow read: if isAuthenticated();
       allow write: if isDev();
     }
 
-    // ป้องกันการเข้าถึง Collection อื่นๆ
     match /{path=**} {
       allow read, write: if false;
     }
+
   }
 }
