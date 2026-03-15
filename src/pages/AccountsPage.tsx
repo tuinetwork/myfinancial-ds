@@ -97,10 +97,7 @@ export default function AccountsPage() {
     return () => unsub();
   }, [userId]);
 
-  const totalNetWorth = accounts.reduce((sum, a) => {
-    if (a.type === "credit_card" || a.type === "loan") return sum - Math.abs(a.balance);
-    return sum + a.balance;
-  }, 0);
+  const totalNetWorth = accounts.reduce((sum, a) => sum + a.balance, 0);
 
   const grouped = accounts.reduce<Record<string, Account[]>>((acc, account) => {
     const group = accountTypeConfig[account.type]?.group || "Other";
