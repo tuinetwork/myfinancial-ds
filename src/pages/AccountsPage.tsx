@@ -243,23 +243,24 @@ export default function AccountsPage() {
     });
   }, [accounts, trueNetWorth]);
 
-  // ใช้ displayAccounts แทน accounts สำหรับการคำนวณทั้งหมด
-  const totalAssets = displayAccounts
-    .filter((a) => !liabilityTypes.includes(a.type))
-    .reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
-    
-  const totalLiabilities = displayAccounts
-    .filter((a) => liabilityTypes.includes(a.type))
-    .reduce((sum, a) => sum + Math.abs(Number(a.balance) || 0), 0);
-    
-  const totalNetWorth = totalAssets - totalLiabilities;
+  // แยก Asset และ Liability เพื่อการแสดงผลที่ชัดเจน
+  const { assetAccounts, liabilityAccounts } = useMemo(() => {
+    const assets = displayAccounts.filter(a => !liabilityTypes.includes(a.type));
+    const liabilities = displayAccounts.filter(a => liabilityTypes.includes(a.type));
 
-  const grouped = displayAccounts.reduce<Record<string, Account[]>>((acc, account) => {
-    const group = accountTypeConfig[account.type]?.group || "Other";
-    if (!acc[group]) acc[group] = [];
-    acc[group].push(account);
-    return acc;
-  }, {});
+    // เรียงให้กระเป๋าหลัก (Main Account) อยู่บนสุดเสมอ
+    assets.sort((a, b) => {
+      if (isMainAccount(a)) return -1;
+      if (isMainAccount(b)) return 1;
+      return 0;
+    });
+
+    return { assetAccounts: assets, liabilityAccounts: liabilities };
+  }, [displayAccounts]);
+
+  const totalAssets = assetAccounts.reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
+  const totalLiabilities = liabilityAccounts.reduce((sum, a) => sum + Math.abs(Number(a.balance) || 0), 0);
+  const totalNetWorth = totalAssets - totalLiabilities;
 
   const handleCreate = async () => {
     if (!userId || !newName.trim()) return;
@@ -290,6 +291,56 @@ export default function AccountsPage() {
   const formatBalance = (balance: number) => {
     if (privacyMode) return "฿***";
     return `฿${balance.toLocaleString("th-TH", { minimumFractionDigits: 2 })}`;
+  };
+
+  // Component สำหรับเรนเดอร์การ์ดกระเป๋าเงินเพื่อลดโค้ดซ้ำ
+  const renderAccountCard = (acc: Account) => {
+    const config = accountTypeConfig[acc.type];
+    const IconComp = config?.icon || Wallet;
+    const isNegativeType = liabilityTypes.includes(acc.type);
+    
+    return (
+      <Card key={acc.id} className="hover:border-primary/30 transition-colors">
+        <CardContent className="p-4 flex items-center gap-4">
+          <div className={cn(
+            "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
+            isNegativeType ? "bg-destructive/10" : "bg-primary/10"
+          )}>
+            <IconComp className={cn("h-5 w-5", isNegativeType ? "text-destructive" : "text-primary")} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">{acc.name}</p>
+            <p className="text-xs text-muted-foreground">{config?.label}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <p className={cn(
+              "text-sm font-semibold font-display tabular-nums",
+              isNegativeType || Number(acc.balance) < 0 ? "text-destructive" : "text-foreground"
+            )}>
+              {formatBalance(Number(acc.balance))}
+            </p>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-primary"
+              onClick={() => openEdit(acc)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            {!isMainAccount(acc) && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                onClick={() => setDeleteTarget(acc)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
@@ -374,66 +425,39 @@ export default function AccountsPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Grouped Account Cards */}
+          {/* Accounts List (Assets vs Liabilities) */}
           {loading ? (
             <div className="text-center text-muted-foreground py-12">กำลังโหลด...</div>
-          ) : Object.keys(grouped).length === 0 ? (
+          ) : displayAccounts.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">ยังไม่มีบัญชี กดปุ่มด้านบนเพื่อสร้าง</div>
           ) : (
-            Object.entries(grouped).map(([group, accs]) => (
-              <div key={group} className="space-y-3">
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{group}</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {accs.map((acc) => {
-                    const config = accountTypeConfig[acc.type];
-                    const IconComp = config?.icon || Wallet;
-                    const isNegativeType = liabilityTypes.includes(acc.type);
-                    return (
-                      <Card key={acc.id} className="hover:border-primary/30 transition-colors">
-                        <CardContent className="p-4 flex items-center gap-4">
-                          <div className={cn(
-                            "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-                            isNegativeType ? "bg-destructive/10" : "bg-primary/10"
-                          )}>
-                            <IconComp className={cn("h-5 w-5", isNegativeType ? "text-destructive" : "text-primary")} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{acc.name}</p>
-                            <p className="text-xs text-muted-foreground">{config?.label}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <p className={cn(
-                              "text-sm font-semibold font-display tabular-nums",
-                              isNegativeType || Number(acc.balance) < 0 ? "text-destructive" : "text-foreground"
-                            )}>
-                              {formatBalance(Number(acc.balance))}
-                            </p>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-primary"
-                              onClick={() => openEdit(acc)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            {!isMainAccount(acc) && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                onClick={() => setDeleteTarget(acc)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+            <div className="space-y-8">
+              {/* Assets Section */}
+              {assetAccounts.length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="text-sm font-medium text-accent uppercase tracking-wider flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-accent" />
+                    สินทรัพย์ (Assets)
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {assetAccounts.map(renderAccountCard)}
+                  </div>
                 </div>
-              </div>
-            ))
+              )}
+
+              {/* Liabilities Section */}
+              {liabilityAccounts.length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="text-sm font-medium text-destructive uppercase tracking-wider flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-destructive" />
+                    หนี้สิน (Liabilities)
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {liabilityAccounts.map(renderAccountCard)}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Delete Confirmation */}
