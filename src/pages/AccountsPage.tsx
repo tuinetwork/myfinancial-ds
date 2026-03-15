@@ -45,6 +45,8 @@ const PIE_COLORS = [
   "hsl(10 80% 55%)",
 ];
 
+const liabilityTypes: string[] = ["credit_card", "loan", "payable"];
+
 function AssetPieChart({ accounts, privacyMode, formatBalance, liabilityTypes }: {
   accounts: Account[];
   privacyMode: boolean;
@@ -55,7 +57,7 @@ function AssetPieChart({ accounts, privacyMode, formatBalance, liabilityTypes }:
     const byType: Record<string, number> = {};
     accounts.forEach((a) => {
       const label = accountTypeConfig[a.type]?.label || a.type;
-      const value = liabilityTypes.includes(a.type) ? Math.abs(a.balance) : a.balance;
+      const value = liabilityTypes.includes(a.type) ? Math.abs(Number(a.balance) || 0) : (Number(a.balance) || 0);
       if (value > 0) {
         byType[label] = (byType[label] || 0) + value;
       }
@@ -128,7 +130,7 @@ function AssetPieChart({ accounts, privacyMode, formatBalance, liabilityTypes }:
 
 export default function AccountsPage() {
   const { userId } = useAuth();
-  const { privacyMode, togglePrivacy, maskValue } = usePrivacy();
+  const { privacyMode, togglePrivacy } = usePrivacy();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -143,7 +145,28 @@ export default function AccountsPage() {
   const [editType, setEditType] = useState<AccountType>("cash");
   const [editSaving, setEditSaving] = useState(false);
 
+  // State เก็บความมั่งคั่งสุทธิที่แท้จริงจาก Transactions
+  const [trueNetWorth, setTrueNetWorth] = useState<number>(0);
+
   const isMainAccount = (acc: Account) => acc.name === "กระเป๋าเงินสดหลัก";
+
+  // ดึงข้อมูล Transactions เพื่อหา True Net Worth
+  useEffect(() => {
+    if (!userId) return;
+    const unsub = onSnapshot(collection(firestore, "users", userId, "transactions"), (snap) => {
+      let income = 0;
+      let expense = 0;
+      snap.forEach(doc => {
+        const t = doc.data();
+        if (!t.is_deleted) {
+          if (t.type === 'income') income += (Number(t.amount) || 0);
+          if (t.type === 'expense') expense += (Number(t.amount) || 0);
+        }
+      });
+      setTrueNetWorth(income - expense);
+    });
+    return () => unsub();
+  }, [userId]);
 
   const handleDelete = async () => {
     if (!userId || !deleteTarget) return;
@@ -194,12 +217,44 @@ export default function AccountsPage() {
     return () => unsub();
   }, [userId]);
 
-  const liabilityTypes: string[] = ["credit_card", "loan", "payable"];
-  const totalAssets = accounts.filter((a) => !liabilityTypes.includes(a.type)).reduce((sum, a) => sum + a.balance, 0);
-  const totalLiabilities = accounts.filter((a) => liabilityTypes.includes(a.type)).reduce((sum, a) => sum + Math.abs(a.balance), 0);
+  // คำนวณยอดกระเป๋าหลักอัตโนมัติเพื่อให้สมดุลกับ True Net Worth
+  const displayAccounts = useMemo(() => {
+    let otherAssetsTotal = 0;
+    let liabilitiesTotal = 0;
+
+    accounts.forEach(acc => {
+      if (isMainAccount(acc)) return;
+      
+      const bal = Number(acc.balance) || 0;
+      if (liabilityTypes.includes(acc.type)) {
+        liabilitiesTotal += Math.abs(bal);
+      } else {
+        otherAssetsTotal += bal;
+      }
+    });
+
+    const calculatedMainBalance = trueNetWorth - otherAssetsTotal + liabilitiesTotal;
+
+    return accounts.map(acc => {
+      if (isMainAccount(acc)) {
+        return { ...acc, balance: calculatedMainBalance };
+      }
+      return acc;
+    });
+  }, [accounts, trueNetWorth]);
+
+  // ใช้ displayAccounts แทน accounts สำหรับการคำนวณทั้งหมด
+  const totalAssets = displayAccounts
+    .filter((a) => !liabilityTypes.includes(a.type))
+    .reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
+    
+  const totalLiabilities = displayAccounts
+    .filter((a) => liabilityTypes.includes(a.type))
+    .reduce((sum, a) => sum + Math.abs(Number(a.balance) || 0), 0);
+    
   const totalNetWorth = totalAssets - totalLiabilities;
 
-  const grouped = accounts.reduce<Record<string, Account[]>>((acc, account) => {
+  const grouped = displayAccounts.reduce<Record<string, Account[]>>((acc, account) => {
     const group = accountTypeConfig[account.type]?.group || "Other";
     if (!acc[group]) acc[group] = [];
     acc[group].push(account);
@@ -274,11 +329,12 @@ export default function AccountsPage() {
                   <span className="font-semibold text-destructive">{formatBalance(totalLiabilities)}</span>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">{accounts.length} บัญชีที่ใช้งาน</p>
+              <p className="text-xs text-muted-foreground mt-2">{displayAccounts.length} บัญชีที่ใช้งาน</p>
             </CardContent>
           </Card>
+
           {/* Asset Allocation Pie Chart */}
-          <AssetPieChart accounts={accounts} privacyMode={privacyMode} formatBalance={formatBalance} liabilityTypes={liabilityTypes} />
+          <AssetPieChart accounts={displayAccounts} privacyMode={privacyMode} formatBalance={formatBalance} liabilityTypes={liabilityTypes} />
 
           {/* New Account Button */}
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -331,7 +387,7 @@ export default function AccountsPage() {
                   {accs.map((acc) => {
                     const config = accountTypeConfig[acc.type];
                     const IconComp = config?.icon || Wallet;
-                    const isNegativeType = acc.type === "credit_card" || acc.type === "loan";
+                    const isNegativeType = liabilityTypes.includes(acc.type);
                     return (
                       <Card key={acc.id} className="hover:border-primary/30 transition-colors">
                         <CardContent className="p-4 flex items-center gap-4">
@@ -348,9 +404,9 @@ export default function AccountsPage() {
                           <div className="flex items-center gap-2">
                             <p className={cn(
                               "text-sm font-semibold font-display tabular-nums",
-                              isNegativeType || acc.balance < 0 ? "text-destructive" : "text-foreground"
+                              isNegativeType || Number(acc.balance) < 0 ? "text-destructive" : "text-foreground"
                             )}>
-                              {formatBalance(acc.balance)}
+                              {formatBalance(Number(acc.balance))}
                             </p>
                             <Button
                               variant="ghost"
