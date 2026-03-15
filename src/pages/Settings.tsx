@@ -151,7 +151,7 @@ const EditableAmount = ({
         }}
       />
       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { onSave(Number(draft) || 0); setEditing(false); }}>
-        <Check className="h-3 w-3 text-green-600" />
+        <Check className="h-3 w-3 text-accent" />
       </Button>
       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditing(false)}>
         <X className="h-3 w-3 text-destructive" />
