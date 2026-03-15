@@ -36,6 +36,8 @@ function mapTransaction(docId: string, docData: Record<string, unknown>): Transa
   let mappedType: string;
   if (type === "income") {
     mappedType = "รายรับ";
+  } else if (type === "transfer") {
+    mappedType = "โอน";
   } else {
     mappedType = MAIN_CATEGORY_TYPE_MAP[mainCategory] ?? "ค่าใช้จ่าย";
   }
