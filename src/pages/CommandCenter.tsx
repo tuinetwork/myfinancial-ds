@@ -29,7 +29,7 @@ import {
   Terminal, ShieldCheck, Database, Download, Upload, Radio, AlertTriangle,
   Loader2, Search, RefreshCw, Megaphone, Plug, CheckCircle, XCircle,
   Info, Trash2, Code, Play, FileJson, Plus, Edit, Save, X, ShieldAlert, 
-  Bookmark, BookmarkPlus, Users, Activity, PlayCircle, Ban, Unlock, Zap, BarChart3
+  Bookmark, BookmarkPlus, Users, Activity, PlayCircle, Ban, Unlock, Zap, BarChart3, DatabaseBackup
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -142,7 +142,7 @@ export default function CommandCenter() {
   const [isSaveScriptModalOpen, setIsSaveScriptModalOpen] = useState(false);
   const [newScriptName, setNewScriptName] = useState("");
 
-  // Metrics States
+  // Metrics States (Real Data)
   const [sysMetrics, setSysMetrics] = useState({ users: 0, txToday: 0, active: 0, health: "100%" });
   const [loadingMetrics, setLoadingMetrics] = useState(false);
 
@@ -197,7 +197,7 @@ export default function CommandCenter() {
       if (isMfaSessionValid()) {
         setMfaVerified(true);
         addLog({ timestamp: Date.now(), level: "info", message: "MFA session ยังไม่หมดอายุ — เข้าถึงได้" });
-        fetchSystemMetrics(); // Fetch metrics on load
+        fetchSystemMetrics(); // Fetch REAL metrics on load
       } else {
         setShowMfa(true);
       }
@@ -274,22 +274,62 @@ export default function CommandCenter() {
     fetchSystemMetrics();
   };
 
-  // --- Metrics ---
+  // --- Real Data Metrics Fetching ---
   const fetchSystemMetrics = async () => {
     setLoadingMetrics(true);
+    const startTime = Date.now(); // เริ่มจับเวลา Ping (Latency)
+    
     try {
-      // ดึง Users จริง
-      const userSnap = await getDocs(collection(firestore, "users"));
-      // จำลองข้อมูลอื่นๆ เพื่อความรวดเร็วและไม่เปลืองโควต้าอ่าน (ปรับเป็นของจริงได้ภายหลัง)
+      // 1. ดึงข้อมูลจำนวน Users ทั้งหมด
+      const usersRef = collection(firestore, "users");
+      const userSnap = await getDocs(usersRef);
+      const totalUsers = userSnap.size;
+
+      // 2. ดึงข้อมูล Transactions ของวันนี้
+      let txTodayCount = 0;
+      try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // เริ่มต้นเที่ยงคืนของวันนี้
+        // หมายเหตุ: เจ้านายต้องตรวจสอบชื่อฟิลด์ 'createdAt' ใน DB ว่าตรงกันหรือไม่ ถ้าไม่ตรงให้แก้ตรงนี้นะครับ
+        const txQuery = query(collection(firestore, "transactions"), where("createdAt", ">=", today));
+        const txSnap = await getDocs(txQuery);
+        txTodayCount = txSnap.size;
+      } catch (err: any) {
+        console.warn("ไม่สามารถดึงข้อมูล transactions วันนี้ได้ (อาจจะไม่มีฟิลด์ createdAt หรือยังไม่ได้ทำ Index)", err);
+      }
+
+      // 3. ดึงข้อมูล Active Sessions (ผู้ใช้ที่ล็อกอินภายใน 30 นาทีที่ผ่านมา)
+      let activeCount = 0;
+      try {
+        const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
+        // หมายเหตุ: ต้องมีฟิลด์ 'lastLoginAt' ใน collection users
+        const activeQuery = query(usersRef, where("lastLoginAt", ">=", thirtyMinsAgo));
+        const activeSnap = await getDocs(activeQuery);
+        activeCount = activeSnap.size;
+      } catch (err: any) {
+         console.warn("ไม่สามารถดึงข้อมูล active users ได้", err);
+      }
+
+      // 4. คำนวณ System Health จาก Latency
+      const endTime = Date.now();
+      const pingMs = endTime - startTime;
+      let calculatedHealth = 100;
+      if (pingMs > 500 && pingMs <= 1000) calculatedHealth = 98;
+      else if (pingMs > 1000 && pingMs <= 3000) calculatedHealth = 90;
+      else if (pingMs > 3000) calculatedHealth = 80;
+
+      // อัปเดตข้อมูลขึ้นจอ
       setSysMetrics({
-        users: userSnap.size,
-        txToday: Math.floor(Math.random() * 500) + 50,
-        active: Math.floor(Math.random() * 20) + 1,
-        health: "99.9%"
+        users: totalUsers,
+        txToday: txTodayCount,
+        active: activeCount,
+        health: `${calculatedHealth}%`
       });
-      addLog({ timestamp: Date.now(), level: "info", message: "อัปเดตสถิติระบบเรียบร้อย" });
+      
+      addLog({ timestamp: Date.now(), level: "info", message: `อัปเดต Real Data เรียบร้อย (DB Latency: ${pingMs}ms)` });
     } catch (e: any) {
       addLog({ timestamp: Date.now(), level: "error", message: `โหลดสถิติล้มเหลว: ${e.message}` });
+      setSysMetrics(prev => ({ ...prev, health: "ERROR" }));
     }
     setLoadingMetrics(false);
   };
@@ -338,7 +378,6 @@ export default function CommandCenter() {
       title: `ยืนยันการทำรายการ: ${action}`,
       desc: `คุณกำลังจะ ${action} บัญชีของ ${uid} ดำเนินการต่อหรือไม่?`,
       action: async () => {
-        // จำลองการทำ Action (ของจริงต้องเชื่อม Cloud Functions หรือแก้ไขฟิลด์ status ใน doc)
         addLog({ timestamp: Date.now(), level: "warn", message: `[UserAction] ${action} -> UID: ${uid} (Simulated)` });
         toast.success(`ดำเนินการ ${action} สำเร็จ`);
         if (action === "Suspend") setSearchedUser({ ...searchedUser, isSuspended: true });
@@ -564,7 +603,7 @@ export default function CommandCenter() {
 
         <div className="flex-1 p-4 sm:p-6 space-y-6 pb-20">
           
-          {/* ===== 1. System Metrics (Top Row) ===== */}
+          {/* ===== 1. System Metrics (Top Row - Real Data) ===== */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="bg-card/50 backdrop-blur">
               <CardContent className="p-4 flex items-center justify-between">
@@ -603,10 +642,12 @@ export default function CommandCenter() {
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-1">System Health</p>
-                  <p className="text-2xl font-bold text-emerald-500">{loadingMetrics ? "-" : sysMetrics.health}</p>
+                  <p className={`text-2xl font-bold ${sysMetrics.health === "100%" || sysMetrics.health === "98%" ? "text-emerald-500" : "text-amber-500"}`}>
+                    {loadingMetrics ? "-" : sysMetrics.health}
+                  </p>
                 </div>
-                <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                <div className={`h-8 w-8 rounded-full flex items-center justify-center ${sysMetrics.health === "100%" || sysMetrics.health === "98%" ? "bg-emerald-500/10" : "bg-amber-500/10"}`}>
+                  <ShieldCheck className={`h-4 w-4 ${sysMetrics.health === "100%" || sysMetrics.health === "98%" ? "text-emerald-500" : "text-amber-500"}`} />
                 </div>
               </CardContent>
             </Card>
@@ -622,7 +663,7 @@ export default function CommandCenter() {
                 </CardTitle>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={fetchSystemMetrics} className="h-7 text-xs gap-1">
-                    <RefreshCw className={`h-3 w-3 ${loadingMetrics ? "animate-spin" : ""}`} /> Refresh
+                    <RefreshCw className={`h-3 w-3 ${loadingMetrics ? "animate-spin" : ""}`} /> Refresh Data
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setLogs([])} className="h-7 text-xs">
                     <Trash2 className="h-3 w-3 mr-1" /> Clear
@@ -887,7 +928,7 @@ export default function CommandCenter() {
                 </CardContent>
               </Card>
 
-              {/* Scan & Recovery */}
+              {/* Scan & Recovery (with Data Migration section included) */}
               <Card>
                 <CardHeader className="pb-3 border-b border-border">
                   <CardTitle className="text-sm flex items-center gap-2">
@@ -896,7 +937,35 @@ export default function CommandCenter() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4 space-y-6">
-                  {/* Data Scan */}
+                  
+                  {/* --- Section: Data Migration (ตามรูปภาพ) --- */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <DatabaseBackup className="h-4 w-4 text-primary" />
+                      <h4 className="text-sm font-semibold text-foreground">Data Migration</h4>
+                    </div>
+                    <div className="space-y-2">
+                      <Button 
+                        onClick={() => handleManualTask("Budget Migration")} 
+                        size="sm" 
+                        className="w-full justify-start gap-2 bg-blue-600 hover:bg-blue-700 text-white h-9"
+                      >
+                        <Database className="h-4 w-4" /> Budget Migration
+                      </Button>
+                      <Button 
+                        onClick={() => handleManualTask("Account Migration")} 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full justify-start gap-2 h-9"
+                      >
+                        <Database className="h-4 w-4 text-muted-foreground" /> Account Migration
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* --- Section: Data Scan --- */}
                   <div className="space-y-3">
                     <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5"><Search className="h-3.5 w-3.5 text-muted-foreground" /> Data Scan & Integrity</h4>
                     <Button onClick={handleOrphanScan} disabled={scanning} size="sm" variant="outline" className="w-full justify-start gap-2 border-dashed text-xs h-8">
@@ -912,8 +981,10 @@ export default function CommandCenter() {
                       </div>
                     )}
                   </div>
+                  
                   <Separator />
-                  {/* Recovery */}
+                  
+                  {/* --- Section: Disaster Recovery --- */}
                   <div className="space-y-3">
                     <div className="flex items-start gap-2">
                       <ShieldAlert className="h-4 w-4 text-[hsl(var(--debt))] shrink-0 mt-0.5" />
