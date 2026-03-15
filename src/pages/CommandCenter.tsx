@@ -10,7 +10,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { AppFooter } from "@/components/AppFooter";
 import { TwoFactorAuth, isMfaSessionValid, clearMfaSession } from "@/components/TwoFactorAuth";
 import {
-  runBudgetMigration, runAccountMigration, detectOrphanedData, exportAllData,
+  detectOrphanedData, exportAllData,
   type OperationLog, type OrphanedRecord,
 } from "@/lib/migration-service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,7 +72,6 @@ export default function CommandCenter() {
   const logEndRef = useRef<HTMLDivElement>(null);
 
   // States
-  const [migrating, setMigrating] = useState<string | null>(null);
   const [orphans, setOrphans] = useState<OrphanedRecord[] | null>(null);
   const [scanning, setScanning] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -170,28 +169,6 @@ export default function CommandCenter() {
     setMfaVerified(true);
     setShowMfa(false);
     addLog({ timestamp: Date.now(), level: "success", message: "MFA ยืนยันสำเร็จ — เข้าสู่ Command Center" });
-  };
-
-  const handleBudgetMigration = async () => {
-    setMigrating("budget");
-    addLog({ timestamp: Date.now(), level: "info", message: "เริ่ม Budget Migration..." });
-    try {
-      await runBudgetMigration(undefined, addLog);
-    } catch (err: any) {
-      addLog({ timestamp: Date.now(), level: "error", message: `Budget Migration ล้มเหลว: ${err.message}` });
-    }
-    setMigrating(null);
-  };
-
-  const handleAccountMigration = async () => {
-    setMigrating("account");
-    addLog({ timestamp: Date.now(), level: "info", message: "เริ่ม Account Migration..." });
-    try {
-      await runAccountMigration(undefined, addLog);
-    } catch (err: any) {
-      addLog({ timestamp: Date.now(), level: "error", message: `Account Migration ล้มเหลว: ${err.message}` });
-    }
-    setMigrating(null);
   };
 
   const handleOrphanScan = async () => {
@@ -413,41 +390,15 @@ export default function CommandCenter() {
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* ===== Data Migration ===== */}
+            {/* ===== Data Scan & Integrity ===== */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Database className="h-4 w-4 text-primary" />
-                  Data Migration
+                  <Search className="h-4 w-4 text-primary" />
+                  Data Scan & Integrity
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button
-                  onClick={() => setConfirmAction({
-                    open: true, title: "รัน Budget Migration", desc: "อัปเดตโครงสร้างงบประมาณของทุกผู้ใช้",
-                    action: handleBudgetMigration,
-                  })}
-                  disabled={!!migrating}
-                  size="sm"
-                  className="w-full justify-start gap-2"
-                >
-                  {migrating === "budget" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-                  Budget Migration
-                </Button>
-                <Button
-                  onClick={() => setConfirmAction({
-                    open: true, title: "รัน Account Migration", desc: "สร้างบัญชีหลักและเชื่อมโยงธุรกรรมทั้งหมด",
-                    action: handleAccountMigration,
-                  })}
-                  disabled={!!migrating}
-                  size="sm"
-                  variant="outline"
-                  className="w-full justify-start gap-2"
-                >
-                  {migrating === "account" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-                  Account Migration
-                </Button>
-                <Separator />
                 <Button
                   onClick={handleOrphanScan}
                   disabled={scanning}
