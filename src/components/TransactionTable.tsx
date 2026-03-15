@@ -487,10 +487,10 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
                     </TableCell>
                     <TableCell
                       className={`text-xs sm:text-sm text-right font-medium font-display py-2 sm:py-2.5 whitespace-nowrap ${
-                        t.type === "รายรับ" ? "text-income" : "text-expense"
+                        t.type === "รายรับ" ? "text-income" : t.type === "โอน" ? "text-muted-foreground" : "text-expense"
                       }`}
                     >
-                      {t.type === "รายรับ" ? "+" : "-"}
+                      {t.type === "รายรับ" ? "+" : t.type === "โอน" ? "" : "-"}
                       {formatCurrency(t.amount)}
                     </TableCell>
                     {canEdit && (
