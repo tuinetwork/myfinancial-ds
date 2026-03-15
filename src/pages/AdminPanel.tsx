@@ -33,8 +33,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { runBudgetMigration, type MigrationProgress } from "@/scripts/migrateBudgetStructure";
-import { runAccountMigration, type AccountMigrationProgress } from "@/scripts/migrateAccountStructure";
 
 const SOURCE_USER_UID = "xgkdmyxxeJVlNiqoahNJWBekqmh2";
 
