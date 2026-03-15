@@ -28,7 +28,7 @@ import {
 import {
   Terminal, ShieldCheck, Database, Download, Upload, Radio, AlertTriangle,
   Loader2, Search, RefreshCw, Megaphone, Plug, CheckCircle, XCircle,
-  Info, Trash2, Code, Play, FileJson, Plus, Edit, Save, X, Server, ShieldAlert
+  Info, Trash2, Code, Play, FileJson, Plus, Edit, Save, X, ShieldAlert
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -41,77 +41,6 @@ interface SchemaDoc {
   schemaJson: string; // โครงสร้าง Fields แบบ JSON
   updatedAt: number;
 }
-
-// ===== Tree Node Component สำหรับแสดงข้อมูลแบบ Tree (สีขาว) =====
-const TreeNode = ({ label, value, defaultOpen = false, depth = 0 }: { label: string; value: any; defaultOpen?: boolean; depth?: number }) => {
-  // กาง Tree โดยอัตโนมัติใน 3 ระดับแรก เพื่อให้เห็นข้อมูลทันที
-  const [isOpen, setIsOpen] = useState(defaultOpen || depth < 3);
-  
-  if (value === null || value === undefined) {
-    return (
-      <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs flex gap-2">
-        <span className="text-white opacity-90">{label}:</span>
-        <span className="text-white/50 italic">null</span>
-      </div>
-    );
-  }
-
-  if (typeof value === "object" && typeof value.toDate === "function") {
-      return (
-      <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs flex gap-2">
-        <span className="text-white opacity-90">{label}:</span>
-        <span className="text-white">"{value.toDate().toLocaleString()}"</span>
-      </div>
-    );
-  }
-
-  const isObject = typeof value === "object";
-  const isArray = Array.isArray(value);
-
-  if (!isObject) {
-    return (
-      <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs flex gap-2 items-start">
-        <span className="text-white opacity-90 shrink-0">{label}:</span>
-        <span className="text-white break-all">
-          {typeof value === 'string' ? `"${value}"` : String(value)}
-        </span>
-      </div>
-    );
-  }
-
-  const keys = Object.keys(value);
-  
-  if (keys.length === 0) {
-    return (
-      <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs flex gap-2">
-        <span className="text-white opacity-90">{label}:</span>
-        <span className="text-white/50">{isArray ? "[]" : "{}"}</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs">
-      <div 
-        className="flex items-center gap-1 cursor-pointer hover:bg-white/10 rounded px-1 -ml-1 transition-colors select-none w-fit"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <span className="text-white/50 w-3 text-[10px]">{isOpen ? '▼' : '▶'}</span>
-        <span className="text-white font-semibold">{label}</span>
-        <span className="text-white/50 text-[10px]">
-          {isArray ? `[${keys.length}]` : `{${keys.length}}`}
-        </span>
-      </div>
-      {isOpen && (
-        <div className="ml-2 mt-0.5">
-          {keys.map((key) => (
-            <TreeNode key={key} label={key} value={value[key]} depth={depth + 1} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 // ===== Operation Terminal Log Item =====
 function LogItem({ log }: { log: OperationLog }) {
@@ -156,7 +85,7 @@ export default function CommandCenter() {
   const [exporting, setExporting] = useState(false);
 
   // Database Tab States
-  const [dbTab, setDbTab] = useState<"schemas" | "data" | "recovery">("schemas");
+  const [dbTab, setDbTab] = useState<"schemas" | "recovery">("schemas");
   
   // Schema States
   const [schemas, setSchemas] = useState<SchemaDoc[]>([]);
@@ -165,10 +94,6 @@ export default function CommandCenter() {
     id: "", description: "", schemaJson: "{\n  \"field_name\": \"string\"\n}"
   });
   const [isEditingSchema, setIsEditingSchema] = useState(false);
-  
-  // Tree States
-  const [allUsersData, setAllUsersData] = useState<Record<string, any> | null>(null);
-  const [loadingDataTree, setLoadingDataTree] = useState(false);
 
   // Global controls
   const [maintenanceMode, setMaintenanceMode] = useState(false);
@@ -326,46 +251,8 @@ export default function CommandCenter() {
     });
   };
 
-  // ดึงข้อมูลแบบแสดงทุกอย่าง (All Collections)
-  const fetchAllDataTree = async () => {
-    setLoadingDataTree(true);
-    addLog({ timestamp: Date.now(), level: "info", message: "กำลังโหลดข้อมูล Live Tree จากทุก Collection ที่ระบุ..." });
-    try {
-      // 💡 เพิ่มหรือแก้ไขชื่อ Collection ที่เจ้านายมีในระบบตรง Array นี้ได้เลยครับ
-      const collectionsToFetch = ["users", "system_schemas", "system_config", "transactions", "inventory", "accounts", "budgets"];
-      
-      const dbData: Record<string, any> = {};
-      let totalDocs = 0;
-
-      for (const colName of collectionsToFetch) {
-        try {
-          const snap = await getDocs(collection(firestore, colName));
-          if (!snap.empty) {
-            dbData[colName] = {};
-            snap.forEach(doc => {
-              dbData[colName][doc.id] = doc.data();
-              totalDocs++;
-            });
-          }
-        } catch (e) {
-          // ข้าม Collection ที่ไม่มีสิทธิ์เข้าถึงหรือยังไม่มีอยู่จริง
-        }
-      }
-
-      setAllUsersData(dbData);
-      addLog({ timestamp: Date.now(), level: "success", message: `โหลดข้อมูลสำเร็จ พบทั้งหมด ${totalDocs} documents` });
-    } catch (error: any) {
-      toast.error("ดึงข้อมูลล้มเหลว");
-      addLog({ timestamp: Date.now(), level: "error", message: `ดึงข้อมูลล้มเหลว: ${error.message}` });
-    }
-    setLoadingDataTree(false);
-  };
-
-  const handleTabChange = (tab: "schemas" | "data" | "recovery") => {
+  const handleTabChange = (tab: "schemas" | "recovery") => {
     setDbTab(tab);
-    if (tab === "data" && !allUsersData) {
-      fetchAllDataTree();
-    }
   };
 
   // Other Handlers
@@ -642,43 +529,6 @@ export default function CommandCenter() {
             {/* ========== คอลัมน์ซ้าย ========== */}
             <div className="space-y-6">
               
-              {/* Data Scan & Integrity */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Search className="h-4 w-4 text-primary" />
-                    Data Scan & Integrity
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button
-                    onClick={handleOrphanScan}
-                    disabled={scanning}
-                    size="sm"
-                    variant="outline"
-                    className="w-full justify-start gap-2"
-                  >
-                    {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                    Orphaned Data Scan
-                  </Button>
-                  {orphans !== null && (
-                    <div className="text-xs p-3 rounded-lg bg-muted/50 space-y-1">
-                      <p className="font-medium text-foreground">
-                        ผลลัพธ์: พบ {orphans.length} รายการกำพร้า
-                      </p>
-                      {orphans.slice(0, 5).map((o, i) => (
-                        <p key={i} className="text-muted-foreground">
-                          • {o.id.slice(0, 15)}... — {o.issue}
-                        </p>
-                      ))}
-                      {orphans.length > 5 && (
-                        <p className="text-muted-foreground">...และอีก {orphans.length - 5} รายการ</p>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
               {/* Global Controls */}
               <Card>
                 <CardHeader className="pb-3">
@@ -780,11 +630,6 @@ export default function CommandCenter() {
                         <Plus className="h-4 w-4" /> Add Schema
                       </Button>
                     )}
-                    {dbTab === "data" && (
-                      <Button size="sm" onClick={fetchAllDataTree} disabled={loadingDataTree} variant="outline" className="h-8 gap-1">
-                        <RefreshCw className={`h-3.5 w-3.5 ${loadingDataTree ? 'animate-spin' : ''}`} /> Reload Data
-                      </Button>
-                    )}
                   </div>
                   {/* Tabs */}
                   <div className="flex gap-4 overflow-x-auto no-scrollbar">
@@ -795,16 +640,10 @@ export default function CommandCenter() {
                       <FileJson className="h-3.5 w-3.5" /> Schema
                     </button>
                     <button 
-                      className={`pb-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${dbTab === 'data' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-                      onClick={() => handleTabChange('data')}
-                    >
-                      <Server className="h-3.5 w-3.5" /> Live Tree
-                    </button>
-                    <button 
                       className={`pb-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${dbTab === 'recovery' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
                       onClick={() => handleTabChange('recovery')}
                     >
-                      <ShieldAlert className="h-3.5 w-3.5" /> Recovery
+                      <ShieldAlert className="h-3.5 w-3.5" /> Scan & Recovery
                     </button>
                   </div>
                 </CardHeader>
@@ -852,109 +691,129 @@ export default function CommandCenter() {
                     )
                   )}
 
-                  {/* ----- Tab 2: Data Tree ----- */}
-                  {dbTab === "data" && (
-                    <div className="rounded-md border border-border bg-[#1e1e1e] overflow-hidden">
-                      {loadingDataTree ? (
-                        <div className="flex flex-col items-center justify-center h-[450px] space-y-3">
-                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                          <p className="text-xs text-muted-foreground">กำลังโหลดข้อมูลจากทุก Collection...</p>
-                        </div>
-                      ) : allUsersData ? (
-                        <ScrollArea className="h-[500px] w-full p-4">
-                          <TreeNode label="database_root" value={allUsersData} defaultOpen={true} depth={0} />
-                        </ScrollArea>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-[450px] space-y-3 text-muted-foreground">
-                          <Server className="h-8 w-8 opacity-20" />
-                          <p className="text-xs">คลิก "Reload Data" เพื่อดึงข้อมูลทั้งหมด</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* ----- Tab 3: Disaster Recovery ----- */}
+                  {/* ----- Tab 2: Scan & Recovery ----- */}
                   {dbTab === "recovery" && (
-                    <div className="space-y-4">
-                      <div className="p-4 rounded-lg bg-[hsl(var(--debt))]/10 border border-[hsl(var(--debt))]/20 flex items-start gap-3">
-                        <ShieldAlert className="h-5 w-5 text-[hsl(var(--debt))] shrink-0 mt-0.5" />
-                        <div>
-                          <h4 className="text-sm font-semibold text-foreground">Disaster Recovery Zone</h4>
-                          <p className="text-xs text-muted-foreground mt-1">เครื่องมือสำหรับสำรองและกู้คืนฐานข้อมูล กรุณาใช้งานด้วยความระมัดระวัง</p>
+                    <div className="space-y-6">
+                      
+                      {/* --- Section: Data Scan --- */}
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Search className="h-4 w-4 text-primary" />
+                          <h4 className="text-sm font-semibold text-foreground">Data Scan & Integrity</h4>
                         </div>
-                      </div>
-
-                      <div className="space-y-3 pt-2">
                         <Button
-                          onClick={() => setConfirmAction({
-                            open: true, title: "สำรองข้อมูล", desc: "ดาวน์โหลดข้อมูล Firestore ทั้งหมดเป็นไฟล์ JSON",
-                            action: handleExport,
-                          })}
-                          disabled={exporting}
-                          size="sm"
-                          className="w-full justify-start gap-2"
-                        >
-                          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                          Backup to JSON
-                        </Button>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept=".json"
-                          onChange={handleImportFile}
-                          className="hidden"
-                        />
-                        <Button
-                          onClick={() => fileInputRef.current?.click()}
+                          onClick={handleOrphanScan}
+                          disabled={scanning}
                           size="sm"
                           variant="outline"
                           className="w-full justify-start gap-2 border-dashed"
                         >
-                          <Upload className="h-4 w-4" />
-                          Import from JSON
+                          {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                          Orphaned Data Scan
                         </Button>
+                        {orphans !== null && (
+                          <div className="text-xs p-3 rounded-lg bg-muted/50 space-y-1 border border-border">
+                            <p className="font-medium text-foreground">
+                              ผลลัพธ์: พบ {orphans.length} รายการกำพร้า
+                            </p>
+                            <div className="max-h-32 overflow-y-auto space-y-1 mt-1">
+                              {orphans.slice(0, 5).map((o, i) => (
+                                <p key={i} className="text-muted-foreground">
+                                  • {o.id.slice(0, 15)}... — {o.issue}
+                                </p>
+                              ))}
+                              {orphans.length > 5 && (
+                                <p className="text-muted-foreground italic pl-2">...และอีก {orphans.length - 5} รายการ</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Diff Preview */}
-                      {showDiff && importData && (
-                        <div className="text-xs p-3 mt-4 rounded-lg bg-muted/50 space-y-2 border border-border">
-                          <p className="font-medium text-foreground">Import Preview:</p>
-                          <p className="text-muted-foreground">
-                            พบผู้ใช้: <span className="text-foreground">{Object.keys(importData.users || {}).length}</span> รายการ | 
-                            วันที่ Export: <span className="text-foreground">{importData.exported_at || "N/A"}</span>
-                          </p>
-                          <div className="max-h-32 overflow-y-auto space-y-1 my-2">
-                            {Object.entries(importData.users || {}).slice(0, 5).map(([uid, data]: [string, any]) => (
-                              <div key={uid} className="pl-2 border-l-2 border-primary/30">
-                                <p className="text-foreground">{uid.slice(0, 15)}...</p>
-                                <p className="text-muted-foreground text-[10px]">
-                                  Sub: {Object.keys(data.subcollections || {}).join(", ") || "none"}
-                                </p>
-                              </div>
-                            ))}
-                            {Object.keys(importData.users || {}).length > 5 && (
-                              <p className="text-muted-foreground italic pl-2">...และอีกมากมาย</p>
-                            )}
-                          </div>
-                          <div className="flex gap-2 pt-2 border-t border-border">
-                            <Button size="sm" variant="ghost" onClick={() => { setImportData(null); setShowDiff(false); }} className="flex-1">
-                              ยกเลิก
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => setConfirmAction({
-                                open: true, title: "ยืนยันนำเข้าข้อมูล (อันตราย)",
-                                desc: `ระบบจะทำการ Merge ข้อมูล ${Object.keys(importData.users || {}).length} ผู้ใช้ เข้าสู่ฐานข้อมูลหลักทันที คุณแน่ใจหรือไม่?`,
-                                action: handleImportConfirm,
-                              })}
-                              className="flex-1 gap-1"
-                            >
-                              <ShieldAlert className="h-3.5 w-3.5" /> ยืนยันนำเข้า
-                            </Button>
+                      <Separator />
+
+                      {/* --- Section: Disaster Recovery --- */}
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-lg bg-[hsl(var(--debt))]/10 border border-[hsl(var(--debt))]/20 flex items-start gap-3">
+                          <ShieldAlert className="h-5 w-5 text-[hsl(var(--debt))] shrink-0 mt-0.5" />
+                          <div>
+                            <h4 className="text-sm font-semibold text-foreground">Disaster Recovery Zone</h4>
+                            <p className="text-xs text-muted-foreground mt-1">เครื่องมือสำหรับสำรองและกู้คืนฐานข้อมูล กรุณาใช้งานด้วยความระมัดระวัง</p>
                           </div>
                         </div>
-                      )}
+
+                        <div className="space-y-3 pt-2">
+                          <Button
+                            onClick={() => setConfirmAction({
+                              open: true, title: "สำรองข้อมูล", desc: "ดาวน์โหลดข้อมูล Firestore ทั้งหมดเป็นไฟล์ JSON",
+                              action: handleExport,
+                            })}
+                            disabled={exporting}
+                            size="sm"
+                            className="w-full justify-start gap-2"
+                          >
+                            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                            Backup to JSON
+                          </Button>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".json"
+                            onChange={handleImportFile}
+                            className="hidden"
+                          />
+                          <Button
+                            onClick={() => fileInputRef.current?.click()}
+                            size="sm"
+                            variant="outline"
+                            className="w-full justify-start gap-2 border-dashed"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Import from JSON
+                          </Button>
+                        </div>
+
+                        {/* Diff Preview */}
+                        {showDiff && importData && (
+                          <div className="text-xs p-3 mt-4 rounded-lg bg-muted/50 space-y-2 border border-border">
+                            <p className="font-medium text-foreground">Import Preview:</p>
+                            <p className="text-muted-foreground">
+                              พบผู้ใช้: <span className="text-foreground">{Object.keys(importData.users || {}).length}</span> รายการ | 
+                              วันที่ Export: <span className="text-foreground">{importData.exported_at || "N/A"}</span>
+                            </p>
+                            <div className="max-h-32 overflow-y-auto space-y-1 my-2">
+                              {Object.entries(importData.users || {}).slice(0, 5).map(([uid, data]: [string, any]) => (
+                                <div key={uid} className="pl-2 border-l-2 border-primary/30">
+                                  <p className="text-foreground">{uid.slice(0, 15)}...</p>
+                                  <p className="text-muted-foreground text-[10px]">
+                                    Sub: {Object.keys(data.subcollections || {}).join(", ") || "none"}
+                                  </p>
+                                </div>
+                              ))}
+                              {Object.keys(importData.users || {}).length > 5 && (
+                                <p className="text-muted-foreground italic pl-2">...และอีกมากมาย</p>
+                              )}
+                            </div>
+                            <div className="flex gap-2 pt-2 border-t border-border">
+                              <Button size="sm" variant="ghost" onClick={() => { setImportData(null); setShowDiff(false); }} className="flex-1">
+                                ยกเลิก
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => setConfirmAction({
+                                  open: true, title: "ยืนยันนำเข้าข้อมูล (อันตราย)",
+                                  desc: `ระบบจะทำการ Merge ข้อมูล ${Object.keys(importData.users || {}).length} ผู้ใช้ เข้าสู่ฐานข้อมูลหลักทันที คุณแน่ใจหรือไม่?`,
+                                  action: handleImportConfirm,
+                                })}
+                                className="flex-1 gap-1"
+                              >
+                                <ShieldAlert className="h-3.5 w-3.5" /> ยืนยันนำเข้า
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </CardContent>
