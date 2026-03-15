@@ -325,18 +325,55 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        {/* DASHBOARD */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
-            Menu
+            Dashboard
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainMenuItems.map((item) => {
+              {dashboardItems.map((item) => {
                 if (item.children) {
                   return renderCollapsibleItem(item, dashboardOpen, setDashboardOpen, isDashboardActive);
                 }
                 return renderSimpleItem(item);
               })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* ACTIVITY */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
+            Activity
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {activityItems.map((item) => renderSimpleItem(item))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* MY ASSETS */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
+            My Assets
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {assetItems.map((item) => renderSimpleItem(item))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* OTHERS */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
+            Others
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {otherItems.map((item) => renderSimpleItem(item))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
