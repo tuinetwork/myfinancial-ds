@@ -346,7 +346,7 @@ export default function AdminPanel() {
                           </TableCell>
                           <TableCell className="hidden sm:table-cell">{req.email}</TableCell>
                           <TableCell className="hidden md:table-cell">
-                            <Badge variant="outline" className="text-yellow-600 border-yellow-300 bg-yellow-50">
+                            <Badge variant="outline" className="text-[hsl(var(--debt))] border-[hsl(var(--debt))]/30 bg-[hsl(var(--debt))]/10">
                               {req.role || "pending"}
                             </Badge>
                           </TableCell>
