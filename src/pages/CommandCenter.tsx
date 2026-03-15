@@ -28,10 +28,11 @@ import {
 import {
   Terminal, ShieldCheck, Database, Download, Upload, Radio, AlertTriangle,
   Loader2, Search, RefreshCw, Megaphone, Power, Plug, CheckCircle, XCircle,
-  Info, Trash2,
+  Info, Trash2, Code, Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { Textarea } from "@/components/ui/textarea";
 
 // ===== Operation Terminal Log Item =====
 function LogItem({ log }: { log: OperationLog }) {
