@@ -94,9 +94,7 @@ interface UserInfo {
   created_at: any;
   banned?: boolean;
 }
-
-
-
+export default function AdminPanel() {
   const { userRole, userId, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
