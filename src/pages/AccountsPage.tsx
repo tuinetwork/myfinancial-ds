@@ -39,6 +39,24 @@ export default function AccountsPage() {
   const [newType, setNewType] = useState<AccountType>("cash");
   const [newBalance, setNewBalance] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Account | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const isMainAccount = (acc: Account) => acc.name === "กระเป๋าเงินสดหลัก";
+
+  const handleDelete = async () => {
+    if (!userId || !deleteTarget) return;
+    setDeleting(true);
+    try {
+      const count = await deleteAccountWithTransactions(userId, deleteTarget.id);
+      toast.success(`ลบบัญชี "${deleteTarget.name}" สำเร็จ พร้อมธุรกรรม ${count} รายการ`);
+      setDeleteTarget(null);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (!userId) return;
