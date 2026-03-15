@@ -28,7 +28,7 @@ import {
 import {
   Terminal, ShieldCheck, Database, Download, Upload, Radio, AlertTriangle,
   Loader2, Search, RefreshCw, Megaphone, Plug, CheckCircle, XCircle,
-  Info, Trash2, Code, Play, FileJson, Plus, Edit, Save, X
+  Info, Trash2, Code, Play, FileJson, Plus, Edit, Save, X, Server
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -36,11 +36,86 @@ import { Textarea } from "@/components/ui/textarea";
 
 // ===== Types =====
 interface SchemaDoc {
-  id: string; // ชื่อ Collection (เช่น users, transactions)
+  id: string; // ชื่อ Collection
   description: string;
   schemaJson: string; // โครงสร้าง Fields แบบ JSON
   updatedAt: number;
 }
+
+// ===== Tree Node Component สำหรับแสดงข้อมูลแบบ Tree =====
+const TreeNode = ({ label, value, defaultOpen = false }: { label: string; value: any; defaultOpen?: boolean }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  
+  // จัดการค่า Null / Undefined
+  if (value === null || value === undefined) {
+    return (
+      <div className="pl-4 py-0.5 border-l border-border/50 font-mono text-xs flex gap-2">
+        <span className="text-primary">{label}:</span>
+        <span className="text-muted-foreground italic">null</span>
+      </div>
+    );
+  }
+
+  // จัดการค่า Firestore Timestamp
+  if (typeof value === "object" && typeof value.toDate === "function") {
+      return (
+      <div className="pl-4 py-0.5 border-l border-border/50 font-mono text-xs flex gap-2">
+        <span className="text-primary">{label}:</span>
+        <span className="text-emerald-500">"{value.toDate().toLocaleString()}"</span>
+      </div>
+    );
+  }
+
+  const isObject = typeof value === "object";
+  const isArray = Array.isArray(value);
+
+  // จัดการค่าพื้นฐาน (String, Number, Boolean)
+  if (!isObject) {
+    return (
+      <div className="pl-4 py-0.5 border-l border-border/50 font-mono text-xs flex gap-2 items-start">
+        <span className="text-primary shrink-0">{label}:</span>
+        <span className={typeof value === 'string' ? 'text-amber-500 break-all' : typeof value === 'boolean' ? 'text-purple-500' : 'text-blue-500'}>
+          {typeof value === 'string' ? `"${value}"` : String(value)}
+        </span>
+      </div>
+    );
+  }
+
+  const keys = Object.keys(value);
+  
+  // จัดการ Object หรือ Array ที่ว่างเปล่า
+  if (keys.length === 0) {
+    return (
+      <div className="pl-4 py-0.5 border-l border-border/50 font-mono text-xs flex gap-2">
+        <span className="text-primary">{label}:</span>
+        <span className="text-muted-foreground">{isArray ? "[]" : "{}"}</span>
+      </div>
+    );
+  }
+
+  // วาดโครงสร้าง Object / Array ที่มีข้อมูลอยู่ข้างใน
+  return (
+    <div className="pl-4 py-0.5 border-l border-border/50 font-mono text-xs">
+      <div 
+        className="flex items-center gap-1 cursor-pointer hover:bg-muted/50 rounded px-1 -ml-1 transition-colors select-none w-fit"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="text-muted-foreground w-3 text-[10px]">{isOpen ? '▼' : '▶'}</span>
+        <span className="text-foreground font-semibold">{label}</span>
+        <span className="text-muted-foreground text-[10px]">
+          {isArray ? `[${keys.length}]` : `{${keys.length}}`}
+        </span>
+      </div>
+      {isOpen && (
+        <div className="ml-2 mt-0.5">
+          {keys.map((key) => (
+            <TreeNode key={key} label={key} value={value[key]} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ===== Operation Terminal Log Item =====
 function LogItem({ log }: { log: OperationLog }) {
@@ -84,13 +159,17 @@ export default function CommandCenter() {
   const [scanning, setScanning] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  // Schema Management States
+  // Schema & Data Tree States
+  const [schemaTab, setSchemaTab] = useState<"schemas" | "data">("schemas");
   const [schemas, setSchemas] = useState<SchemaDoc[]>([]);
   const [isSchemaModalOpen, setIsSchemaModalOpen] = useState(false);
   const [schemaForm, setSchemaForm] = useState<Partial<SchemaDoc>>({
     id: "", description: "", schemaJson: "{\n  \"field_name\": \"string\"\n}"
   });
   const [isEditingSchema, setIsEditingSchema] = useState(false);
+  
+  const [allUsersData, setAllUsersData] = useState<Record<string, any> | null>(null);
+  const [loadingDataTree, setLoadingDataTree] = useState(false);
 
   // Global controls
   const [maintenanceMode, setMaintenanceMode] = useState(false);
@@ -171,7 +250,6 @@ export default function CommandCenter() {
   useEffect(() => {
     if (!mfaVerified) return;
     
-    // Config listener
     const unsubConfig = onSnapshot(doc(firestore, "system_config", "global"), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
@@ -180,13 +258,11 @@ export default function CommandCenter() {
       }
     });
 
-    // Schemas listener
     const unsubSchemas = onSnapshot(collection(firestore, "system_schemas"), (snap) => {
       const fetchedSchemas = snap.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as SchemaDoc[];
-      // เรียงตามชื่อตัวอักษร A-Z
       fetchedSchemas.sort((a, b) => a.id.localeCompare(b.id));
       setSchemas(fetchedSchemas);
     });
@@ -221,17 +297,13 @@ export default function CommandCenter() {
       toast.error("กรุณาระบุชื่อ Collection");
       return;
     }
-    
     try {
-      // Validate JSON format
       JSON.parse(schemaForm.schemaJson || "{}");
-      
       const schemaData = {
         description: schemaForm.description || "",
         schemaJson: schemaForm.schemaJson || "{}",
         updatedAt: Date.now()
       };
-
       await setDoc(doc(firestore, "system_schemas", schemaForm.id.trim()), schemaData, { merge: true });
       addLog({ timestamp: Date.now(), level: "success", message: `บันทึก Schema: ${schemaForm.id.trim()} สำเร็จ` });
       toast.success("บันทึก Schema สำเร็จ");
@@ -246,7 +318,7 @@ export default function CommandCenter() {
     setConfirmAction({
       open: true,
       title: "ลบ Schema",
-      desc: `คุณแน่ใจหรือไม่ที่จะลบ Schema ของ ${schemaId}? (การกระทำนี้จะไม่ลบข้อมูลจริงใน Collection)`,
+      desc: `คุณแน่ใจหรือไม่ที่จะลบ Schema ของ ${schemaId}?`,
       action: async () => {
         await deleteDoc(doc(firestore, "system_schemas", schemaId));
         addLog({ timestamp: Date.now(), level: "info", message: `ลบ Schema: ${schemaId}` });
@@ -255,7 +327,33 @@ export default function CommandCenter() {
     });
   };
 
-  // Other Handlers (Scan, Export, Import, Config, Script)
+  // Data Tree Handler
+  const fetchAllUsersDataTree = async () => {
+    setLoadingDataTree(true);
+    addLog({ timestamp: Date.now(), level: "info", message: "กำลังโหลดข้อมูล Live Users Data..." });
+    try {
+      const snap = await getDocs(collection(firestore, "users"));
+      const dataObj: Record<string, any> = {};
+      snap.forEach(doc => {
+        dataObj[doc.id] = doc.data();
+      });
+      setAllUsersData({ users: dataObj });
+      addLog({ timestamp: Date.now(), level: "success", message: `โหลดข้อมูล Users เรียบร้อย (${snap.size} รายการ)` });
+    } catch (error: any) {
+      toast.error("ดึงข้อมูลล้มเหลว");
+      addLog({ timestamp: Date.now(), level: "error", message: `ดึงข้อมูลล้มเหลว: ${error.message}` });
+    }
+    setLoadingDataTree(false);
+  };
+
+  const handleTabChange = (tab: "schemas" | "data") => {
+    setSchemaTab(tab);
+    if (tab === "data" && !allUsersData) {
+      fetchAllUsersDataTree();
+    }
+  };
+
+  // Other Handlers
   const handleOrphanScan = async () => {
     setScanning(true);
     addLog({ timestamp: Date.now(), level: "info", message: "เริ่มสแกนข้อมูลกำพร้า..." });
@@ -476,56 +574,95 @@ export default function CommandCenter() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* ===== Database Schema Management ===== */}
+            {/* ===== Database Explorer (Schemas & Tree) ===== */}
             <Card className="lg:col-span-2">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+              <CardHeader className="pb-0 border-b border-border">
+                <div className="flex items-center justify-between mb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Database className="h-4 w-4 text-primary" />
-                    Database Schemas
+                    Database Explorer
                   </CardTitle>
-                  <Button size="sm" onClick={() => handleOpenSchemaModal()} className="h-8 gap-1">
-                    <Plus className="h-4 w-4" /> Add Schema
-                  </Button>
+                  {schemaTab === "schemas" && (
+                    <Button size="sm" onClick={() => handleOpenSchemaModal()} className="h-8 gap-1">
+                      <Plus className="h-4 w-4" /> Add Schema
+                    </Button>
+                  )}
+                  {schemaTab === "data" && (
+                    <Button size="sm" onClick={fetchAllUsersDataTree} disabled={loadingDataTree} variant="outline" className="h-8 gap-1">
+                      <RefreshCw className={`h-3.5 w-3.5 ${loadingDataTree ? 'animate-spin' : ''}`} /> Reload Data
+                    </Button>
+                  )}
+                </div>
+                {/* Tabs */}
+                <div className="flex gap-4">
+                  <button 
+                    className={`pb-2 text-sm font-medium border-b-2 transition-colors ${schemaTab === 'schemas' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                    onClick={() => handleTabChange('schemas')}
+                  >
+                    Schema Definitions
+                  </button>
+                  <button 
+                    className={`pb-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${schemaTab === 'data' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                    onClick={() => handleTabChange('data')}
+                  >
+                    Live Users Tree <Server className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               </CardHeader>
-              <CardContent>
-                {schemas.length === 0 ? (
-                  <div className="text-center py-8 border border-dashed rounded-lg bg-muted/30">
-                    <FileJson className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-                    <p className="text-sm text-muted-foreground">ยังไม่มีข้อมูล Schema ในระบบ</p>
-                  </div>
+              <CardContent className="pt-4">
+                {schemaTab === "schemas" ? (
+                  // ----- View: Schemas -----
+                  schemas.length === 0 ? (
+                    <div className="text-center py-8 border border-dashed rounded-lg bg-muted/30">
+                      <FileJson className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                      <p className="text-sm text-muted-foreground">ยังไม่มีข้อมูล Schema ในระบบ</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {schemas.map((schema) => (
+                        <div key={schema.id} className="relative p-4 rounded-lg border border-border bg-card hover:bg-muted/10 transition-colors group">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <h3 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                                <FileJson className="h-3.5 w-3.5 text-primary" /> {schema.id}
+                              </h3>
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                                {schema.description || "ไม่มีคำอธิบาย"}
+                              </p>
+                            </div>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleOpenSchemaModal(schema)}>
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteSchema(schema.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="bg-muted/50 p-2 rounded text-[10px] font-mono text-muted-foreground h-20 overflow-hidden relative">
+                            <pre>{schema.schemaJson}</pre>
+                            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-muted/50 to-transparent" />
+                          </div>
+                          <p className="text-[9px] text-muted-foreground mt-2 text-right">
+                            Updated: {format(schema.updatedAt, "dd MMM yyyy HH:mm")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {schemas.map((schema) => (
-                      <div key={schema.id} className="relative p-4 rounded-lg border border-border bg-card hover:bg-muted/10 transition-colors group">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <h3 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
-                              <FileJson className="h-3.5 w-3.5 text-primary" /> {schema.id}
-                            </h3>
-                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                              {schema.description || "ไม่มีคำอธิบาย"}
-                            </p>
-                          </div>
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleOpenSchemaModal(schema)}>
-                              <Edit className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteSchema(schema.id)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="bg-muted/50 p-2 rounded text-[10px] font-mono text-muted-foreground h-20 overflow-hidden relative">
-                          <pre>{schema.schemaJson}</pre>
-                          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-muted/50 to-transparent" />
-                        </div>
-                        <p className="text-[9px] text-muted-foreground mt-2 text-right">
-                          Updated: {format(schema.updatedAt, "dd MMM yyyy HH:mm")}
-                        </p>
+                  // ----- View: Data Tree -----
+                  <div className="rounded-md border border-border bg-[#1e1e1e] text-[#d4d4d4] overflow-hidden">
+                    {loadingDataTree ? (
+                      <div className="flex flex-col items-center justify-center h-[350px] space-y-3">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <p className="text-xs text-muted-foreground">กำลังโหลดข้อมูลจาก Firestore...</p>
                       </div>
-                    ))}
+                    ) : allUsersData ? (
+                      <ScrollArea className="h-[400px] w-full p-4">
+                        <TreeNode label="database_root" value={allUsersData} defaultOpen={true} />
+                      </ScrollArea>
+                    ) : null}
                   </div>
                 )}
               </CardContent>
