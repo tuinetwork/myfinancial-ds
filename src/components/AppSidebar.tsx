@@ -120,7 +120,7 @@ export function AppSidebar() {
   const isDevUser = userRole === "dev";
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  const isDashboardActive = location.pathname === "/";
+  const isDashboardActive = location.pathname === "/" || location.pathname === "/analysis";
   const isSettingsActive = location.pathname.startsWith("/settings");
   const [dashboardOpen, setDashboardOpen] = useState(isDashboardActive);
   const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
