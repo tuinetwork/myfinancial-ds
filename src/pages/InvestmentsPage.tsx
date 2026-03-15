@@ -67,18 +67,19 @@ export default function InvestmentsPage() {
 
   const fmt = (n: number) => privacyMode ? "***" : n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // 3. Logic คำนวณ (Full Auto สำหรับออมแชร์ ตามสั่ง)
+  // 3. Logic คำนวณ (Full Auto สำหรับออมแชร์)
   const { totalMarketValue, totalCostBasis, unrealizedPnL, totalYield, netPnL, pnlPct } = useMemo(() => {
     let mv = 0;
     let cost = 0; 
     let yieldSum = 0;
+    let netSum = 0;
 
     investmentAccounts.forEach(acc => {
       const units = acc.total_units || 1;
       const isShare = acc.asset_class === 'share';
       const manualAvgCost = acc.average_cost || 0;
 
-      // Market Value: ถ้าเป็นแชร์ วิ่งตามยอดเงินจริง (Balance) | ถ้าเป็นอย่างอื่น ใช้ units * price
+      // Market Value: ถ้าเป็นแชร์ วิ่งตามยอด Balance จริง | อื่นๆ ใช้ units * price
       const accMV = isShare ? (Number(acc.balance) || 0) : (units * (acc.market_price || 0));
       mv += accMV;
 
@@ -86,7 +87,7 @@ export default function InvestmentsPage() {
       const accCost = units * manualAvgCost;
       cost += accCost;
 
-      // Yield: กำไร/ดอกเบี้ย
+      // Yield: ดอกเบี้ย/กำไร
       const searchKey = (acc.symbol || acc.name).toLowerCase();
       const autoYield = transactions.filter(t => {
         if (t.type !== 'income' || t.is_deleted) return false;
@@ -94,14 +95,18 @@ export default function InvestmentsPage() {
         return ['ดอกเบี้ย', 'ปันผล', 'กำไร'].some(k => text.includes(k)) && text.includes(searchKey);
       }).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
       
-      yieldSum += (autoYield + (Number(acc.manual_yield) || 0));
+      const invYield = autoYield + (Number(acc.manual_yield) || 0);
+      yieldSum += invYield;
+
+      // Net PnL: ถ้าเป็นแชร์ = Yield เท่านั้น | อื่นๆ = (MV - Cost) + Yield
+      const rowNet = isShare ? invYield : (accMV - accCost + invYield);
+      netSum += rowNet;
     });
 
     const unReal = mv - cost;
-    const net = unReal + yieldSum;
-    const pct = cost > 0 ? (net / cost) * 100 : 0;
+    const pct = cost > 0 ? (netSum / cost) * 100 : 0;
 
-    return { totalMarketValue: mv, totalCostBasis: cost, unrealizedPnL: unReal, totalYield: yieldSum, netPnL: net, pnlPct: pct };
+    return { totalMarketValue: mv, totalCostBasis: cost, unrealizedPnL: unReal, totalYield: yieldSum, netPnL: netSum, pnlPct: pct };
   }, [investmentAccounts, transactions]);
 
   const handleOpenEdit = (acc: any) => {
@@ -131,7 +136,6 @@ export default function InvestmentsPage() {
         manual_yield: parseFloat(editForm.manual_yield) || 0,
       };
 
-      // ถ้าเป็นสินทรัพย์อื่น (ไม่ใช่แชร์) ให้ Market Price = Avg Cost และอัปเดตยอดเงินตามสูตร
       if (!isShare) {
         updateData.market_price = avgCost;
         updateData.balance = units * avgCost;
@@ -183,7 +187,7 @@ export default function InvestmentsPage() {
             <Card className={cn("border-transparent shadow-sm", netPnL >= 0 ? "bg-accent/10 text-accent" : "bg-destructive/10 text-destructive")}>
               <CardContent className="p-4 sm:p-5">
                 <p className="text-xs sm:text-sm font-medium opacity-80 flex items-center gap-1.5"><Percent className="h-3.5 w-3.5"/> Total Net ROI</p>
-                <p className="text-lg sm:text-2xl font-bold font-display mt-1">{privacyMode ? "***" : `${pnlPct.toFixed(2)}%`}</p>
+                <p className="text-lg sm:text-2xl font-bold font-display mt-1">{privacyMode ? "***" : `${netPnL >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%`}</p>
               </CardContent>
             </Card>
           </div>
@@ -210,21 +214,28 @@ export default function InvestmentsPage() {
                     const isShare = acc.asset_class === 'share';
                     const displayAvgCost = acc.average_cost || 0;
                     
-                    // Market Price: ถ้าเป็นแชร์ คำนวณจาก Avg Cost * units อัตโนมัติ
+                    // Market Price: ถ้าเป็นแชร์ = Avg Cost * units | อื่นๆ = Market Price
                     const displayMktPrice = isShare ? (displayAvgCost * units) : (acc.market_price || displayAvgCost);
                     
-                    // Market Value: ถ้าเป็นแชร์ ดึงยอดเงินจริงจาก Balance
+                    // Market Value: ถ้าเป็นแชร์ = Balance | อื่นๆ = units * Market Price
                     const mv = isShare ? (Number(acc.balance) || 0) : (units * (acc.market_price || 0));
                     
                     const costBasis = units * displayAvgCost;
                     const invYield = Number(acc.manual_yield) || 0;
-                    const rowNet = (mv - costBasis) + invYield;
+                    
+                    // Net PnL: ถ้าเป็นแชร์ = Yield เท่านั้น
+                    const rowNet = isShare ? invYield : (mv - costBasis + invYield);
                     
                     return (
                       <TableRow key={acc.id} className="hover:bg-muted/20">
                         <TableCell className="font-medium py-3">
                           <span className="text-sm font-bold block">{acc.symbol || acc.name}</span>
-                          <Badge variant="outline" className="text-[9px] font-normal uppercase mt-1">{isShare ? "ออมแชร์ (Full Auto)" : "ทั่วไป"}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {/* แสดงผลตามประเภทที่เลือกใน Input */}
+                          <Badge variant="outline" className="text-[9px] font-normal uppercase mt-1">
+                            {assetClasses.find(a => a.value === acc.asset_class)?.label || "ทั่วไป"}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right font-mono">{privacyMode ? "***" : units}</TableCell>
                         <TableCell className="text-right tabular-nums">฿{fmt(displayAvgCost)}</TableCell>
