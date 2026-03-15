@@ -41,7 +41,7 @@ export default function InvestmentsPage() {
   
   const [editDialog, setEditDialog] = useState<{ open: boolean; acc: any | null }>({ open: false, acc: null });
   const [editForm, setEditForm] = useState({ 
-    symbol: "", asset_class: "stock", total_units: "1", avg_cost: "500", manual_yield: "0" 
+    symbol: "", asset_class: "share", total_units: "1", avg_cost: "500", manual_yield: "0" 
   });
   const [saving, setSaving] = useState(false);
 
@@ -67,29 +67,26 @@ export default function InvestmentsPage() {
 
   const fmt = (n: number) => privacyMode ? "***" : n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // 3. Logic คำนวณภาพรวม (Full Auto สำหรับออมแชร์)
+  // 3. Logic คำนวณ (Full Auto สำหรับออมแชร์ ตามสั่ง)
   const { totalMarketValue, totalCostBasis, unrealizedPnL, totalYield, netPnL, pnlPct } = useMemo(() => {
     let mv = 0;
-    let cost = 0; // แก้ Error: cost is not defined
-    let yieldSum = 0; // แก้ Error: yieldSum is not defined
+    let cost = 0; 
+    let yieldSum = 0;
 
     investmentAccounts.forEach(acc => {
       const units = acc.total_units || 1;
       const isShare = acc.asset_class === 'share';
+      const manualAvgCost = acc.average_cost || 0;
 
-      // Market Value: ถ้าเป็นแชร์ ใช้ยอดเงินจริงในกระเป๋า (Balance)
+      // Market Value: ถ้าเป็นแชร์ วิ่งตามยอดเงินจริง (Balance) | ถ้าเป็นอย่างอื่น ใช้ units * price
       const accMV = isShare ? (Number(acc.balance) || 0) : (units * (acc.market_price || 0));
       mv += accMV;
 
-      // Cost Basis: ถ้าเป็นแชร์ รวมยอดที่ "กดโอนเข้า" ทั้งหมด
-      const transferInSum = transactions.filter(t => 
-        t.type === 'transfer' && t.to_account_id === acc.id && !t.is_deleted
-      ).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-
-      const accCost = isShare ? transferInSum : (units * (acc.average_cost || 0));
+      // Cost Basis: ใช้ (Avg Cost ที่กรอก * จำนวนหน่วย)
+      const accCost = units * manualAvgCost;
       cost += accCost;
 
-      // Yield: ดอกเบี้ย/กำไร
+      // Yield: กำไร/ดอกเบี้ย
       const searchKey = (acc.symbol || acc.name).toLowerCase();
       const autoYield = transactions.filter(t => {
         if (t.type !== 'income' || t.is_deleted) return false;
@@ -112,7 +109,7 @@ export default function InvestmentsPage() {
       symbol: acc.symbol || acc.name,
       asset_class: acc.asset_class || "share",
       total_units: String(acc.total_units || 1),
-      avg_cost: acc.asset_class === 'share' ? "500" : String(acc.average_cost || 0),
+      avg_cost: String(acc.average_cost || 500),
       manual_yield: String(acc.manual_yield || 0),
     });
     setEditDialog({ open: true, acc });
@@ -123,19 +120,21 @@ export default function InvestmentsPage() {
     setSaving(true);
     try {
       const units = parseFloat(editForm.total_units) || 1;
+      const avgCost = parseFloat(editForm.avg_cost) || 0;
       const isShare = editForm.asset_class === 'share';
       
       const updateData: any = {
         symbol: editForm.symbol.trim().toUpperCase(),
         asset_class: editForm.asset_class,
         total_units: units,
-        average_cost: isShare ? 500 : parseFloat(editForm.avg_cost), // ล็อค 500 ตามเจ้านายสั่ง
+        average_cost: avgCost,
         manual_yield: parseFloat(editForm.manual_yield) || 0,
       };
 
+      // ถ้าเป็นสินทรัพย์อื่น (ไม่ใช่แชร์) ให้ Market Price = Avg Cost และอัปเดตยอดเงินตามสูตร
       if (!isShare) {
-        updateData.market_price = parseFloat(editForm.avg_cost);
-        updateData.balance = units * updateData.market_price;
+        updateData.market_price = avgCost;
+        updateData.balance = units * avgCost;
       }
 
       await updateAccount(userId, editDialog.acc.id, updateData);
@@ -184,7 +183,7 @@ export default function InvestmentsPage() {
             <Card className={cn("border-transparent shadow-sm", netPnL >= 0 ? "bg-accent/10 text-accent" : "bg-destructive/10 text-destructive")}>
               <CardContent className="p-4 sm:p-5">
                 <p className="text-xs sm:text-sm font-medium opacity-80 flex items-center gap-1.5"><Percent className="h-3.5 w-3.5"/> Total Net ROI</p>
-                <p className="text-lg sm:text-2xl font-bold font-display mt-1">{privacyMode ? "***" : `${netPnL >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%`}</p>
+                <p className="text-lg sm:text-2xl font-bold font-display mt-1">{privacyMode ? "***" : `${pnlPct.toFixed(2)}%`}</p>
               </CardContent>
             </Card>
           </div>
@@ -200,7 +199,7 @@ export default function InvestmentsPage() {
                     <TableHead className="text-right">Avg Cost</TableHead>
                     <TableHead className="text-right">Market Price</TableHead>
                     <TableHead className="text-right font-bold">Market Value</TableHead>
-                    <TableHead className="text-right text-green-500">Yield (ดอกเบี้ย)</TableHead>
+                    <TableHead className="text-right text-green-500">Yield</TableHead>
                     <TableHead className="text-right font-bold">Net PnL</TableHead>
                     <TableHead className="w-[60px]"></TableHead>
                   </TableRow>
@@ -209,15 +208,15 @@ export default function InvestmentsPage() {
                   {investmentAccounts.map((acc) => {
                     const units = acc.total_units || 1;
                     const isShare = acc.asset_class === 'share';
+                    const displayAvgCost = acc.average_cost || 0;
                     
-                    const transferIn = transactions.filter(t => t.type === 'transfer' && t.to_account_id === acc.id && !t.is_deleted).reduce((s, t) => s + (Number(t.amount) || 0), 0);
+                    // Market Price: ถ้าเป็นแชร์ คำนวณจาก Avg Cost * units อัตโนมัติ
+                    const displayMktPrice = isShare ? (displayAvgCost * units) : (acc.market_price || displayAvgCost);
                     
-                    const displayAvgCost = isShare ? 500 : (acc.average_cost || 0);
-                    const displayMktPrice = isShare ? (500 * units) : (acc.market_price || displayAvgCost);
-                    
-                    const costBasis = isShare ? transferIn : (units * (acc.average_cost || 0));
+                    // Market Value: ถ้าเป็นแชร์ ดึงยอดเงินจริงจาก Balance
                     const mv = isShare ? (Number(acc.balance) || 0) : (units * (acc.market_price || 0));
                     
+                    const costBasis = units * displayAvgCost;
                     const invYield = Number(acc.manual_yield) || 0;
                     const rowNet = (mv - costBasis) + invYield;
                     
@@ -225,7 +224,7 @@ export default function InvestmentsPage() {
                       <TableRow key={acc.id} className="hover:bg-muted/20">
                         <TableCell className="font-medium py-3">
                           <span className="text-sm font-bold block">{acc.symbol || acc.name}</span>
-                          <Badge variant="outline" className="text-[9px] font-normal uppercase mt-1">{isShare ? "ออมแชร์ (Auto)" : "ทั่วไป"}</Badge>
+                          <Badge variant="outline" className="text-[9px] font-normal uppercase mt-1">{isShare ? "ออมแชร์ (Full Auto)" : "ทั่วไป"}</Badge>
                         </TableCell>
                         <TableCell className="text-right font-mono">{privacyMode ? "***" : units}</TableCell>
                         <TableCell className="text-right tabular-nums">฿{fmt(displayAvgCost)}</TableCell>
@@ -262,15 +261,14 @@ export default function InvestmentsPage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>จำนวนมือ (Units)</Label><Input type="number" value={editForm.total_units} onChange={(e) => setEditForm({...editForm, total_units: e.target.value})} /></div>
-                <div className="space-y-2"><Label>Avg Cost {editForm.asset_class === 'share' ? "(Lock 500)" : ""}</Label>
-                <Input type="number" value={editForm.avg_cost} disabled={editForm.asset_class === 'share'} onChange={(e) => setEditForm({...editForm, avg_cost: e.target.value})} /></div>
+                <div className="space-y-2"><Label>จำนวนหน่วย / มือ</Label><Input type="number" value={editForm.total_units} onChange={(e) => setEditForm({...editForm, total_units: e.target.value})} /></div>
+                <div className="space-y-2"><Label>Avg Cost (ต้นทุนที่กรอก)</Label><Input type="number" value={editForm.avg_cost} onChange={(e) => setEditForm({...editForm, avg_cost: e.target.value})} /></div>
               </div>
               <div className="pt-2 border-t border-border">
                 <Label className="text-green-600 font-semibold flex items-center gap-1.5"><Banknote className="h-4 w-4"/> ดอกเบี้ย / กำไรสะสม (Yield)</Label>
                 <Input type="number" value={editForm.manual_yield} onChange={(e) => setEditForm({...editForm, manual_yield: e.target.value})} className="mt-2 border-green-500/30" />
               </div>
-              <Button onClick={handleSaveEdit} disabled={saving} className="w-full h-11 shadow-lg">{saving ? "กำลังประมวลผล..." : "บันทึกข้อมูล"}</Button>
+              <Button onClick={handleSaveEdit} disabled={saving} className="w-full h-11 shadow-lg font-semibold">{saving ? "กำลังบันทึก..." : "บันทึกและซิงค์ข้อมูล"}</Button>
             </div>
           </DialogContent>
         </Dialog>
