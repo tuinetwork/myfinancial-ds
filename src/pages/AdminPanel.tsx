@@ -270,8 +270,8 @@ export default function AdminPanel() {
   const roleBadge = (role: string, banned?: boolean) => {
     if (banned) return <Badge variant="destructive">แบน</Badge>;
     switch (role) {
-      case "dev": return <Badge className="bg-purple-600 text-white">Dev</Badge>;
-      case "admin": return <Badge className="bg-blue-600 text-white">Admin</Badge>;
+      case "dev": return <Badge className="bg-[hsl(var(--investment))] text-[hsl(var(--investment-foreground))]">Dev</Badge>;
+      case "admin": return <Badge className="bg-primary text-primary-foreground">Admin</Badge>;
       default: return <Badge variant="secondary">User</Badge>;
     }
   };
