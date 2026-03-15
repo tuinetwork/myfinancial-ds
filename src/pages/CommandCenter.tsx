@@ -43,10 +43,10 @@ interface SchemaDoc {
 }
 
 // ===== Tree Node Component สำหรับแสดงข้อมูลแบบ Tree (สีขาว) =====
-const TreeNode = ({ label, value, defaultOpen = false }: { label: string; value: any; defaultOpen?: boolean }) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+const TreeNode = ({ label, value, defaultOpen = false, depth = 0 }: { label: string; value: any; defaultOpen?: boolean; depth?: number }) => {
+  // กาง Tree โดยอัตโนมัติใน 3 ระดับแรก เพื่อให้เห็นข้อมูลทันที
+  const [isOpen, setIsOpen] = useState(defaultOpen || depth < 3);
   
-  // จัดการค่า Null / Undefined
   if (value === null || value === undefined) {
     return (
       <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs flex gap-2">
@@ -56,7 +56,6 @@ const TreeNode = ({ label, value, defaultOpen = false }: { label: string; value:
     );
   }
 
-  // จัดการค่า Firestore Timestamp
   if (typeof value === "object" && typeof value.toDate === "function") {
       return (
       <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs flex gap-2">
@@ -69,7 +68,6 @@ const TreeNode = ({ label, value, defaultOpen = false }: { label: string; value:
   const isObject = typeof value === "object";
   const isArray = Array.isArray(value);
 
-  // จัดการค่าพื้นฐาน (String, Number, Boolean)
   if (!isObject) {
     return (
       <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs flex gap-2 items-start">
@@ -83,7 +81,6 @@ const TreeNode = ({ label, value, defaultOpen = false }: { label: string; value:
 
   const keys = Object.keys(value);
   
-  // จัดการ Object หรือ Array ที่ว่างเปล่า
   if (keys.length === 0) {
     return (
       <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs flex gap-2">
@@ -93,7 +90,6 @@ const TreeNode = ({ label, value, defaultOpen = false }: { label: string; value:
     );
   }
 
-  // วาดโครงสร้าง Object / Array ที่มีข้อมูลอยู่ข้างใน
   return (
     <div className="pl-4 py-0.5 border-l border-white/20 font-mono text-xs">
       <div 
@@ -109,7 +105,7 @@ const TreeNode = ({ label, value, defaultOpen = false }: { label: string; value:
       {isOpen && (
         <div className="ml-2 mt-0.5">
           {keys.map((key) => (
-            <TreeNode key={key} label={key} value={value[key]} />
+            <TreeNode key={key} label={key} value={value[key]} depth={depth + 1} />
           ))}
         </div>
       )}
@@ -330,18 +326,34 @@ export default function CommandCenter() {
     });
   };
 
-  // Data Tree Handler
-  const fetchAllUsersDataTree = async () => {
+  // ดึงข้อมูลแบบแสดงทุกอย่าง (All Collections)
+  const fetchAllDataTree = async () => {
     setLoadingDataTree(true);
-    addLog({ timestamp: Date.now(), level: "info", message: "กำลังโหลดข้อมูล Live Users Data..." });
+    addLog({ timestamp: Date.now(), level: "info", message: "กำลังโหลดข้อมูล Live Tree จากทุก Collection ที่ระบุ..." });
     try {
-      const snap = await getDocs(collection(firestore, "users"));
-      const dataObj: Record<string, any> = {};
-      snap.forEach(doc => {
-        dataObj[doc.id] = doc.data();
-      });
-      setAllUsersData({ users: dataObj });
-      addLog({ timestamp: Date.now(), level: "success", message: `โหลดข้อมูล Users เรียบร้อย (${snap.size} รายการ)` });
+      // 💡 เพิ่มหรือแก้ไขชื่อ Collection ที่เจ้านายมีในระบบตรง Array นี้ได้เลยครับ
+      const collectionsToFetch = ["users", "system_schemas", "system_config", "transactions", "inventory", "accounts", "budgets"];
+      
+      const dbData: Record<string, any> = {};
+      let totalDocs = 0;
+
+      for (const colName of collectionsToFetch) {
+        try {
+          const snap = await getDocs(collection(firestore, colName));
+          if (!snap.empty) {
+            dbData[colName] = {};
+            snap.forEach(doc => {
+              dbData[colName][doc.id] = doc.data();
+              totalDocs++;
+            });
+          }
+        } catch (e) {
+          // ข้าม Collection ที่ไม่มีสิทธิ์เข้าถึงหรือยังไม่มีอยู่จริง
+        }
+      }
+
+      setAllUsersData(dbData);
+      addLog({ timestamp: Date.now(), level: "success", message: `โหลดข้อมูลสำเร็จ พบทั้งหมด ${totalDocs} documents` });
     } catch (error: any) {
       toast.error("ดึงข้อมูลล้มเหลว");
       addLog({ timestamp: Date.now(), level: "error", message: `ดึงข้อมูลล้มเหลว: ${error.message}` });
@@ -352,7 +364,7 @@ export default function CommandCenter() {
   const handleTabChange = (tab: "schemas" | "data" | "recovery") => {
     setDbTab(tab);
     if (tab === "data" && !allUsersData) {
-      fetchAllUsersDataTree();
+      fetchAllDataTree();
     }
   };
 
@@ -547,7 +559,7 @@ export default function CommandCenter() {
 
         <div className="flex-1 p-4 sm:p-6 space-y-6 pb-20">
           
-          {/* ===== Operation Terminal (เต็มความกว้างด้านบน) ===== */}
+          {/* ===== 1. Operation Terminal (เต็มความกว้างด้านบน) ===== */}
           <Card className="border-border">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -576,7 +588,55 @@ export default function CommandCenter() {
             </CardContent>
           </Card>
 
-          {/* ===== แบ่ง 2 คอลัมน์ (ซ้าย - ขวา) ===== */}
+          {/* ===== 2. Migration Script Editor (เต็มความกว้าง ต่อจาก Terminal) ===== */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Code className="h-4 w-4 text-primary" />
+                  Migration Script Editor
+                </CardTitle>
+                <Button
+                  size="sm"
+                  onClick={() => setConfirmAction({
+                    open: true,
+                    title: "รันสคริปต์ Migration",
+                    desc: "สคริปต์จะทำงานโดยตรงกับฐานข้อมูล การกระทำนี้ไม่สามารถย้อนกลับได้ กรุณาตรวจสอบโค้ดให้แน่ใจก่อนดำเนินการ",
+                    action: handleRunScript,
+                  })}
+                  disabled={scriptRunning || !scriptCode.trim()}
+                  className="gap-1.5 h-8"
+                >
+                  {scriptRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                  Run Script
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="text-xs text-muted-foreground flex flex-wrap gap-1.5">
+                <Badge variant="outline" className="text-[10px] font-mono">db</Badge>
+                <Badge variant="outline" className="text-[10px] font-mono">log(msg)</Badge>
+                <Badge variant="outline" className="text-[10px] font-mono">collection</Badge>
+                <Badge variant="outline" className="text-[10px] font-mono">doc</Badge>
+                <Badge variant="outline" className="text-[10px] font-mono">getDocs</Badge>
+                <Badge variant="outline" className="text-[10px] font-mono">setDoc</Badge>
+                <Badge variant="outline" className="text-[10px] font-mono">updateDoc</Badge>
+                <Badge variant="outline" className="text-[10px] font-mono">deleteDoc</Badge>
+                <Badge variant="outline" className="text-[10px] font-mono">writeBatch</Badge>
+                <Badge variant="outline" className="text-[10px] font-mono">query</Badge>
+                <Badge variant="outline" className="text-[10px] font-mono">where</Badge>
+              </div>
+              <Textarea
+                value={scriptCode}
+                onChange={(e) => setScriptCode(e.target.value)}
+                className="font-mono text-xs min-h-[200px] bg-muted/30 border-border resize-y leading-relaxed"
+                placeholder="// เขียนสคริปต์ migration ที่นี่..."
+                spellCheck={false}
+              />
+            </CardContent>
+          </Card>
+
+          {/* ===== 3. แบ่ง 2 คอลัมน์ (ซ้าย - ขวา) สำหรับเครื่องมืออื่นๆ ===== */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             
             {/* ========== คอลัมน์ซ้าย ========== */}
@@ -702,54 +762,6 @@ export default function CommandCenter() {
                 </CardContent>
               </Card>
 
-              {/* Script Editor */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Code className="h-4 w-4 text-primary" />
-                      Migration Script Editor
-                    </CardTitle>
-                    <Button
-                      size="sm"
-                      onClick={() => setConfirmAction({
-                        open: true,
-                        title: "รันสคริปต์ Migration",
-                        desc: "สคริปต์จะทำงานโดยตรงกับฐานข้อมูล การกระทำนี้ไม่สามารถย้อนกลับได้ กรุณาตรวจสอบโค้ดให้แน่ใจก่อนดำเนินการ",
-                        action: handleRunScript,
-                      })}
-                      disabled={scriptRunning || !scriptCode.trim()}
-                      className="gap-1.5 h-8"
-                    >
-                      {scriptRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-                      Run Script
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="text-xs text-muted-foreground flex flex-wrap gap-1.5">
-                    <Badge variant="outline" className="text-[10px] font-mono">db</Badge>
-                    <Badge variant="outline" className="text-[10px] font-mono">log(msg)</Badge>
-                    <Badge variant="outline" className="text-[10px] font-mono">collection</Badge>
-                    <Badge variant="outline" className="text-[10px] font-mono">doc</Badge>
-                    <Badge variant="outline" className="text-[10px] font-mono">getDocs</Badge>
-                    <Badge variant="outline" className="text-[10px] font-mono">setDoc</Badge>
-                    <Badge variant="outline" className="text-[10px] font-mono">updateDoc</Badge>
-                    <Badge variant="outline" className="text-[10px] font-mono">deleteDoc</Badge>
-                    <Badge variant="outline" className="text-[10px] font-mono">writeBatch</Badge>
-                    <Badge variant="outline" className="text-[10px] font-mono">query</Badge>
-                    <Badge variant="outline" className="text-[10px] font-mono">where</Badge>
-                  </div>
-                  <Textarea
-                    value={scriptCode}
-                    onChange={(e) => setScriptCode(e.target.value)}
-                    className="font-mono text-xs min-h-[200px] bg-muted/30 border-border resize-y leading-relaxed"
-                    placeholder="// เขียนสคริปต์ migration ที่นี่..."
-                    spellCheck={false}
-                  />
-                </CardContent>
-              </Card>
-
             </div>
 
             {/* ========== คอลัมน์ขวา ========== */}
@@ -769,7 +781,7 @@ export default function CommandCenter() {
                       </Button>
                     )}
                     {dbTab === "data" && (
-                      <Button size="sm" onClick={fetchAllUsersDataTree} disabled={loadingDataTree} variant="outline" className="h-8 gap-1">
+                      <Button size="sm" onClick={fetchAllDataTree} disabled={loadingDataTree} variant="outline" className="h-8 gap-1">
                         <RefreshCw className={`h-3.5 w-3.5 ${loadingDataTree ? 'animate-spin' : ''}`} /> Reload Data
                       </Button>
                     )}
@@ -846,16 +858,16 @@ export default function CommandCenter() {
                       {loadingDataTree ? (
                         <div className="flex flex-col items-center justify-center h-[450px] space-y-3">
                           <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                          <p className="text-xs text-muted-foreground">กำลังโหลดข้อมูลจาก Firestore...</p>
+                          <p className="text-xs text-muted-foreground">กำลังโหลดข้อมูลจากทุก Collection...</p>
                         </div>
                       ) : allUsersData ? (
                         <ScrollArea className="h-[500px] w-full p-4">
-                          <TreeNode label="database_root" value={allUsersData} defaultOpen={true} />
+                          <TreeNode label="database_root" value={allUsersData} defaultOpen={true} depth={0} />
                         </ScrollArea>
                       ) : (
                         <div className="flex flex-col items-center justify-center h-[450px] space-y-3 text-muted-foreground">
                           <Server className="h-8 w-8 opacity-20" />
-                          <p className="text-xs">คลิก "Reload Data" เพื่อดึงข้อมูล</p>
+                          <p className="text-xs">คลิก "Reload Data" เพื่อดึงข้อมูลทั้งหมด</p>
                         </div>
                       )}
                     </div>
