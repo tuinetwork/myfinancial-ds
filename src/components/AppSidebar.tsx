@@ -26,19 +26,29 @@ interface MenuItem {
   children?: { title: string; url: string; icon?: React.ComponentType<{ className?: string }> }[];
 }
 
-const mainMenuItems: MenuItem[] = [
+// ── Menu Groups ──
+const dashboardItems: MenuItem[] = [
   {
-    title: "แดชบอร์ด", url: "/", icon: LayoutDashboard,
+    title: "Dashboard", url: "/", icon: LayoutDashboard,
     children: [
       { title: "รายเดือน", url: "/?view=monthly", icon: CalendarDays },
       { title: "รายปี", url: "/?view=yearly", icon: BarChart3 },
+      { title: "วิเคราะห์", url: "/analysis", icon: PieChart },
     ],
   },
-  { title: "วิเคราะห์", url: "/analysis", icon: PieChart },
-  { title: "ปฏิทินการเงิน", url: "/calendar", icon: CalendarDays },
+];
+
+const activityItems: MenuItem[] = [
   { title: "รายการธุรกรรม", url: "/transactions", icon: Receipt },
+  { title: "ปฏิทินการเงิน", url: "/calendar", icon: CalendarDays },
+];
+
+const assetItems: MenuItem[] = [
   { title: "บัญชี/กระเป๋าเงิน", url: "/accounts", icon: Landmark },
   { title: "การลงทุน", url: "/investments", icon: TrendingUp },
+];
+
+const otherItems: MenuItem[] = [
   { title: "เป้าหมาย", url: "/goals", icon: Target },
 ];
 
