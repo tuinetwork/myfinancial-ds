@@ -200,3 +200,56 @@ export async function deleteTransactionAtomic(
     });
   });
 }
+
+/**
+ * Update a transaction AND adjust account balances atomically.
+ * oldBalanceReversals: undo the old transaction's effect
+ * newBalanceUpdates: apply the new transaction's effect
+ */
+export async function updateTransactionAtomic(
+  userId: string,
+  transactionId: string,
+  updatedFields: Record<string, any>,
+  oldBalanceReversals: { accountId: string; delta: number }[],
+  newBalanceUpdates: { accountId: string; delta: number }[]
+): Promise<void> {
+  const txRef = doc(firestore, "users", userId, "transactions", transactionId);
+
+  // Combine all unique account IDs
+  const allUpdates = new Map<string, number>();
+  for (const r of oldBalanceReversals) {
+    allUpdates.set(r.accountId, (allUpdates.get(r.accountId) ?? 0) + r.delta);
+  }
+  for (const u of newBalanceUpdates) {
+    allUpdates.set(u.accountId, (allUpdates.get(u.accountId) ?? 0) + u.delta);
+  }
+
+  await runTransaction(firestore, async (transaction) => {
+    const txSnap = await transaction.get(txRef);
+    if (!txSnap.exists()) throw new Error("Transaction not found");
+
+    const accountEntries = Array.from(allUpdates.entries());
+    const accountRefs = accountEntries.map(([id]) =>
+      doc(firestore, "users", userId, "accounts", id)
+    );
+    const accountSnaps = await Promise.all(
+      accountRefs.map((ref) => transaction.get(ref))
+    );
+
+    // Update transaction
+    transaction.update(txRef, { ...updatedFields, updated_at: Date.now() });
+
+    // Apply net balance changes
+    accountSnaps.forEach((snap, i) => {
+      if (!snap.exists()) return;
+      const currentBalance = snap.data()!.balance ?? 0;
+      const netDelta = accountEntries[i][1];
+      if (netDelta === 0) return;
+      const newBalance = Math.round((currentBalance + netDelta) * 100) / 100;
+      transaction.update(accountRefs[i], {
+        balance: newBalance,
+        updated_at: Date.now(),
+      });
+    });
+  });
+}
