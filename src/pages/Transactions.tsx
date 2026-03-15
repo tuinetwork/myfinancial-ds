@@ -129,7 +129,11 @@ const Transactions = () => {
             {isPageLoading ? (
               <Skeleton className="h-96 rounded-lg" />
             ) : data ? (
-              <TransactionTable data={data} />
+              <TransactionTable
+                data={data}
+                userId={userId}
+                onMutate={() => queryClient.invalidateQueries({ queryKey: ["budget-data"] })}
+              />
             ) : (
               <div className="flex items-center justify-center h-64">
                 <p className="text-destructive">ไม่สามารถโหลดข้อมูลได้</p>
