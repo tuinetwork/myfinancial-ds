@@ -4,6 +4,8 @@ import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { AppFooter } from "@/components/AppFooter";
 import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
 import { TransactionTable } from "@/components/TransactionTable";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -25,6 +27,8 @@ import {
 } from "@/components/ui/select";
 
 const Transactions = () => {
+  const { userId } = useAuth();
+  const queryClient = useQueryClient();
   const { data: months, isLoading: monthsLoading } = useAvailableMonths();
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | undefined>(undefined);
@@ -125,7 +129,11 @@ const Transactions = () => {
             {isPageLoading ? (
               <Skeleton className="h-96 rounded-lg" />
             ) : data ? (
-              <TransactionTable data={data} />
+              <TransactionTable
+                data={data}
+                userId={userId}
+                onMutate={() => queryClient.invalidateQueries({ queryKey: ["budget-data"] })}
+              />
             ) : (
               <div className="flex items-center justify-center h-64">
                 <p className="text-destructive">ไม่สามารถโหลดข้อมูลได้</p>
