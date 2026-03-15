@@ -384,7 +384,7 @@ export default function AdminPanel() {
                   <Badge variant="secondary">{users.length}</Badge>
                 </div>
                 <Badge variant="outline" className="text-xs gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
                   Realtime
                 </Badge>
               </div>
