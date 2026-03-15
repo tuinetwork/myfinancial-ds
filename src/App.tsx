@@ -45,8 +45,8 @@ class ErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <div className="p-8 text-sm">
-          <h1 className="text-lg font-bold text-red-600 mb-2">Error: {this.state.error?.message}</h1>
-          <pre className="whitespace-pre-wrap text-xs bg-gray-100 p-4 rounded overflow-auto max-h-96">
+          <h1 className="text-lg font-bold text-destructive mb-2">Error: {this.state.error?.message}</h1>
+          <pre className="whitespace-pre-wrap text-xs bg-muted p-4 rounded overflow-auto max-h-96">
             {this.state.errorInfo?.componentStack}
           </pre>
         </div>
