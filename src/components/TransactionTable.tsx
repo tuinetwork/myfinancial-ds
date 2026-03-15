@@ -65,6 +65,8 @@ function getTypeBadgeClass(type: string) {
       return "bg-primary/15 text-primary hover:bg-primary/20 border-none";
     case "เงินออมและการลงทุน":
       return "bg-investment/15 text-investment hover:bg-investment/20 border-none";
+    case "โอน":
+      return "bg-muted text-foreground hover:bg-muted/80 border-none";
     default:
       return "bg-muted text-muted-foreground border-none";
   }
