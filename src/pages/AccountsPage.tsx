@@ -28,7 +28,7 @@ const accountTypeConfig: Record<AccountType, { label: string; icon: React.Compon
   inventory: { label: "สินค้าคงคลัง", icon: Package, group: "Inventory / Business" },
 };
 
-const accountTypes: AccountType[] = ["cash", "bank", "investment", "credit_card", "loan", "inventory"];
+const accountTypes: AccountType[] = ["cash", "bank", "investment", "credit_card", "loan", "receivable", "inventory"];
 
 export default function AccountsPage() {
   const { userId } = useAuth();
