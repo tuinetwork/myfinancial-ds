@@ -136,6 +136,8 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
   const [pageSize, setPageSize] = useState(50);
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(0);
