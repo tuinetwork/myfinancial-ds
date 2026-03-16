@@ -1,25 +1,60 @@
 
 
-## แยกเมนูย่อย Dashboard ออกมาแสดงตรงๆ
+## แผน: ซิงค์ข้อมูลรายการซ้ำจากเดือนต้นทาง
 
 ### ปัญหา
-เมนู Dashboard มี 3 รายการย่อย (รายเดือน, รายปี, วิเคราะห์) ซ่อนอยู่ใน Collapsible/Accordion ต้องคลิกกางก่อน ผู้ใช้ต้องการให้แสดงตรงๆ เหมือนกลุ่ม Activity
+เมื่อตั้งค่ารายการซ้ำ (เช่น "ออมแชร์") ในเดือนหนึ่ง แต่เปลี่ยนไปดูเดือนอื่น ข้อมูลจะไม่ตรงกัน เพราะแต่ละเดือนเก็บสำเนาข้อมูลแยกกัน ทำให้:
+- วันกำหนดชำระ, วันสิ้นสุด, จำนวนงวด ต่างกันระหว่างเดือน
+- แก้ไขข้อมูลในเดือนหนึ่งไม่กระทบเดือนอื่น
 
 ### แนวทางแก้ไข
+กำหนดให้ **เดือนที่ start_date ตกอยู่** เป็น "เดือนต้นทาง" (Source Month) ที่เป็นแหล่งข้อมูลหลัก:
 
-**ไฟล์: `src/components/AppSidebar.tsx`**
+1. **แก้ไขได้เฉพาะเดือนต้นทาง** — รายการซ้ำที่มี start_date จะแก้ไขได้เฉพาะในเดือนที่ start_date ตกอยู่เท่านั้น
+2. **เดือนอื่นดึงข้อมูลจากเดือนต้นทาง** — เมื่อโหลดงบเดือนอื่น ระบบจะตรวจสอบรายการซ้ำที่มี start_date ต่างเดือน แล้วดึงข้อมูล (amount, due_date, recurrence, start_date, end_date) จากเอกสารงบของเดือนต้นทาง
+3. **บันทึกแบบกระจาย** — เมื่อแก้ไขและบันทึกในเดือนต้นทาง ระบบจะอัปเดตเอกสารงบของเดือนอื่น ๆ ที่อยู่ในช่วง start_date → end_date ด้วย
 
-1. เปลี่ยน `dashboardItems` จากรูปแบบ parent+children เป็น flat list 3 รายการ:
-   - รายเดือน → `/?view=monthly` (icon: CalendarDays)
-   - รายปี → `/?view=yearly` (icon: BarChart3)
-   - วิเคราะห์ → `/analysis` (icon: PieChart)
+### รายละเอียดทางเทคนิค
 
-2. ในส่วน render กลุ่ม DASHBOARD เปลี่ยนจาก `renderCollapsibleItem` เป็น `renderSimpleItem` สำหรับทุกรายการ
+**ไฟล์: `src/pages/Settings.tsx`**
 
-3. ปรับ `renderSimpleItem` ให้รองรับ URL ที่มี query param (เช่น `/?view=monthly`) โดยใช้ logic เทียบ active state แบบเดิมจาก `renderChildActive`
+#### 1. ฟังก์ชัน `getSourcePeriod(startDate)` (ใหม่)
+- คำนวณ period (YYYY-MM) จาก start_date เพื่อระบุเดือนต้นทาง
 
-4. ลบ state `dashboardOpen` / `setDashboardOpen` และ useEffect ที่เกี่ยวข้องออก (ไม่จำเป็นแล้ว)
+#### 2. แก้ไข `useEffect` สำหรับโหลดข้อมูลงบ
+- หลังโหลดข้อมูลงบของเดือนที่เลือก
+- สำหรับแต่ละรายการซ้ำที่มี start_date:
+  - คำนวณ sourcePeriod = `YYYY-MM` ของ start_date
+  - ถ้า sourcePeriod ≠ เดือนที่เลือก → ดึงเอกสารงบจาก sourcePeriod
+  - แทนที่ข้อมูล (amount, due_date, recurrence, start_date, end_date) ด้วยค่าจากเดือนต้นทาง
 
-### ผลลัพธ์
-กลุ่ม DASHBOARD จะแสดง 3 รายการตรงๆ เหมือนกลุ่ม Activity ไม่ต้องกดกาง
+#### 3. แก้ไขเงื่อนไข `isLocked`
+- เพิ่มเงื่อนไข: ล็อคแก้ไขเมื่อ sourcePeriod ≠ เดือนที่กำลังดู
+- เดือนต้นทาง → ใช้ปุ่มล็อค/ปลดล็อคปกติ
+- เดือนอื่น → ล็อคถาวร (ไม่มีปุ่มปลดล็อค)
 
+#### 4. แก้ไข `handleSave`
+- เมื่อบันทึกในเดือนต้นทาง:
+  - สำหรับแต่ละรายการซ้ำที่มี start_date + end_date
+  - คำนวณเดือนทั้งหมดในช่วง (start → end)
+  - อัปเดตเอกสารงบของแต่ละเดือนด้วยข้อมูลล่าสุด
+
+### ลำดับการทำงาน
+```
+โหลดงบเดือน X:
+  สำหรับแต่ละรายการย่อย:
+    ถ้ามี start_date:
+      sourcePeriod = YYYY-MM ของ start_date
+      ถ้า sourcePeriod ≠ X:
+        ดึงข้อมูลจากเอกสาร budgets/sourcePeriod
+        แทนที่ค่า amount, due_date, recurrence, start_date, end_date
+
+บันทึกงบเดือน X:
+  สำหรับแต่ละรายการซ้ำ:
+    ถ้า X = sourcePeriod:
+      อัปเดตเอกสารงบทุกเดือนในช่วง start → end
+```
+
+### ขอบเขตการแก้ไข
+- 1 ไฟล์: `src/pages/Settings.tsx`
+- เพิ่ม ~50 บรรทัด (ฟังก์ชัน sync + แก้ไข useEffect + แก้ไข handleSave)

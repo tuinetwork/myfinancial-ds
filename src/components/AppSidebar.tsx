@@ -28,14 +28,9 @@ interface MenuItem {
 
 // ── Menu Groups ──
 const dashboardItems: MenuItem[] = [
-  {
-    title: "Dashboard", url: "/", icon: LayoutDashboard,
-    children: [
-      { title: "รายเดือน", url: "/?view=monthly", icon: CalendarDays },
-      { title: "รายปี", url: "/?view=yearly", icon: BarChart3 },
-      { title: "วิเคราะห์", url: "/analysis", icon: PieChart },
-    ],
-  },
+  { title: "รายเดือน", url: "/?view=monthly", icon: CalendarDays },
+  { title: "รายปี", url: "/?view=yearly", icon: BarChart3 },
+  { title: "วิเคราะห์", url: "/analysis", icon: PieChart },
 ];
 
 const activityItems: MenuItem[] = [
@@ -120,14 +115,8 @@ export function AppSidebar() {
   const isDevUser = userRole === "dev";
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  const isDashboardActive = location.pathname === "/" || location.pathname === "/analysis";
   const isSettingsActive = location.pathname.startsWith("/settings");
-  const [dashboardOpen, setDashboardOpen] = useState(isDashboardActive);
   const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
-
-  useEffect(() => {
-    if (isDashboardActive) setDashboardOpen(true);
-  }, [isDashboardActive]);
 
   useEffect(() => {
     if (isSettingsActive) setSettingsOpen(true);
@@ -264,8 +253,7 @@ export function AppSidebar() {
 
   /* ── Render simple nav item ── */
   const renderSimpleItem = (item: MenuItem) => {
-    const isActive =
-      item.url === "/" ? location.pathname === "/" : location.pathname.startsWith(item.url);
+    const isActive = renderChildActive(item.url);
 
     if (collapsed) {
       return (
@@ -332,12 +320,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {dashboardItems.map((item) => {
-                if (item.children) {
-                  return renderCollapsibleItem(item, dashboardOpen, setDashboardOpen, isDashboardActive);
-                }
-                return renderSimpleItem(item);
-              })}
+              {dashboardItems.map((item) => renderSimpleItem(item))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
