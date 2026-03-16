@@ -217,7 +217,7 @@ const Analysis = () => {
       .map(([name, value]) => ({ name, value }));
 
     // Budget totals
-    const totalBudget = allBudgetItems.reduce((s, b) => s + b.budget, 0);
+    const totalBudget = budgetPerformance.reduce((s, b) => s + b.budget, 0);
     const overBudgetCount = budgetPerformance.filter((b) => b.status === "over").length;
     const warningCount = budgetPerformance.filter((b) => b.status === "warning" || b.status === "full").length;
     const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
