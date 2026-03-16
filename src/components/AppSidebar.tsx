@@ -326,12 +326,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {dashboardItems.map((item) => {
-                if (item.children) {
-                  return renderCollapsibleItem(item, dashboardOpen, setDashboardOpen, isDashboardActive);
-                }
-                return renderSimpleItem(item);
-              })}
+              {dashboardItems.map((item) => renderSimpleItem(item))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
