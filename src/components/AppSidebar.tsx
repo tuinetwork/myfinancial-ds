@@ -28,14 +28,9 @@ interface MenuItem {
 
 // ── Menu Groups ──
 const dashboardItems: MenuItem[] = [
-  {
-    title: "Dashboard", url: "/", icon: LayoutDashboard,
-    children: [
-      { title: "รายเดือน", url: "/?view=monthly", icon: CalendarDays },
-      { title: "รายปี", url: "/?view=yearly", icon: BarChart3 },
-      { title: "วิเคราะห์", url: "/analysis", icon: PieChart },
-    ],
-  },
+  { title: "รายเดือน", url: "/?view=monthly", icon: CalendarDays },
+  { title: "รายปี", url: "/?view=yearly", icon: BarChart3 },
+  { title: "วิเคราะห์", url: "/analysis", icon: PieChart },
 ];
 
 const activityItems: MenuItem[] = [
