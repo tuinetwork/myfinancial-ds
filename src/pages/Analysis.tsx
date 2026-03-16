@@ -164,7 +164,9 @@ const Analysis = () => {
             totalBudgetForItem = b.budget * Math.max(occurrences, 1);
           } else {
             // No end_date: just expand within selected month
-            const dates = expandRecurrence(b.dueDate || b.startDate, b.recurrence, year, month, b.startDate, b.endDate);
+            const selYear = parseInt(selectedYear || "2024", 10);
+            const selMonth = parseInt(selectedMonthKey || "01", 10);
+            const dates = expandRecurrence(b.dueDate || b.startDate, b.recurrence, selYear, selMonth, b.startDate, b.endDate);
             totalBudgetForItem = b.budget * Math.max(dates.length, 1);
           }
         }
