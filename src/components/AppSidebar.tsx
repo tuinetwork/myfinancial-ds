@@ -259,8 +259,7 @@ export function AppSidebar() {
 
   /* ── Render simple nav item ── */
   const renderSimpleItem = (item: MenuItem) => {
-    const isActive =
-      item.url === "/" ? location.pathname === "/" : location.pathname.startsWith(item.url);
+    const isActive = renderChildActive(item.url);
 
     if (collapsed) {
       return (
