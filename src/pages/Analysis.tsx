@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { expandRecurrence } from "@/lib/recurrence";
 import { useSearchParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
