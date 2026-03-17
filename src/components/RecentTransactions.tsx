@@ -1,7 +1,7 @@
 import { useMemo, useRef, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
-import { ArrowUpRight, ArrowDownRight, Clock } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Clock, RefreshCw } from "lucide-react";
 
 interface Props {
   data: BudgetData;
@@ -41,7 +41,10 @@ export function RecentTransactions({ data }: Props) {
     const parts = dateStr.split("-");
     const day = parseInt(parts[parts.length - 1] || "0", 10);
     const month = parts.length >= 2 ? parseInt(parts[parts.length - 2], 10) : 0;
-    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    const thaiMonths = [
+      "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", 
+      "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+    ];
     return `${day} ${thaiMonths[month - 1] || ""}`;
   };
 
@@ -57,9 +60,11 @@ export function RecentTransactions({ data }: Props) {
         {recent.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">ยังไม่มีรายการ</p>
         ) : (
-          recent.map((t, i) => {
+          recent.map((t) => {
             const isIncome = t.type === "รายรับ";
+            const isTransfer = t.type === "โอนระหว่างบัญชี";
             const isNew = newIds.has(t.id);
+
             return (
               <div
                 key={t.id}
@@ -67,19 +72,32 @@ export function RecentTransactions({ data }: Props) {
                   isNew ? "animate-fade-in bg-primary/5 rounded-lg" : ""
                 }`}
               >
-                <div className={`shrink-0 p-1.5 rounded-lg ${isIncome ? "bg-income/10" : "bg-expense/10"}`}>
-                  {isIncome ? (
+                {/* Icon Section */}
+                <div className={`shrink-0 p-1.5 rounded-lg ${
+                  isTransfer ? "bg-slate-100" : isIncome ? "bg-income/10" : "bg-expense/10"
+                }`}>
+                  {isTransfer ? (
+                    <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+                  ) : isIncome ? (
                     <ArrowUpRight className="h-3.5 w-3.5 text-income" />
                   ) : (
                     <ArrowDownRight className="h-3.5 w-3.5 text-expense" />
                   )}
                 </div>
+
+                {/* Info Section */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{t.category}</p>
                   <p className="text-xs text-muted-foreground">{formatDate(t.date)}</p>
                 </div>
-                <span className={`text-sm font-semibold font-display tabular-nums ${isIncome ? "text-income" : "text-expense"}`}>
-                  {isIncome ? "+" : "-"}{formatCurrency(t.amount)}
+
+                {/* Amount Section */}
+                <span className={`text-sm font-semibold font-display tabular-nums ${
+                  isTransfer ? "text-slate-600" : isIncome ? "text-income" : "text-expense"
+                }`}>
+                  {/* แสดงเครื่องหมายเฉพาะ รายรับ (+) และ รายจ่าย (-) ส่วนรายการโอนไม่แสดงเครื่องหมาย */}
+                  {!isTransfer && (isIncome ? "+" : "-")}
+                  {formatCurrency(t.amount)}
                 </span>
               </div>
             );
