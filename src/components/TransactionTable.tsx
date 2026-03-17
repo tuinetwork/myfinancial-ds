@@ -264,10 +264,11 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
 
   const exportCSV = () => {
     const BOM = "\uFEFF";
-    const headers = ["วันที่", "ประเภท", "หมวดหมู่", "รายละเอียด", "จำนวน"];
+    const headers = ["วันที่", "ประเภท", "หมวดหมู่", "หมวดหมู่ย่อย", "รายละเอียด", "จำนวน"];
     const rows = filtered.map((t) => [
       t.date,
       t.type,
+      t.main_category || t.category,
       t.category,
       t.description || "",
       t.type === "รายรับ" ? t.amount : t.type === "โอน" ? t.amount : -t.amount,
@@ -567,6 +568,7 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
                   <TableHead className={headerClass} onClick={() => handleSort("category")}>
                     <span className="flex items-center">หมวดหมู่ <SortIcon column="category" /></span>
                   </TableHead>
+                  <TableHead className="text-sm hidden md:table-cell">หมวดหมู่ย่อย</TableHead>
                   <TableHead className="text-sm hidden sm:table-cell">รายละเอียด</TableHead>
                   <TableHead className={`${headerClass} text-right`} onClick={() => handleSort("amount")}>
                     <span className="flex items-center justify-end">จำนวน <SortIcon column="amount" /></span>
@@ -587,7 +589,8 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
                         {t.type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs sm:text-sm py-2 sm:py-2.5 max-w-[100px] sm:max-w-none truncate">{t.category}</TableCell>
+                    <TableCell className="text-xs sm:text-sm py-2 sm:py-2.5 max-w-[100px] sm:max-w-none truncate">{t.main_category || t.category}</TableCell>
+                    <TableCell className="text-xs sm:text-sm py-2 sm:py-2.5 max-w-[100px] sm:max-w-none truncate hidden md:table-cell">{t.category}</TableCell>
                     <TableCell className="text-xs sm:text-sm text-muted-foreground py-2 sm:py-2.5 hidden sm:table-cell">
                       {t.description || "-"}
                     </TableCell>
@@ -631,10 +634,10 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
               {filter !== "all" && (
                 <tfoot>
                   <tr className="border-t border-border bg-muted/50">
-                    <TableCell colSpan={canEdit ? 5 : 4} className="text-sm font-semibold py-2.5 hidden sm:table-cell">
+                    <TableCell colSpan={canEdit ? 6 : 5} className="text-sm font-semibold py-2.5 hidden sm:table-cell">
                       รวม {filter}
                     </TableCell>
-                    <TableCell colSpan={canEdit ? 4 : 3} className="text-sm font-semibold py-2.5 sm:hidden">
+                    <TableCell colSpan={canEdit ? 5 : 4} className="text-sm font-semibold py-2.5 sm:hidden">
                       รวม {filter}
                     </TableCell>
                     <TableCell className="text-sm text-right font-bold font-display py-2.5">

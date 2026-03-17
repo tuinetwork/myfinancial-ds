@@ -31,6 +31,7 @@ export interface Transaction {
   amount: number;
   type: string;
   category: string;
+  main_category?: string;
   description: string;
   // Extended fields (backward compatible)
   from_account_id?: string;
@@ -174,6 +175,7 @@ function mapTransaction(docId: string, docData: Record<string, unknown>): Transa
     date: (docData.date as string) ?? "",
     amount: (docData.amount as number) ?? 0,
     type: mappedType,
+    main_category: mainCategory || undefined,
     category: (docData.sub_category as string) ?? "",
     description: (docData.note as string) ?? "",
   };
