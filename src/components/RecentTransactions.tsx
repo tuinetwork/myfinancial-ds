@@ -1,7 +1,7 @@
 import { useMemo, useRef, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
-import { ArrowUpRight, ArrowDownRight, Clock, RefreshCw } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Clock, ArrowRightLeft } from "lucide-react";
 
 interface Props {
   data: BudgetData;
@@ -17,7 +17,6 @@ export function RecentTransactions({ data }: Props) {
       .slice(0, 5);
   }, [data.transactions]);
 
-  // Track previous IDs to detect new entries
   const prevIdsRef = useRef<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
 
@@ -41,10 +40,7 @@ export function RecentTransactions({ data }: Props) {
     const parts = dateStr.split("-");
     const day = parseInt(parts[parts.length - 1] || "0", 10);
     const month = parts.length >= 2 ? parseInt(parts[parts.length - 2], 10) : 0;
-    const thaiMonths = [
-      "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", 
-      "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
-    ];
+    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
     return `${day} ${thaiMonths[month - 1] || ""}`;
   };
 
@@ -61,8 +57,9 @@ export function RecentTransactions({ data }: Props) {
           <p className="text-sm text-muted-foreground text-center py-4">ยังไม่มีรายการ</p>
         ) : (
           recent.map((t) => {
+            // เช็คว่าเป็นรายการโอนหรือไม่ (ตรวจสอบทั้ง type และ category เพื่อความแม่นยำ)
+            const isTransfer = t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
             const isIncome = t.type === "รายรับ";
-            const isTransfer = t.type === "โอนระหว่างบัญชี";
             const isNew = newIds.has(t.id);
 
             return (
@@ -72,12 +69,12 @@ export function RecentTransactions({ data }: Props) {
                   isNew ? "animate-fade-in bg-primary/5 rounded-lg" : ""
                 }`}
               >
-                {/* Icon Section */}
+                {/* ไอคอน: ถ้าเป็นโอนให้ใช้ ArrowRightLeft สีเทา */}
                 <div className={`shrink-0 p-1.5 rounded-lg ${
                   isTransfer ? "bg-slate-100" : isIncome ? "bg-income/10" : "bg-expense/10"
                 }`}>
                   {isTransfer ? (
-                    <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+                    <ArrowRightLeft className="h-3.5 w-3.5 text-slate-500" />
                   ) : isIncome ? (
                     <ArrowUpRight className="h-3.5 w-3.5 text-income" />
                   ) : (
@@ -85,18 +82,16 @@ export function RecentTransactions({ data }: Props) {
                   )}
                 </div>
 
-                {/* Info Section */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{t.category}</p>
                   <p className="text-xs text-muted-foreground">{formatDate(t.date)}</p>
                 </div>
 
-                {/* Amount Section */}
+                {/* จำนวนเงิน: ถ้าเป็นโอน ไม่ต้องมีเครื่องหมายลบ และใช้สีเทา */}
                 <span className={`text-sm font-semibold font-display tabular-nums ${
                   isTransfer ? "text-slate-600" : isIncome ? "text-income" : "text-expense"
                 }`}>
-                  {/* แสดงเครื่องหมายเฉพาะ รายรับ (+) และ รายจ่าย (-) ส่วนรายการโอนไม่แสดงเครื่องหมาย */}
-                  {!isTransfer && (isIncome ? "+" : "-")}
+                  {isTransfer ? "" : (isIncome ? "+" : "-")}
                   {formatCurrency(t.amount)}
                 </span>
               </div>
