@@ -10,15 +10,20 @@ interface Props {
 
 export function FinancialHealthCard({ data, carryOver = 0 }: Props) {
   const metrics = useMemo(() => {
-    const income = data.transactions
+    // 1. กรองรายการโอนระหว่างบัญชีออกทั้งหมดก่อนนำไปคำนวณ
+    const activeTransactions = data.transactions.filter(
+      (t) => t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี"
+    );
+
+    const income = activeTransactions
       .filter((t) => t.type === "รายรับ")
       .reduce((s, t) => s + t.amount, 0) + carryOver;
 
-    const expenses = data.transactions
+    const expenses = activeTransactions
       .filter((t) => t.type !== "รายรับ")
       .reduce((s, t) => s + t.amount, 0);
 
-    const savings = data.transactions
+    const savings = activeTransactions
       .filter((t) => t.type === "เงินออม/การลงทุน")
       .reduce((s, t) => s + t.amount, 0);
 
@@ -31,11 +36,13 @@ export function FinancialHealthCard({ data, carryOver = 0 }: Props) {
 
     const savingsRate = income > 0 ? ((income - expenses) / income) * 100 : 0;
     const budgetUsage = totalBudget > 0 ? (expenses / totalBudget) * 100 : 0;
-    const txCount = data.transactions.length;
+    
+    // 2. จำนวนรายการ จะนับเฉพาะรายการที่ไม่ใช่การโอน
+    const txCount = activeTransactions.length;
 
-    // Average daily expense
+    // 3. ค่าใช้จ่ายเฉลี่ย/วัน จะนับวันจากรายการที่ไม่ใช่การโอน
     const uniqueDays = new Set(
-      data.transactions.filter((t) => t.type !== "รายรับ").map((t) => t.date)
+      activeTransactions.filter((t) => t.type !== "รายรับ").map((t) => t.date)
     ).size;
     const avgDaily = uniqueDays > 0 ? expenses / uniqueDays : 0;
 
