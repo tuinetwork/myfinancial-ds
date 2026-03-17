@@ -77,11 +77,17 @@ function buildDailyTotals(transactions: Transaction[], typeFilter: (t: Transacti
 }
 
 export function SummaryCards({ data, carryOver = 0 }: Props) {
+  // ฟังก์ชันช่วยเหลือสำหรับคัดกรองรายการโอน
+  const isTransfer = (t: Transaction) => 
+    t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
+
   const actualIncome = data.transactions
     .filter((t) => t.type === "รายรับ")
     .reduce((s, t) => s + t.amount, 0);
+    
+  // แก้ไข: เพิ่มเงื่อนไข !isTransfer(t)
   const actualNonIncome = data.transactions
-    .filter((t) => t.type !== "รายรับ" && t.type !== "โอน")
+    .filter((t) => t.type !== "รายรับ" && !isTransfer(t))
     .reduce((s, t) => s + t.amount, 0);
 
   const totalIncome = data.income.reduce((s, i) => s + i.budget, 0);
@@ -96,8 +102,10 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
 
   const sparklines = useMemo(() => ({
     income: buildDailyTotals(data.transactions, (t) => t.type === "รายรับ"),
-    expense: buildDailyTotals(data.transactions, (t) => t.type !== "รายรับ"),
-    net: buildDailyTotals(data.transactions, () => true),
+    // แก้ไข: กรองรายการโอนออกจากกราฟเส้นรายจ่าย
+    expense: buildDailyTotals(data.transactions, (t) => t.type !== "รายรับ" && !isTransfer(t)),
+    // แก้ไข: กรองรายการโอนออกจากกราฟเส้นคงเหลือสุทธิ (เพื่อความแม่นยำ)
+    net: buildDailyTotals(data.transactions, (t) => !isTransfer(t)),
   }), [data.transactions]);
 
   const incomePct = totalIncome > 0
