@@ -20,7 +20,8 @@ export function TopSpendingCategories({ data }: Props) {
   const topCategories = useMemo(() => {
     const catMap: Record<string, number> = {};
     data.transactions
-      .filter((t) => t.type !== "รายรับ")
+      // เพิ่มเงื่อนไขกรอง "โอนระหว่างบัญชี" ออกไป ทั้งจาก type และ category
+      .filter((t) => t.type !== "รายรับ" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี")
       .forEach((t) => {
         catMap[t.category] = (catMap[t.category] || 0) + t.amount;
       });
