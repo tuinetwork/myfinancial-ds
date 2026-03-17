@@ -179,6 +179,17 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
     );
   }, [data.transactions]);
 
+  // Available sub-categories based on current type filter
+  const subCategories = useMemo(() => {
+    const items = filter === "all" ? data.transactions : data.transactions.filter((t) => t.type === filter);
+    return Array.from(new Set(items.map((t) => t.category))).sort((a, b) => a.localeCompare(b, "th"));
+  }, [data.transactions, filter]);
+
+  // Reset sub-category filter when type filter changes
+  useEffect(() => {
+    setSubCategoryFilter("all");
+  }, [filter]);
+
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDir((prev) => (prev === "asc" ? "desc" : prev === "desc" ? null : "asc"));
