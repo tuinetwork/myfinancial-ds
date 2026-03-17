@@ -264,10 +264,11 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
 
   const exportCSV = () => {
     const BOM = "\uFEFF";
-    const headers = ["วันที่", "ประเภท", "หมวดหมู่", "รายละเอียด", "จำนวน"];
+    const headers = ["วันที่", "ประเภท", "หมวดหมู่", "หมวดหมู่ย่อย", "รายละเอียด", "จำนวน"];
     const rows = filtered.map((t) => [
       t.date,
       t.type,
+      t.main_category || t.category,
       t.category,
       t.description || "",
       t.type === "รายรับ" ? t.amount : t.type === "โอน" ? t.amount : -t.amount,
