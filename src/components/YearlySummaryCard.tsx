@@ -14,12 +14,19 @@ export function YearlySummaryCard({ yearlyData }: Props) {
 
   const allTransactions = filteredMonths.flatMap(({ data }) => data.transactions);
 
-  const totalIncome = allTransactions
+  // 1. กรองรายการโอนทุกรูปแบบออกไปก่อน
+  const validTransactions = allTransactions.filter(
+    (t) => t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี"
+  );
+
+  // 2. คำนวณรายรับจากรายการที่ถูกกรองแล้ว
+  const totalIncome = validTransactions
     .filter((t) => t.type === "รายรับ")
     .reduce((s, t) => s + t.amount, 0);
 
-  const totalExpense = allTransactions
-    .filter((t) => t.type !== "รายรับ" && t.type !== "โอน")
+  // 3. คำนวณรายจ่ายจากรายการที่ถูกกรองแล้ว
+  const totalExpense = validTransactions
+    .filter((t) => t.type !== "รายรับ")
     .reduce((s, t) => s + t.amount, 0);
 
   const netBalance = totalIncome - totalExpense;
