@@ -30,6 +30,9 @@ function getTypeBadgeClass(type: string) {
       return "bg-primary/15 text-primary hover:bg-primary/20 border-none";
     case "เงินออมและการลงทุน":
       return "bg-investment/15 text-investment hover:bg-investment/20 border-none";
+    case "โอน":
+    case "โอนระหว่างบัญชี":
+      return "bg-slate-100 text-slate-600 hover:bg-slate-200 border-none"; // เพิ่มสีป้ายกำกับสำหรับรายการโอน
     default:
       return "bg-muted text-muted-foreground border-none";
   }
@@ -154,6 +157,10 @@ export function YearlyTransactionTable({ yearlyData }: Props) {
 
   const headerClass = "text-sm cursor-pointer select-none hover:text-foreground transition-colors";
 
+  // เช็คว่า Filter ปัจจุบันเป็นโอนหรือไม่ (ใช้ในส่วนสรุปยอดรวมด้านล่าง)
+  const isTransferFilter = filter === "โอน" || filter === "โอนระหว่างบัญชี";
+  const isIncomeFilter = filter === "รายรับ";
+
   return (
     <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "560ms" }}>
       <CardHeader className="pb-2 space-y-3">
@@ -205,19 +212,26 @@ export function YearlyTransactionTable({ yearlyData }: Props) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((t, i) => (
-                <TableRow key={i} className="border-border">
-                  <TableCell className="text-sm text-muted-foreground py-2.5">{formatDate(t.date)}</TableCell>
-                  <TableCell className="py-2.5">
-                    <Badge variant="secondary" className={`text-sm ${getTypeBadgeClass(t.type)}`}>{t.type}</Badge>
-                  </TableCell>
-                  <TableCell className="text-sm py-2.5">{t.category}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground py-2.5 hidden sm:table-cell">{t.description || "-"}</TableCell>
-                  <TableCell className={`text-sm text-right font-medium font-display py-2.5 ${t.type === "รายรับ" ? "text-income" : "text-expense"}`}>
-                    {t.type === "รายรับ" ? "+" : "-"}{formatCurrency(t.amount)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filtered.map((t, i) => {
+                // เพิ่มเช็คเงื่อนไขรายบรรทัด
+                const isIncome = t.type === "รายรับ";
+                const isTransfer = t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
+                
+                return (
+                  <TableRow key={i} className="border-border">
+                    <TableCell className="text-sm text-muted-foreground py-2.5">{formatDate(t.date)}</TableCell>
+                    <TableCell className="py-2.5">
+                      <Badge variant="secondary" className={`text-sm ${getTypeBadgeClass(t.type)}`}>{t.type}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm py-2.5">{t.category}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground py-2.5 hidden sm:table-cell">{t.description || "-"}</TableCell>
+                    {/* ปรับสีและเครื่องหมายตรงนี้ */}
+                    <TableCell className={`text-sm text-right font-medium font-display py-2.5 ${isTransfer ? "text-slate-600" : isIncome ? "text-income" : "text-expense"}`}>
+                      {!isTransfer && (isIncome ? "+" : "-")}{formatCurrency(t.amount)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
             {filter !== "all" && filtered.length > 0 && (
               <tfoot>
@@ -228,8 +242,9 @@ export function YearlyTransactionTable({ yearlyData }: Props) {
                   <TableCell colSpan={3} className="text-sm font-semibold py-2.5 sm:hidden">
                     รวม {filter}
                   </TableCell>
-                  <TableCell className={`text-sm text-right font-bold font-display py-2.5 ${filter === "รายรับ" ? "text-income" : "text-expense"}`}>
-                    {filter === "รายรับ" ? "+" : "-"}{formatCurrency(totalAmount)}
+                  {/* ปรับสีและเครื่องหมายของยอดรวมกรณีที่ผู้ใช้กด Filter ดูแต่หมวด "โอน" */}
+                  <TableCell className={`text-sm text-right font-bold font-display py-2.5 ${isTransferFilter ? "text-slate-600" : isIncomeFilter ? "text-income" : "text-expense"}`}>
+                    {!isTransferFilter && (isIncomeFilter ? "+" : "-")}{formatCurrency(totalAmount)}
                   </TableCell>
                 </tr>
               </tfoot>
