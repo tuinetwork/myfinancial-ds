@@ -27,15 +27,27 @@ interface Props {
 export function MonthlyTrendChart({ yearlyData }: Props) {
   const now = new Date();
   const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const chartData = yearlyData.months.filter(({ month }) => month <= currentPeriod).map(({ month, data }) => {
-    const income = data.transactions
-      .filter((t) => t.type === "รายรับ")
-      .reduce((s, t) => s + t.amount, 0);
-    const expense = data.transactions
-      .filter((t) => t.type !== "รายรับ")
-      .reduce((s, t) => s + t.amount, 0);
-    return { month: formatPeriodThai(month), "รายรับ": income, "รายจ่าย": expense };
-  });
+  
+  const chartData = yearlyData.months
+    .filter(({ month }) => month <= currentPeriod)
+    .map(({ month, data }) => {
+      // 1. กรองรายการที่เป็นการ "โอน" ออกไปก่อนทั้งหมด
+      const validTransactions = data.transactions.filter(
+        (t) => t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี"
+      );
+
+      // 2. นำเฉพาะรายการที่เหลือ (validTransactions) มาคำนวณรายรับ
+      const income = validTransactions
+        .filter((t) => t.type === "รายรับ")
+        .reduce((s, t) => s + t.amount, 0);
+        
+      // 3. นำเฉพาะรายการที่เหลือ มาคำนวณรายจ่าย
+      const expense = validTransactions
+        .filter((t) => t.type !== "รายรับ")
+        .reduce((s, t) => s + t.amount, 0);
+
+      return { month: formatPeriodThai(month), "รายรับ": income, "รายจ่าย": expense };
+    });
 
   return (
     <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "200ms" }}>
