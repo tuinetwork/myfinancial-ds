@@ -276,7 +276,7 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
   // Reset page when filter/search/pageSize changes
-  useMemo(() => { setPage(0); }, [filter, search, pageSize, dateFrom, dateTo]);
+  useMemo(() => { setPage(0); }, [filter, subCategoryFilter, search, pageSize, dateFrom, dateTo]);
 
   const exportCSV = () => {
     const BOM = "\uFEFF";
