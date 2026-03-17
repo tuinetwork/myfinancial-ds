@@ -135,6 +135,7 @@ function getBalanceDeltas(tx: Transaction): { accountId: string; delta: number }
 export function TransactionTable({ data, userId, onMutate }: Props) {
   const [pageSize, setPageSize] = useState(50);
   const [filter, setFilter] = useState<string>("all");
+  const [subCategoryFilter, setSubCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
@@ -178,6 +179,17 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
     );
   }, [data.transactions]);
 
+  // Available sub-categories based on current type filter
+  const subCategories = useMemo(() => {
+    const items = filter === "all" ? data.transactions : data.transactions.filter((t) => t.type === filter);
+    return Array.from(new Set(items.map((t) => t.category))).sort((a, b) => a.localeCompare(b, "th"));
+  }, [data.transactions, filter]);
+
+  // Reset sub-category filter when type filter changes
+  useEffect(() => {
+    setSubCategoryFilter("all");
+  }, [filter]);
+
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDir((prev) => (prev === "asc" ? "desc" : prev === "desc" ? null : "asc"));
@@ -197,6 +209,10 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
 
   const filtered = useMemo(() => {
     let items = filter === "all" ? data.transactions : data.transactions.filter((t) => t.type === filter);
+
+    if (subCategoryFilter !== "all") {
+      items = items.filter((t) => t.category === subCategoryFilter);
+    }
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -249,7 +265,7 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
     });
 
     return indexed;
-  }, [data.transactions, filter, search, sortKey, sortDir, dateFrom, dateTo]);
+  }, [data.transactions, filter, subCategoryFilter, search, sortKey, sortDir, dateFrom, dateTo]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((sum, t) => sum + t.amount, 0),
@@ -260,7 +276,7 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
   // Reset page when filter/search/pageSize changes
-  useMemo(() => { setPage(0); }, [filter, search, pageSize, dateFrom, dateTo]);
+  useMemo(() => { setPage(0); }, [filter, subCategoryFilter, search, pageSize, dateFrom, dateTo]);
 
   const exportCSV = () => {
     const BOM = "\uFEFF";
@@ -448,6 +464,18 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
                   <SelectItem value="all">ทั้งหมด</SelectItem>
                   {types.map((type) => (
                     <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={subCategoryFilter} onValueChange={setSubCategoryFilter}>
+                <SelectTrigger className="w-[130px] sm:w-[160px] h-8 text-xs">
+                  <SelectValue placeholder="หมวดหมู่ย่อย" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ทุกหมวดหมู่</SelectItem>
+                  {subCategories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
