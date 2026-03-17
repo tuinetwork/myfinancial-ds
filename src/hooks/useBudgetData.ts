@@ -175,6 +175,7 @@ function mapTransaction(docId: string, docData: Record<string, unknown>): Transa
     date: (docData.date as string) ?? "",
     amount: (docData.amount as number) ?? 0,
     type: mappedType,
+    main_category: mainCategory || undefined,
     category: (docData.sub_category as string) ?? "",
     description: (docData.note as string) ?? "",
   };

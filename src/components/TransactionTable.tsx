@@ -633,10 +633,10 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
               {filter !== "all" && (
                 <tfoot>
                   <tr className="border-t border-border bg-muted/50">
-                    <TableCell colSpan={canEdit ? 5 : 4} className="text-sm font-semibold py-2.5 hidden sm:table-cell">
+                    <TableCell colSpan={canEdit ? 6 : 5} className="text-sm font-semibold py-2.5 hidden sm:table-cell">
                       รวม {filter}
                     </TableCell>
-                    <TableCell colSpan={canEdit ? 4 : 3} className="text-sm font-semibold py-2.5 sm:hidden">
+                    <TableCell colSpan={canEdit ? 5 : 4} className="text-sm font-semibold py-2.5 sm:hidden">
                       รวม {filter}
                     </TableCell>
                     <TableCell className="text-sm text-right font-bold font-display py-2.5">
