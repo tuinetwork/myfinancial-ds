@@ -265,7 +265,7 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
     });
 
     return indexed;
-  }, [data.transactions, filter, search, sortKey, sortDir, dateFrom, dateTo]);
+  }, [data.transactions, filter, subCategoryFilter, search, sortKey, sortDir, dateFrom, dateTo]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((sum, t) => sum + t.amount, 0),
