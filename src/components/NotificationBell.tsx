@@ -22,26 +22,43 @@ function formatThaiDate(dateStr: string) {
   return dateStr;
 }
 
+// 1. ปรับ typeLabel ให้รองรับ "โอน"
 function typeLabel(type: string) {
-  if (type === "income") return "รายรับ";
+  if (type === "income" || type === "รายรับ") return "รายรับ";
+  if (type === "transfer" || type === "โอน" || type === "โอนระหว่างบัญชี") return "โอนระหว่างบัญชี";
   return "รายจ่าย";
 }
 
+// 2. ปรับ typeColor ให้รายการโอนเป็นสีเทา (slate)
 function typeColor(type: string) {
-  return type === "income" ? "text-income" : "text-expense";
+  if (type === "income" || type === "รายรับ") return "text-income";
+  if (type === "transfer" || type === "โอน" || type === "โอนระหว่างบัญชี") return "text-slate-600";
+  return "text-expense";
 }
 
 function NotificationItem({ tx }: { tx: TransactionNotification }) {
+  // เช็คเงื่อนไขว่าเป็นรายการโอนหรือไม่ (เผื่อข้อมูลมาเป็นภาษาไทยหรืออังกฤษ)
+  const isTransfer = tx.type === "transfer" || tx.type === "โอน" || tx.type === "โอนระหว่างบัญชี" || tx.category === "โอนระหว่างบัญชี";
+  const isIncome = tx.type === "income" || tx.type === "รายรับ";
+
   return (
     <div className="flex items-start gap-3 p-3 hover:bg-muted/50 rounded-lg transition-colors">
       <div className="w-2 h-2 rounded-full mt-1.5 shrink-0"
-        style={{ backgroundColor: tx.type === "income" ? "hsl(160 60% 45%)" : "hsl(0 72% 55%)" }}
+        style={{ 
+          // 3. ปรับสีจุด (dot) ด้านหน้าให้เป็นสีเทาถ้าเป็นการโอน
+          backgroundColor: isTransfer 
+            ? "hsl(215 16% 47%)" // สี slate-500 โดยประมาณ
+            : isIncome 
+              ? "hsl(160 60% 45%)" 
+              : "hsl(0 72% 55%)" 
+        }}
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium truncate">{tx.category || typeLabel(tx.type)}</span>
           <span className={`text-xs font-semibold font-display whitespace-nowrap ${typeColor(tx.type)}`}>
-            {tx.type === "income" ? "+" : "-"}{formatCurrency(tx.amount)}
+            {/* 4. ถ้าเป็นการโอน ไม่ต้องใส่เครื่องหมาย +/- */}
+            {!isTransfer && (isIncome ? "+" : "-")}{formatCurrency(tx.amount)}
           </span>
         </div>
         {tx.note && (
