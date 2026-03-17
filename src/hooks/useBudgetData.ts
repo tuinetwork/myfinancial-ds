@@ -31,6 +31,7 @@ export interface Transaction {
   amount: number;
   type: string;
   category: string;
+  main_category?: string;
   description: string;
   // Extended fields (backward compatible)
   from_account_id?: string;
