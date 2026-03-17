@@ -468,6 +468,18 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
                 </SelectContent>
               </Select>
 
+              <Select value={subCategoryFilter} onValueChange={setSubCategoryFilter}>
+                <SelectTrigger className="w-[130px] sm:w-[160px] h-8 text-xs">
+                  <SelectValue placeholder="หมวดหมู่ย่อย" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ทุกหมวดหมู่</SelectItem>
+                  {subCategories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               {/* Quick date presets */}
               <Select
                 value="custom"
