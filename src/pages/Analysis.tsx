@@ -147,28 +147,11 @@ const Analysis = () => {
       .map((b) => {
         let totalBudgetForItem = b.budget;
         if (b.recurrence && b.budget > 0) {
-          // Calculate total occurrences to multiply budget
-          if (b.startDate && b.endDate) {
-            // Expand across all months from start to end
-            const start = new Date(b.startDate);
-            const end = new Date(b.endDate);
-            let occurrences = 0;
-            let cur = new Date(start.getFullYear(), start.getMonth(), 1);
-            while (cur <= end) {
-              const y = cur.getFullYear();
-              const m = cur.getMonth() + 1;
-              const dates = expandRecurrence(b.dueDate || b.startDate, b.recurrence, y, m, b.startDate, b.endDate);
-              occurrences += dates.length;
-              cur.setMonth(cur.getMonth() + 1);
-            }
-            totalBudgetForItem = b.budget * Math.max(occurrences, 1);
-          } else {
-            // No end_date: just expand within selected month
-            const selYear = parseInt(selectedYear || "2024", 10);
-            const selMonth = parseInt(selectedMonthKey || "01", 10);
-            const dates = expandRecurrence(b.dueDate || b.startDate, b.recurrence, selYear, selMonth, b.startDate, b.endDate);
-            totalBudgetForItem = b.budget * Math.max(dates.length, 1);
-          }
+          // Always calculate occurrences within the selected month only
+          const selYear = parseInt(selectedYear || "2024", 10);
+          const selMonth = parseInt(selectedMonthKey || "01", 10);
+          const dates = expandRecurrence(b.dueDate || b.startDate, b.recurrence, selYear, selMonth, b.startDate, b.endDate);
+          totalBudgetForItem = b.budget * Math.max(dates.length, 1);
         }
         const actual = categorySpend[b.label] || 0;
         const pct = totalBudgetForItem > 0 ? (actual / totalBudgetForItem) * 100 : actual > 0 ? 999 : 0;
