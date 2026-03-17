@@ -588,7 +588,8 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
                         {t.type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs sm:text-sm py-2 sm:py-2.5 max-w-[100px] sm:max-w-none truncate">{t.category}</TableCell>
+                    <TableCell className="text-xs sm:text-sm py-2 sm:py-2.5 max-w-[100px] sm:max-w-none truncate">{t.main_category || t.category}</TableCell>
+                    <TableCell className="text-xs sm:text-sm py-2 sm:py-2.5 max-w-[100px] sm:max-w-none truncate hidden md:table-cell">{t.category}</TableCell>
                     <TableCell className="text-xs sm:text-sm text-muted-foreground py-2 sm:py-2.5 hidden sm:table-cell">
                       {t.description || "-"}
                     </TableCell>
