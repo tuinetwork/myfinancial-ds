@@ -135,6 +135,7 @@ function getBalanceDeltas(tx: Transaction): { accountId: string; delta: number }
 export function TransactionTable({ data, userId, onMutate }: Props) {
   const [pageSize, setPageSize] = useState(50);
   const [filter, setFilter] = useState<string>("all");
+  const [subCategoryFilter, setSubCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
