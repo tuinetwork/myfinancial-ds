@@ -210,6 +210,10 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
   const filtered = useMemo(() => {
     let items = filter === "all" ? data.transactions : data.transactions.filter((t) => t.type === filter);
 
+    if (subCategoryFilter !== "all") {
+      items = items.filter((t) => t.category === subCategoryFilter);
+    }
+
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       items = items.filter(
