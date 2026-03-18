@@ -239,6 +239,9 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
           cmp = a.type.localeCompare(b.type, "th");
           break;
         case "category":
+          cmp = (a.main_category || a.category).localeCompare(b.main_category || b.category, "th");
+          break;
+        case "subcategory":
           cmp = a.category.localeCompare(b.category, "th");
           break;
         case "amount":
