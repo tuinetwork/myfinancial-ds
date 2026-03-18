@@ -111,7 +111,7 @@ function parseDateValue(dateStr: string): number {
   return new Date(dateStr).getTime();
 }
 
-type SortKey = "date" | "type" | "category" | "amount";
+type SortKey = "date" | "type" | "category" | "subcategory" | "amount";
 type SortDir = "asc" | "desc" | null;
 
 const TYPE_ORDER = ["รายรับ", "ค่าใช้จ่าย", "เงินออม", "บิล/สาธารณูปโภค", "ค่าสมาชิกรายเดือน", "หนี้สิน"];
