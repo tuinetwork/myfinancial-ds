@@ -14,9 +14,11 @@ export function BudgetBreakdown({ data }: Props) {
   const [hideUnused, setHideUnused] = useState(true);
 
   const actualByCategory: Record<string, number> = {};
-  data.transactions.forEach((t) => {
-    actualByCategory[t.category] = (actualByCategory[t.category] || 0) + t.amount;
-  });
+  data.transactions
+    .filter((t) => t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี")
+    .forEach((t) => {
+      actualByCategory[t.category] = (actualByCategory[t.category] || 0) + t.amount;
+    });
 
   // Build category-to-type mapping from transactions
   const categoryType: Record<string, string> = {};
