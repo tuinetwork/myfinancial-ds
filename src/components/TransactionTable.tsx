@@ -571,7 +571,9 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
                   <TableHead className={headerClass} onClick={() => handleSort("category")}>
                     <span className="flex items-center">หมวดหมู่ <SortIcon column="category" /></span>
                   </TableHead>
-                  <TableHead className="text-sm hidden md:table-cell">หมวดหมู่ย่อย</TableHead>
+                  <TableHead className={`${headerClass} hidden md:table-cell`} onClick={() => handleSort("subcategory")}>
+                    <span className="flex items-center">หมวดหมู่ย่อย <SortIcon column="subcategory" /></span>
+                  </TableHead>
                   <TableHead className="text-sm hidden sm:table-cell">รายละเอียด</TableHead>
                   <TableHead className={`${headerClass} text-right`} onClick={() => handleSort("amount")}>
                     <span className="flex items-center justify-end">จำนวน <SortIcon column="amount" /></span>
