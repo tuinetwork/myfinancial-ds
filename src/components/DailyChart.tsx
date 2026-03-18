@@ -25,9 +25,9 @@ export function DailyChart({ data }: Props) {
     const groupMap: Record<string, { income: number; expense: number; label: string }> = {};
 
     data.transactions.forEach((t) => {
-      // --- เพิ่มเงื่อนไข: ข้าม (Skip) รายการที่เป็นการโอนเงิน ---
-      if (t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี") {
-        return; // ไม่ต้องนำมาคำนวณในกราฟ
+      // --- ข้ามรายการโอนเงิน ---
+      if (t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี") {
+        return;
       }
 
       let key: string;
