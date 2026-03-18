@@ -39,7 +39,7 @@ export function ExpenseChart({ data }: Props) {
   const chartData = useMemo(() => {
     const actualByCategory: Record<string, number> = {};
     data.transactions
-      .filter((t) => t.type !== "รายรับ")
+      .filter((t) => t.type !== "รายรับ" && t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี")
       .forEach((t) => {
         actualByCategory[t.category] = (actualByCategory[t.category] || 0) + t.amount;
       });

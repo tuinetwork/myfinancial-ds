@@ -35,7 +35,7 @@ export function ExpenseTabsChart({ data }: Props) {
   const [selectedType, setSelectedType] = useState<string>(ALL_TYPES);
 
   const expenseTransactions = useMemo(
-    () => data.transactions.filter((t) => t.type !== "รายรับ"),
+    () => data.transactions.filter((t) => t.type !== "รายรับ" && t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี"),
     [data.transactions]
   );
 

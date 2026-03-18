@@ -21,7 +21,7 @@ export function TopSpendingCategories({ data }: Props) {
     const catMap: Record<string, number> = {};
     data.transactions
       // เพิ่มเงื่อนไขกรอง "โอนระหว่างบัญชี" ออกไป ทั้งจาก type และ category
-      .filter((t) => t.type !== "รายรับ" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี")
+      .filter((t) => t.type !== "รายรับ" && t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี")
       .forEach((t) => {
         catMap[t.category] = (catMap[t.category] || 0) + t.amount;
       });
