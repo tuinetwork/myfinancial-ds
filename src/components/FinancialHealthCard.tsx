@@ -12,7 +12,7 @@ export function FinancialHealthCard({ data, carryOver = 0 }: Props) {
   const metrics = useMemo(() => {
     // 1. กรองรายการโอนระหว่างบัญชีออกทั้งหมดก่อนนำไปคำนวณ
     const activeTransactions = data.transactions.filter(
-      (t) => t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี"
+      (t) => t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี"
     );
 
     const income = activeTransactions

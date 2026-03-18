@@ -58,7 +58,7 @@ export function RecentTransactions({ data }: Props) {
         ) : (
           recent.map((t) => {
             // เช็คว่าเป็นรายการโอนหรือไม่ (ตรวจสอบทั้ง type และ category เพื่อความแม่นยำ)
-            const isTransfer = t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
+            const isTransfer = t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
             const isIncome = t.type === "รายรับ";
             const isNew = newIds.has(t.id);
 
