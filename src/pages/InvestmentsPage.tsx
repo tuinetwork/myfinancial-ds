@@ -16,7 +16,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge"; 
 import { AppFooter } from "@/components/AppFooter"; 
-import { TrendingUp, TrendingDown, Eye, EyeOff, Percent, Banknote, Pencil } from "lucide-react";
+import { TrendingUp, TrendingDown, Eye, EyeOff, Percent, Banknote, Pencil, Home } from "lucide-react";
+import { NotificationBell } from "@/components/NotificationBell";
+import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -152,26 +154,36 @@ export default function InvestmentsPage() {
     <>
       <AppSidebar />
       <div className="flex-1 flex flex-col min-h-screen bg-muted/5">
-        <header className="h-14 flex items-center border-b border-border px-4 gap-3 bg-background sticky top-0 z-20">
-          <SidebarTrigger />
-          <h1 className="text-lg font-semibold text-foreground">พอร์ตการลงทุน</h1>
-          <div className="ml-auto">
+        <header className="h-14 flex items-center justify-between px-4 sm:px-6 bg-transparent sticky top-0 z-30">
+          <div className="flex items-center gap-4">
+            <SidebarTrigger />
+            <div>
+              <p className="text-xs text-muted-foreground">
+                <Home className="h-3 w-3 inline mr-1" />
+                หน้าหลัก / การลงทุน
+              </p>
+              <h1 className="text-sm font-semibold text-foreground">พอร์ตการลงทุน</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={togglePrivacy}>
               {privacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
+            <NotificationBell />
+            <UserProfilePopover />
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-6 space-y-6 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-6 space-y-5 overflow-y-auto">
           {/* Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="border-border shadow-sm">
+            <Card className="border-border shadow-argon">
               <CardContent className="p-4 sm:p-5">
                 <p className="text-xs sm:text-sm text-muted-foreground font-medium">Market Value (มูลค่าพอร์ต)</p>
                 <p className="text-lg sm:text-2xl font-bold font-display text-foreground mt-1">฿{fmt(totalMarketValue)}</p>
               </CardContent>
             </Card>
-            <Card className="border-border shadow-sm">
+            <Card className="border-border shadow-argon">
               <CardContent className="p-4 sm:p-5">
                 <p className="text-xs sm:text-sm text-muted-foreground font-medium">Unrealized PnL (ส่วนต่างราคา)</p>
                 <p className={cn("text-lg sm:text-2xl font-bold font-display mt-1", unrealizedPnL >= 0 ? "text-accent" : "text-destructive")}>
@@ -179,13 +191,13 @@ export default function InvestmentsPage() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="border-border shadow-sm text-green-500">
+            <Card className="border-border shadow-argon text-green-500">
               <CardContent className="p-4 sm:p-5">
                 <p className="text-xs sm:text-sm text-muted-foreground font-medium flex items-center gap-1.5"><Banknote className="h-3.5 w-3.5"/> Yield (ดอกเบี้ย/ปันผล)</p>
                 <p className="text-lg sm:text-2xl font-bold font-display mt-1">+{fmt(totalYield)}</p>
               </CardContent>
             </Card>
-            <Card className={cn("border-transparent shadow-sm", netPnL >= 0 ? "bg-accent/10 text-accent" : "bg-destructive/10 text-destructive")}>
+            <Card className={cn("border-transparent shadow-argon", netPnL >= 0 ? "bg-accent/10 text-accent" : "bg-destructive/10 text-destructive")}>
               <CardContent className="p-4 sm:p-5">
                 <p className="text-xs sm:text-sm font-medium opacity-80 flex items-center gap-1.5"><Percent className="h-3.5 w-3.5"/> Total Net ROI</p>
                 <p className="text-lg sm:text-2xl font-bold font-display mt-1">{privacyMode ? "***" : `${netPnL >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%`}</p>

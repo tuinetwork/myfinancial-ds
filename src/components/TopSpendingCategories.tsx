@@ -8,12 +8,12 @@ interface Props {
 }
 
 const BAR_COLORS = [
-  "bg-[hsl(225,75%,57%)]",
-  "bg-[hsl(180,70%,50%)]",
+  "bg-primary",
+  "bg-income",
   "bg-[hsl(280,60%,55%)]",
-  "bg-[hsl(35,85%,55%)]",
+  "bg-debt",
   "bg-[hsl(340,65%,55%)]",
-  "bg-[hsl(160,60%,45%)]",
+  "bg-investment",
 ];
 
 export function TopSpendingCategories({ data }: Props) {
@@ -35,10 +35,10 @@ export function TopSpendingCategories({ data }: Props) {
   const maxAmount = topCategories[0]?.amount || 1;
 
   return (
-    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "560ms" }}>
+    <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "560ms" }}>
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          <BarChart3 className="h-4 w-4 text-primary" />
           <CardTitle className="text-base font-semibold">รายจ่ายสูงสุด</CardTitle>
         </div>
       </CardHeader>

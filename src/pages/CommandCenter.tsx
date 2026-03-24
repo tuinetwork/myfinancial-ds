@@ -28,8 +28,8 @@ import {
 import {
   Terminal, ShieldCheck, Database, Download, Upload, Radio, AlertTriangle,
   Loader2, Search, RefreshCw, Megaphone, Plug, CheckCircle, XCircle,
-  Info, Trash2, Code, Play, FileJson, Plus, Edit, Save, X, ShieldAlert, 
-  Bookmark, BookmarkPlus, PlayCircle, Ban, Unlock, BarChart3, DatabaseBackup
+  Info, Trash2, Code, Play, FileJson, Plus, Edit, Save, X, ShieldAlert,
+  Bookmark, BookmarkPlus, PlayCircle, Ban, Unlock, BarChart3, DatabaseBackup, Home
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -519,23 +519,28 @@ export default function CommandCenter() {
       <AppSidebar />
       <main className="flex-1 flex flex-col min-h-screen overflow-auto relative bg-muted/10">
         {/* Header */}
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 sm:px-6">
-          <SidebarTrigger />
-          <div className="flex items-center gap-2">
-            <Terminal className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold text-foreground">Command Center</h1>
+        <header className="h-14 flex items-center justify-between px-4 sm:px-6 bg-transparent sticky top-0 z-30">
+          <div className="flex items-center gap-4">
+            <SidebarTrigger />
+            <div>
+              <p className="text-xs text-muted-foreground">
+                <Home className="h-3 w-3 inline mr-1" />
+                หน้าหลัก / Command Center
+              </p>
+              <h1 className="text-sm font-semibold text-foreground">Command Center</h1>
+            </div>
+            <Badge variant="outline" className="text-xs gap-1.5 border-accent text-accent">
+              <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+              Production
+            </Badge>
           </div>
-          <Badge variant="outline" className="text-xs gap-1.5 border-accent text-accent">
-            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-            Production
-          </Badge>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <NotificationBell />
             <UserProfilePopover />
           </div>
         </header>
 
-        <div className="flex-1 p-4 sm:p-6 space-y-6 pb-20">
+        <div className="flex-1 p-4 sm:p-6 space-y-5 pb-20">
 
           {/* ===== 1. Operation Terminal (Full Width) ===== */}
           <Card className="border-border">
@@ -569,7 +574,7 @@ export default function CommandCenter() {
           </Card>
 
           {/* ===== 2. Migration Script Editor (Full Width) ===== */}
-          <Card className="border-primary/20 shadow-sm">
+          <Card className="border-primary/20 shadow-argon">
             <CardHeader className="pb-3 bg-primary/5 border-b border-primary/10">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm flex items-center gap-2">

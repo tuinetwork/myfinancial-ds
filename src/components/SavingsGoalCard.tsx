@@ -78,11 +78,11 @@ export function SavingsGoalCard({ data }: Props) {
       : "bg-expense";
 
   return (
-    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "520ms" }}>
+    <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "520ms" }}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-muted-foreground" />
+            <Target className="h-4 w-4 text-primary" />
             <CardTitle className="text-base font-semibold">เป้าหมายการออม</CardTitle>
           </div>
           <span className={`text-xs font-medium ${statusColor}`}>{statusLabel}</span>

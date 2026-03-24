@@ -17,12 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
-import {
   CalendarDays, ChevronLeft, ChevronRight, Home, GripVertical,
   Banknote, Clock, AlertTriangle, CircleDollarSign, Receipt, Landmark, X, Move, CheckCircle2, RefreshCw,
 } from "lucide-react";
@@ -624,15 +618,18 @@ const CalendarPage = () => {
     <>
       <AppSidebar />
       <div className="flex-1 flex flex-col min-h-screen">
-        <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
+        <header className="h-14 flex items-center justify-between px-4 sm:px-6 bg-transparent sticky top-0 z-30">
           <div className="flex items-center gap-4">
             <SidebarTrigger />
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-5 w-5 text-primary" />
-              <h1 className="text-lg font-semibold">ปฏิทินการเงิน</h1>
+            <div>
+              <p className="text-xs text-muted-foreground">
+                <Home className="h-3 w-3 inline mr-1" />
+                หน้าหลัก / ปฏิทินการเงิน
+              </p>
+              <h1 className="text-sm font-semibold text-foreground">ปฏิทินการเงิน</h1>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <NotificationBell />
             <UserProfilePopover />
           </div>
@@ -641,17 +638,6 @@ const CalendarPage = () => {
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">
           <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="space-y-5">
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbPage className="flex items-center gap-1">
-                      <Home className="h-4 w-4" />
-                      <span>ปฏิทินการเงิน</span>
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-
               {/* Summary Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
@@ -785,7 +771,7 @@ const CalendarPage = () => {
                                       : allPaid
                                         ? "border-accent/50 bg-accent/5"
                                         : isToday
-                                          ? "border-primary/50 bg-primary/5 shadow-sm"
+                                          ? "border-primary/50 bg-primary/5 shadow-argon"
                                           : hasItems
                                             ? "border-border bg-card hover:shadow-md hover:border-primary/30"
                                             : "border-border/50 bg-card/50 hover:bg-card"

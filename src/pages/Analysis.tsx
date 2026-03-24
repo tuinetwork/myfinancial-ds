@@ -19,12 +19,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
-import {
   Table,
   TableBody,
   TableCell,
@@ -37,7 +31,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
   AreaChart, Area, LineChart, Line, ReferenceLine,
 } from "recharts";
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, PieChart as PieIcon } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, PieChart as PieIcon, Home } from "lucide-react";
 import { useEffect } from "react";
 
 const COLORS = [
@@ -242,39 +236,30 @@ const Analysis = () => {
     <>
       <AppSidebar />
       <div className="flex-1 flex flex-col min-h-screen">
-        <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
+        <header className="h-14 flex items-center justify-between px-4 sm:px-6 bg-transparent sticky top-0 z-30">
           <div className="flex items-center gap-4">
             <SidebarTrigger />
-            <div className="flex items-center gap-2">
-              <PieIcon className="h-5 w-5 text-primary" />
-              <h1 className="text-lg font-semibold">วิเคราะห์</h1>
+            <div>
+              <p className="text-xs text-muted-foreground">
+                <Home className="h-3 w-3 inline mr-1" />
+                หน้าหลัก / วิเคราะห์
+              </p>
+              <h1 className="text-sm font-semibold text-foreground">วิเคราะห์การเงิน</h1>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <NotificationBell />
             <UserProfilePopover />
           </div>
         </header>
 
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbPage className="flex items-center gap-1">
-                      <PieIcon className="h-4 w-4" />
-                      <span className="hidden sm:inline">วิเคราะห์</span>
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-
-              <div className="flex items-center gap-2">
+          <div className="space-y-5">
+            {/* Controls */}
+            <div className="flex flex-wrap items-center justify-end gap-2">
                 {years.length > 0 && (
                   <Select value={selectedYear} onValueChange={setSelectedYear}>
-                    <SelectTrigger className="w-28 bg-card border-border shadow-sm text-xs">
+                    <SelectTrigger className="w-28 bg-card border-border shadow-argon text-xs h-8 rounded-md">
                       <SelectValue placeholder="ปี" />
                     </SelectTrigger>
                     <SelectContent className="bg-card border-border shadow-lg z-50">
@@ -286,7 +271,7 @@ const Analysis = () => {
                 )}
                 {monthsForYear.length > 0 && (
                   <Select value={selectedMonthKey} onValueChange={setSelectedMonthKey}>
-                    <SelectTrigger className="w-32 bg-card border-border shadow-sm text-xs">
+                    <SelectTrigger className="w-32 bg-card border-border shadow-argon text-xs">
                       <SelectValue placeholder="เดือน" />
                     </SelectTrigger>
                     <SelectContent className="bg-card border-border shadow-lg z-50">
@@ -296,7 +281,6 @@ const Analysis = () => {
                     </SelectContent>
                   </Select>
                 )}
-              </div>
             </div>
 
             {isPageLoading ? (
@@ -316,14 +300,14 @@ const Analysis = () => {
               <>
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Card className="border-none shadow-sm animate-fade-in">
+                  <Card className="border-none shadow-argon animate-fade-in">
                     <CardContent className="p-4">
                       <p className="text-xs text-muted-foreground mb-1">จำนวนรายการ</p>
                       <p className="text-2xl font-bold font-display">{analytics.transactionCount}</p>
                       <p className="text-xs text-muted-foreground mt-1">รายการทั้งหมด (ไม่รวมโอน)</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "80ms" }}>
+                  <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "80ms" }}>
                     <CardContent className="p-4">
                       <p className="text-xs text-muted-foreground mb-1">อัตราการออม</p>
                       <p className={`text-2xl font-bold font-display ${analytics.savingsRate >= 0 ? "text-income" : "text-expense"}`}>
@@ -332,7 +316,7 @@ const Analysis = () => {
                       <p className="text-xs text-muted-foreground mt-1">ของรายรับ</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "160ms" }}>
+                  <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "160ms" }}>
                     <CardContent className="p-4">
                       <div className="flex items-center gap-1 mb-1">
                         <AlertTriangle className="h-3 w-3 text-amber-500" />
@@ -342,7 +326,7 @@ const Analysis = () => {
                       <p className="text-xs text-muted-foreground mt-1">หมวดหมู่</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "240ms" }}>
+                  <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "240ms" }}>
                     <CardContent className="p-4">
                       <div className="flex items-center gap-1 mb-1">
                         <CheckCircle className="h-3 w-3 text-income" />
@@ -356,7 +340,7 @@ const Analysis = () => {
 
                 {/* Daily Trend + Pie */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                  <Card className="xl:col-span-2 border-none shadow-sm animate-fade-in" style={{ animationDelay: "300ms" }}>
+                  <Card className="xl:col-span-2 border-none shadow-argon animate-fade-in" style={{ animationDelay: "300ms" }}>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base font-semibold">แนวโน้มรายวัน</CardTitle>
                     </CardHeader>
@@ -380,7 +364,7 @@ const Analysis = () => {
                     </CardContent>
                   </Card>
 
-                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "380ms" }}>
+                  <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "380ms" }}>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base font-semibold">สัดส่วนรายจ่าย</CardTitle>
                     </CardHeader>
@@ -431,7 +415,7 @@ const Analysis = () => {
 
                 {/* Expense Type Breakdown */}
                 {analytics.typeData.length > 0 && (
-                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "440ms" }}>
+                  <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "440ms" }}>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base font-semibold">สัดส่วนตามประเภทรายจ่าย</CardTitle>
                     </CardHeader>
@@ -460,7 +444,7 @@ const Analysis = () => {
 
                 {/* Monthly Comparison Chart */}
                 {monthlyComparison.length > 1 && (
-                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "560ms" }}>
+                  <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "560ms" }}>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base font-semibold">เปรียบเทียบรายเดือน (ปี {selectedYear ? String(Number(selectedYear) + 543) : ""})</CardTitle>
                     </CardHeader>
@@ -539,7 +523,7 @@ const Analysis = () => {
 
                 {/* Savings Rate Trend */}
                 {monthlyComparison.length > 1 && (
-                  <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "620ms" }}>
+                  <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "620ms" }}>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base font-semibold">แนวโน้มอัตราการออมรายเดือน (%)</CardTitle>
                     </CardHeader>
@@ -571,7 +555,7 @@ const Analysis = () => {
                 )}
 
                 {/* Budget Performance Table */}
-                <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "500ms" }}>
+                <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "500ms" }}>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base font-semibold">ประสิทธิภาพงบประมาณ</CardTitle>
                   </CardHeader>

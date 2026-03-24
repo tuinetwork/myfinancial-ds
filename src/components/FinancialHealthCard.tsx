@@ -79,20 +79,20 @@ export function FinancialHealthCard({ data, carryOver = 0 }: Props) {
   }, [data, carryOver]);
 
   return (
-    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "440ms" }}>
+    <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "440ms" }}>
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+          <ShieldCheck className="h-4 w-4 text-primary" />
           <CardTitle className="text-base font-semibold">สุขภาพการเงิน</CardTitle>
         </div>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-4">
           {metrics.map((m) => (
-            <div key={m.label} className="space-y-1">
+            <div key={m.label} className="p-3 rounded-lg bg-muted/40 space-y-1">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <m.icon className="h-3.5 w-3.5" />
-                <span className="text-xs">{m.label}</span>
+                <span className="text-xs font-medium uppercase tracking-wider">{m.label}</span>
               </div>
               <p className={`text-lg font-bold font-display ${m.color}`}>{m.value}</p>
               <p className="text-[11px] text-muted-foreground">{m.desc}</p>

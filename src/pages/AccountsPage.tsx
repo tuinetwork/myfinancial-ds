@@ -15,7 +15,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Wallet, Landmark, TrendingUp, CreditCard, Building2, Package, Plus, Eye, EyeOff, Trash2, Pencil, UserCheck, UserX } from "lucide-react";
+import { Wallet, Landmark, TrendingUp, CreditCard, Building2, Package, Plus, Eye, EyeOff, Trash2, Pencil, UserCheck, UserX, Home } from "lucide-react";
+import { NotificationBell } from "@/components/NotificationBell";
+import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -73,7 +75,7 @@ function AssetPieChart({ accounts, privacyMode, formatBalance, liabilityTypes }:
   if (chartData.length === 0) return null;
 
   return (
-    <Card className="border-none shadow-sm h-full">
+    <Card className="border-none shadow-argon h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm sm:text-base font-semibold">สัดส่วนตามประเภทบัญชี</CardTitle>
       </CardHeader>
@@ -142,7 +144,7 @@ function BalanceComparisonChart({ assets, liabilities, privacyMode, formatBalanc
   ];
 
   return (
-    <Card className="border-none shadow-sm h-full">
+    <Card className="border-none shadow-argon h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm sm:text-base font-semibold">สุขภาพการเงิน (สินทรัพย์ vs หนี้สิน)</CardTitle>
       </CardHeader>
@@ -394,17 +396,27 @@ export default function AccountsPage() {
     <>
       <AppSidebar />
       <div className="flex-1 flex flex-col min-h-screen">
-        <header className="h-14 flex items-center border-b border-border px-4 gap-3">
-          <SidebarTrigger />
-          <h1 className="text-lg font-semibold text-foreground">บัญชี / กระเป๋าเงิน</h1>
-          <div className="ml-auto flex items-center gap-2">
+        <header className="h-14 flex items-center justify-between px-4 sm:px-6 bg-transparent sticky top-0 z-30">
+          <div className="flex items-center gap-4">
+            <SidebarTrigger />
+            <div>
+              <p className="text-xs text-muted-foreground">
+                <Home className="h-3 w-3 inline mr-1" />
+                หน้าหลัก / บัญชี/กระเป๋าเงิน
+              </p>
+              <h1 className="text-sm font-semibold text-foreground">บัญชี / กระเป๋าเงิน</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={togglePrivacy}>
               {privacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
+            <NotificationBell />
+            <UserProfilePopover />
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-6 space-y-6 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-6 space-y-5 overflow-y-auto">
           {/* Net Worth Summary Card */}
           <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
             <CardContent className="p-6">

@@ -28,7 +28,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   CheckCircle, XCircle, Loader2, ShieldCheck, Users, UsersRound,
-  Pencil, Trash2, Ban,
+  Pencil, Trash2, Ban, Home,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -282,19 +282,24 @@ export default function AdminPanel() {
     <>
       <AppSidebar />
       <main className="flex-1 flex flex-col min-h-screen overflow-auto">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 sm:px-6">
-          <SidebarTrigger />
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold">Admin Panel</h1>
+        <header className="h-14 flex items-center justify-between px-4 sm:px-6 bg-transparent sticky top-0 z-30">
+          <div className="flex items-center gap-4">
+            <SidebarTrigger />
+            <div>
+              <p className="text-xs text-muted-foreground">
+                <Home className="h-3 w-3 inline mr-1" />
+                หน้าหลัก / Admin Panel
+              </p>
+              <h1 className="text-sm font-semibold text-foreground">Admin Panel</h1>
+            </div>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <NotificationBell />
             <UserProfilePopover />
           </div>
         </header>
 
-        <div className="flex-1 p-4 sm:p-6 space-y-6">
+        <div className="flex-1 p-4 sm:p-6 space-y-5">
 
           {/* ===== ตารางที่ 1: รออนุมัติ (Realtime) ===== */}
           <Card>
