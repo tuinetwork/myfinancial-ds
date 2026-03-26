@@ -133,7 +133,7 @@ function getBalanceDeltas(tx: Transaction): { accountId: string; delta: number }
   return deltas;
 }
 
-export function TransactionTable({ data, userId, onMutate }: Props) {
+export function TransactionTable({ data, userId, onMutate, excludeTransfers = false }: Props) {
   const [pageSize, setPageSize] = useState(50);
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
