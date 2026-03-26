@@ -204,7 +204,7 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
   };
 
   const filtered = useMemo(() => {
-    let items = filter === "all" ? data.transactions : data.transactions.filter((t) => t.type === filter);
+    let items = filter === "all" ? baseTransactions : baseTransactions.filter((t) => t.type === filter);
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
