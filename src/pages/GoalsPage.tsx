@@ -13,9 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Target, Eye, EyeOff, Home } from "lucide-react";
-import { NotificationBell } from "@/components/NotificationBell";
-import { UserProfilePopover } from "@/components/UserProfilePopover";
+import { Plus, Target, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -69,27 +67,17 @@ export default function GoalsPage() {
     <>
       <AppSidebar />
       <div className="flex-1 flex flex-col min-h-screen">
-        <header className="h-14 flex items-center justify-between px-4 sm:px-6 bg-transparent sticky top-0 z-30">
-          <div className="flex items-center gap-4">
-            <SidebarTrigger />
-            <div>
-              <p className="text-xs text-muted-foreground">
-                <Home className="h-3 w-3 inline mr-1" />
-                หน้าหลัก / เป้าหมายการออม
-              </p>
-              <h1 className="text-sm font-semibold text-foreground">เป้าหมายการออม</h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+        <header className="h-14 flex items-center border-b border-border px-4 gap-3">
+          <SidebarTrigger />
+          <h1 className="text-lg font-semibold text-foreground">เป้าหมายการเงิน</h1>
+          <div className="ml-auto">
             <Button variant="ghost" size="icon" onClick={togglePrivacy}>
               {privacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
-            <NotificationBell />
-            <UserProfilePopover />
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-6 space-y-5 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-6 space-y-6 overflow-y-auto">
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2"><Plus className="h-4 w-4" /> เพิ่มเป้าหมาย</Button>

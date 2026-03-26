@@ -300,12 +300,12 @@ export function AppSidebar() {
           onClick={toggleSidebar}
           className="flex items-center gap-2.5 w-full rounded-lg p-2 hover:bg-sidebar-accent/50 transition-all duration-300 group/logo"
         >
-          <div className="bg-gradient-to-br from-primary to-[hsl(260,60%,55%)] text-white p-1.5 rounded-lg shrink-0 transition-transform duration-300 group-hover/logo:scale-110 shadow-lg">
+          <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shrink-0 transition-transform duration-300 group-hover/logo:scale-110">
             <Wallet className="h-5 w-5" />
           </div>
           {!collapsed && (
             <div className="flex flex-col leading-tight text-left overflow-hidden">
-              <span className="font-bold text-sm font-display text-sidebar-foreground truncate">FinTrack</span>
+              <span className="font-bold text-sm font-display text-sidebar-foreground truncate">บันทึกการเงิน</span>
               <span className="text-[11px] text-sidebar-foreground/60 truncate">{user?.displayName || "ฉัน"}</span>
             </div>
           )}

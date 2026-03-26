@@ -36,6 +36,14 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
   LogOut, User, Mail, Shield, ChevronRight, ChevronDown, Settings as SettingsIcon,
   Pencil, Check, X, Wallet, PiggyBank, Plus, Trash2, Tag, FolderTree, Home, Save, Loader2, Target, GripVertical, CalendarIcon, Copy, Lock, LockOpen, CircleDot,
 } from "lucide-react";
@@ -2159,25 +2167,43 @@ const Settings = () => {
     <>
       <AppSidebar />
       <div className="flex-1 flex flex-col min-h-screen">
-        <header className="h-14 flex items-center justify-between px-4 sm:px-6 bg-transparent sticky top-0 z-30">
+        <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
           <div className="flex items-center gap-4">
             <SidebarTrigger />
-            <div>
-              <p className="text-xs text-muted-foreground">
-                <Home className="h-3 w-3 inline mr-1" />
-                หน้าหลัก / ตั้งค่า
-              </p>
-              <h1 className="text-sm font-semibold text-foreground">ตั้งค่า</h1>
+            <div className="flex items-center gap-2">
+              <SettingsIcon className="h-5 w-5 text-primary" />
+              <h1 className="text-lg font-semibold">ตั้งค่า</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <NotificationBell />
             <UserProfilePopover />
           </div>
         </header>
 
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">
-          <div className="space-y-5">
+          <div className="space-y-6">
+            {/* Breadcrumb */}
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/" className="flex items-center gap-1">
+                    <Home className="h-4 w-4" />
+                    <span className="hidden sm:inline">หน้าหลัก</span>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/settings?tab=budget" className="cursor-pointer">
+                    ตั้งค่า
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{titleMap[tab]}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
 
             <h1 className="text-2xl font-bold">{titleMap[tab]}</h1>
 

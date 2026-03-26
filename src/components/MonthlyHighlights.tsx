@@ -35,7 +35,7 @@ export function MonthlyHighlights({ yearlyData }: Props) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in" style={{ animationDelay: "160ms" }}>
-      <Card className="border-none shadow-argon border-l-4" style={{ borderLeftColor: "hsl(var(--expense))" }}>
+      <Card className="border-none shadow-sm border-l-4" style={{ borderLeftColor: "hsl(var(--expense))" }}>
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground font-medium">เดือนที่ใช้จ่ายมากที่สุด</span>
@@ -53,7 +53,7 @@ export function MonthlyHighlights({ yearlyData }: Props) {
         </CardContent>
       </Card>
 
-      <Card className="border-none shadow-argon border-l-4" style={{ borderLeftColor: "hsl(var(--income))" }}>
+      <Card className="border-none shadow-sm border-l-4" style={{ borderLeftColor: "hsl(var(--income))" }}>
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground font-medium">เดือนที่ใช้จ่ายน้อยที่สุด</span>

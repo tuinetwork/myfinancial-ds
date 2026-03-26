@@ -45,10 +45,10 @@ export function RecentTransactions({ data }: Props) {
   };
 
   return (
-    <Card className="border-none shadow-argon animate-fade-in h-full flex flex-col" style={{ animationDelay: "480ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in h-full flex flex-col" style={{ animationDelay: "480ms" }}>
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-primary" />
+          <Clock className="h-4 w-4 text-muted-foreground" />
           <CardTitle className="text-base font-semibold">รายการล่าสุด</CardTitle>
         </div>
       </CardHeader>

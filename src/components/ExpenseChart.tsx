@@ -86,15 +86,15 @@ export function ExpenseChart({ data }: Props) {
   };
 
   return (
-    <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "400ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "400ms" }}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base font-semibold">งบประมาณ vs ใช้จริง</CardTitle>
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-44 h-8 text-xs bg-card border-border shadow-argon">
+            <SelectTrigger className="w-44 h-8 text-xs bg-card border-border shadow-sm">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-card border-border shadow-argon-lg z-50">
+            <SelectContent className="bg-card border-border shadow-lg z-50">
               {Object.entries(CATEGORY_MAP).map(([key, { label }]) => (
                 <SelectItem key={key} value={key} className="text-xs">
                   {label}

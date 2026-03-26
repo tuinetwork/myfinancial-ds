@@ -50,7 +50,7 @@ export function MonthlyTrendChart({ yearlyData }: Props) {
     });
 
   return (
-    <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "200ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "200ms" }}>
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold">แนวโน้มรายเดือน</CardTitle>
       </CardHeader>

@@ -78,7 +78,7 @@ export function DailyChart({ data }: Props) {
   }, [data.transactions, viewMode]);
 
   return (
-    <Card className="border-none shadow-argon animate-fade-in h-full flex flex-col" style={{ animationDelay: "360ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in h-full flex flex-col" style={{ animationDelay: "360ms" }}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold">รายรับ-รายจ่ายรายวัน</CardTitle>

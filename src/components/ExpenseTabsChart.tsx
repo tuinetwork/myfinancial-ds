@@ -76,12 +76,12 @@ export function ExpenseTabsChart({ data }: Props) {
     : `รายละเอียดสัดส่วน ${selectedType}`;
 
   return (
-    <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "480ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "480ms" }}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-sm sm:text-base font-semibold truncate">{title}</CardTitle>
           <Select value={selectedType} onValueChange={setSelectedType}>
-            <SelectTrigger className="w-36 sm:w-40 h-8 text-xs bg-card border-border shadow-argon">
+            <SelectTrigger className="w-36 sm:w-40 h-8 text-xs bg-card border-border shadow-sm">
               <SelectValue placeholder="เลือกประเภท" />
             </SelectTrigger>
             <SelectContent className="bg-card border-border shadow-lg z-50">

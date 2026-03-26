@@ -62,7 +62,7 @@ export function BudgetBreakdown({ data }: Props) {
   const totalBudget = filtered.reduce((sum, item) => sum + item.budget, 0);
 
   return (
-    <Card className="border-none shadow-argon animate-fade-in" style={{ animationDelay: "640ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "640ms" }}>
       <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2 flex-wrap">
         <CardTitle className="text-base font-semibold">ติดตามงบประมาณ</CardTitle>
         <div className="flex items-center gap-2">

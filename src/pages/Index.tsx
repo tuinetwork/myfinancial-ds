@@ -19,7 +19,13 @@ import { UpcomingBills } from "@/components/UpcomingBills";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Home } from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbPage,
+} from "@/components/ui/breadcrumb";
+import { Home, LayoutDashboard } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -96,45 +102,15 @@ const Index = () => {
 
       <div className="flex-1 flex flex-col min-h-screen">
         {/* Header */}
-        <header className="h-14 flex items-center justify-between px-4 sm:px-6 bg-transparent sticky top-0 z-30">
+        <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
           <div className="flex items-center gap-4">
             <SidebarTrigger />
-            <div>
-              <p className="text-xs text-muted-foreground">
-                <Home className="h-3 w-3 inline mr-1" />
-                หน้าหลัก / แดชบอร์ด
-              </p>
-              <h1 className="text-sm font-semibold text-foreground">
-                แดชบอร์ด {viewMode === "monthly" ? "รายเดือน" : "รายปี"}
-              </h1>
+            <div className="flex items-center gap-2">
+              <LayoutDashboard className="h-5 w-5 text-primary" />
+              <h1 className="text-lg font-semibold">แดชบอร์ด</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Year / Month selectors */}
-            {years.length > 0 && (
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-28 bg-card border-border shadow-argon text-xs h-8 rounded-md">
-                  <SelectValue placeholder="ปี" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border shadow-argon-lg z-50">
-                  {years.map((y) => (
-                    <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {viewMode === "monthly" && monthsForYear.length > 0 && (
-              <Select value={selectedMonthKey} onValueChange={handleMonthChange}>
-                <SelectTrigger className="w-32 bg-card border-border shadow-argon text-xs h-8 rounded-md">
-                  <SelectValue placeholder="เดือน" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border shadow-argon-lg z-50">
-                  {monthsForYear.map((m) => (
-                    <SelectItem key={m.month} value={m.month}>{m.monthName}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+          <div className="flex items-center gap-1">
             <NotificationBell />
             <UserProfilePopover />
           </div>
@@ -142,7 +118,51 @@ const Index = () => {
 
         {/* Content */}
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">
-          <div className="space-y-5">
+          <div className="space-y-6">
+            {/* Breadcrumb + Dropdowns */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbPage className="flex items-center gap-1">
+                      <Home className="h-4 w-4" />
+                      <span className="hidden sm:inline">แดชบอร์ด</span>
+                      <span className="text-muted-foreground text-xs ml-1">
+                        ({viewMode === "monthly" ? "รายเดือน" : "รายปี"})
+                      </span>
+                    </BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+
+              <div className="flex items-center gap-2">
+                {years.length > 0 && (
+                  <Select value={selectedYear} onValueChange={setSelectedYear}>
+                    <SelectTrigger className="w-28 bg-card border-border shadow-sm text-xs">
+                      <SelectValue placeholder="ปี" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border shadow-lg z-50">
+                      {years.map((y) => (
+                        <SelectItem key={y} value={y}>{String(Number(y) + 543)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {viewMode === "monthly" && monthsForYear.length > 0 && (
+                  <Select value={selectedMonthKey} onValueChange={handleMonthChange}>
+                    <SelectTrigger className="w-32 bg-card border-border shadow-sm text-xs">
+                      <SelectValue placeholder="เดือน" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border shadow-lg z-50">
+                      {monthsForYear.map((m) => (
+                        <SelectItem key={m.month} value={m.month}>{m.monthName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
 
             {isPageLoading ? (
               <div className="space-y-6">

@@ -65,30 +65,43 @@ const Transactions = () => {
       <AppSidebar />
 
       <div className="flex-1 flex flex-col min-h-screen">
-        <header className="h-14 flex items-center justify-between px-4 sm:px-6 bg-transparent sticky top-0 z-30">
+        <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-30">
           <div className="flex items-center gap-4">
             <SidebarTrigger />
-            <div>
-              <p className="text-xs text-muted-foreground">
-                <Home className="h-3 w-3 inline mr-1" />
-                หน้าหลัก / รายการธุรกรรม
-              </p>
-              <h1 className="text-sm font-semibold text-foreground">รายการธุรกรรม</h1>
+            <div className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-primary" />
+              <h1 className="text-lg font-semibold">รายการธุรกรรม</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <NotificationBell />
             <UserProfilePopover />
           </div>
         </header>
 
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">
-          <div className="space-y-5">
+          <div className="space-y-6">
+            {/* Breadcrumb */}
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/" className="flex items-center gap-1">
+                    <Home className="h-4 w-4" />
+                    <span className="hidden sm:inline">หน้าหลัก</span>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>รายการธุรกรรม</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+
             {/* Controls bar */}
             <div className="flex flex-wrap items-center gap-3">
               {years.length > 0 && (
                 <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger className="w-28 bg-card border-border shadow-argon text-xs">
+                  <SelectTrigger className="w-28 bg-card border-border shadow-sm text-xs">
                     <SelectValue placeholder="ปี" />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border shadow-lg z-50">
@@ -101,7 +114,7 @@ const Transactions = () => {
 
               {monthsForYear.length > 0 && (
                 <Select value={selectedMonthKey} onValueChange={setSelectedMonthKey}>
-                  <SelectTrigger className="w-32 bg-card border-border shadow-argon text-xs">
+                  <SelectTrigger className="w-32 bg-card border-border shadow-sm text-xs">
                     <SelectValue placeholder="เดือน" />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border shadow-lg z-50">
