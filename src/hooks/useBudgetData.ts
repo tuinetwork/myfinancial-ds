@@ -178,6 +178,9 @@ function mapTransaction(docId: string, docData: Record<string, unknown>): Transa
     main_category: mainCategory || undefined,
     category: (docData.sub_category as string) ?? "",
     description: (docData.note as string) ?? "",
+    from_account_id: (docData.from_account_id as string) || undefined,
+    to_account_id: (docData.to_account_id as string) || undefined,
+    tags: (docData.tags as string[]) || undefined,
   };
 }
 
