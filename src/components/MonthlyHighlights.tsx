@@ -20,7 +20,7 @@ export function MonthlyHighlights({ yearlyData }: Props) {
   const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const monthStats = yearlyData.months.filter(({ month }) => month <= currentPeriod).map(({ month, data }) => {
     const expense = data.transactions
-      .filter((t) => t.type !== "รายรับ")
+      .filter((t) => t.type !== "รายรับ" && t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี")
       .reduce((s, t) => s + t.amount, 0);
     const income = data.transactions
       .filter((t) => t.type === "รายรับ")
