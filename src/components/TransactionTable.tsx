@@ -260,7 +260,7 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
     });
 
     return indexed;
-  }, [data.transactions, filter, search, sortKey, sortDir, dateFrom, dateTo]);
+  }, [baseTransactions, filter, search, sortKey, sortDir, dateFrom, dateTo]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((sum, t) => sum + t.amount, 0),
