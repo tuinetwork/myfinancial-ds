@@ -49,6 +49,7 @@ interface Props {
   data: BudgetData;
   userId?: string | null;
   onMutate?: () => void;
+  excludeTransfers?: boolean;
 }
 
 function getTypeBadgeClass(type: string) {
