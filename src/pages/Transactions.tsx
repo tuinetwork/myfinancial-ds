@@ -4,6 +4,7 @@ import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { AppFooter } from "@/components/AppFooter";
 import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
 import { TransactionTable } from "@/components/TransactionTable";
+import { TransferTable } from "@/components/TransferTable";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,7 +18,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Home, Receipt } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Home, Receipt, ArrowRightLeft } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -59,6 +61,15 @@ const Transactions = () => {
   const { data, isLoading } = useBudgetData(selectedPeriod);
 
   const isPageLoading = isLoading || monthsLoading || !selectedPeriod;
+
+  const transferCount = useMemo(() => {
+    if (!data) return 0;
+    return data.transactions.filter(
+      (t) => t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี"
+    ).length;
+  }, [data]);
+
+  const handleMutate = () => queryClient.invalidateQueries({ queryKey: ["budget-data"] });
 
   return (
     <>
@@ -129,11 +140,40 @@ const Transactions = () => {
             {isPageLoading ? (
               <Skeleton className="h-96 rounded-lg" />
             ) : data ? (
-              <TransactionTable
-                data={data}
-                userId={userId}
-                onMutate={() => queryClient.invalidateQueries({ queryKey: ["budget-data"] })}
-              />
+              <Tabs defaultValue="transactions" className="w-full">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="transactions" className="gap-1.5">
+                    <Receipt className="h-3.5 w-3.5" />
+                    รายรับ-รายจ่าย
+                  </TabsTrigger>
+                  <TabsTrigger value="transfers" className="gap-1.5">
+                    <ArrowRightLeft className="h-3.5 w-3.5" />
+                    การโอน
+                    {transferCount > 0 && (
+                      <span className="ml-1 text-[10px] bg-muted-foreground/20 text-muted-foreground rounded-full px-1.5 py-0.5 leading-none">
+                        {transferCount}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="transactions">
+                  <TransactionTable
+                    data={data}
+                    userId={userId}
+                    onMutate={handleMutate}
+                    excludeTransfers
+                  />
+                </TabsContent>
+
+                <TabsContent value="transfers">
+                  <TransferTable
+                    data={data}
+                    userId={userId}
+                    onMutate={handleMutate}
+                  />
+                </TabsContent>
+              </Tabs>
             ) : (
               <div className="flex items-center justify-center h-64">
                 <p className="text-destructive">ไม่สามารถโหลดข้อมูลได้</p>
