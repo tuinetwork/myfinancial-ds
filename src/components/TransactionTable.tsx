@@ -49,6 +49,7 @@ interface Props {
   data: BudgetData;
   userId?: string | null;
   onMutate?: () => void;
+  excludeTransfers?: boolean;
 }
 
 function getTypeBadgeClass(type: string) {
@@ -132,7 +133,7 @@ function getBalanceDeltas(tx: Transaction): { accountId: string; delta: number }
   return deltas;
 }
 
-export function TransactionTable({ data, userId, onMutate }: Props) {
+export function TransactionTable({ data, userId, onMutate, excludeTransfers = false }: Props) {
   const [pageSize, setPageSize] = useState(50);
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -171,12 +172,19 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
     return () => unsub();
   }, [userId]);
 
+  const baseTransactions = useMemo(() => {
+    if (excludeTransfers) {
+      return data.transactions.filter((t) => t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี");
+    }
+    return data.transactions;
+  }, [data.transactions, excludeTransfers]);
+
   const types = useMemo(() => {
-    const available = Array.from(new Set(data.transactions.map((t) => t.type)));
+    const available = Array.from(new Set(baseTransactions.map((t) => t.type)));
     return TYPE_ORDER.filter((t) => available.includes(t)).concat(
       available.filter((t) => !TYPE_ORDER.includes(t))
     );
-  }, [data.transactions]);
+  }, [baseTransactions]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -196,7 +204,7 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
   };
 
   const filtered = useMemo(() => {
-    let items = filter === "all" ? data.transactions : data.transactions.filter((t) => t.type === filter);
+    let items = filter === "all" ? baseTransactions : baseTransactions.filter((t) => t.type === filter);
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -252,7 +260,7 @@ export function TransactionTable({ data, userId, onMutate }: Props) {
     });
 
     return indexed;
-  }, [data.transactions, filter, search, sortKey, sortDir, dateFrom, dateTo]);
+  }, [baseTransactions, filter, search, sortKey, sortDir, dateFrom, dateTo]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((sum, t) => sum + t.amount, 0),
