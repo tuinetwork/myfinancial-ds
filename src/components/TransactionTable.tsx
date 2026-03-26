@@ -172,12 +172,19 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
     return () => unsub();
   }, [userId]);
 
+  const baseTransactions = useMemo(() => {
+    if (excludeTransfers) {
+      return data.transactions.filter((t) => t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี");
+    }
+    return data.transactions;
+  }, [data.transactions, excludeTransfers]);
+
   const types = useMemo(() => {
-    const available = Array.from(new Set(data.transactions.map((t) => t.type)));
+    const available = Array.from(new Set(baseTransactions.map((t) => t.type)));
     return TYPE_ORDER.filter((t) => available.includes(t)).concat(
       available.filter((t) => !TYPE_ORDER.includes(t))
     );
-  }, [data.transactions]);
+  }, [baseTransactions]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
