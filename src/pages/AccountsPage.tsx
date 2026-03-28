@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend } from "recharts";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
@@ -15,7 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Wallet, Landmark, TrendingUp, CreditCard, Building2, Package, Plus, Eye, EyeOff, Trash2, Pencil, UserCheck, UserX, PiggyBank } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Wallet, Landmark, TrendingUp, CreditCard, Building2, Package, Plus, Eye, EyeOff, Trash2, Pencil, UserCheck, UserX, PiggyBank, Download, Calculator, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -172,6 +173,278 @@ function BalanceComparisonChart({ assets, liabilities, privacyMode, formatBalanc
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+const THAI_MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+
+function NetWorthTrendChart({ userId, privacyMode, formatBalance }: {
+  userId: string;
+  privacyMode: boolean;
+  formatBalance: (v: number) => string;
+}) {
+  const [trendData, setTrendData] = useState<{ month: string; income: number; expense: number; netWorth: number }[]>([]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const unsub = onSnapshot(collection(firestore, "users", userId, "transactions"), (snap) => {
+      const monthlyData: Record<string, { income: number; expense: number }> = {};
+      snap.forEach((d) => {
+        const t = d.data();
+        if (t.is_deleted) return;
+        const monthYear = (t.month_year as string) || "";
+        if (!monthYear) return;
+        if (!monthlyData[monthYear]) monthlyData[monthYear] = { income: 0, expense: 0 };
+        if (t.type === "income") monthlyData[monthYear].income += Number(t.amount) || 0;
+        if (t.type === "expense") monthlyData[monthYear].expense += Number(t.amount) || 0;
+      });
+
+      const sorted = Object.entries(monthlyData).sort(([a], [b]) => a.localeCompare(b));
+      let cumulative = 0;
+      const data = sorted.map(([period, { income, expense }]) => {
+        cumulative += income - expense;
+        const [, m] = period.split("-").map(Number);
+        return {
+          month: THAI_MONTHS_SHORT[(m || 1) - 1],
+          income,
+          expense,
+          netWorth: cumulative,
+        };
+      });
+      setTrendData(data.slice(-12)); // Last 12 months
+    });
+    return () => unsub();
+  }, [userId]);
+
+  if (trendData.length < 2) return null;
+
+  return (
+    <Card className="border-none shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm sm:text-base font-semibold">แนวโน้มความมั่งคั่งสุทธิ</CardTitle>
+      </CardHeader>
+      <CardContent className="h-64 px-2 sm:px-6">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={trendData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.15} />
+            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={(val) => privacyMode ? "***" : `${(val / 1000).toFixed(0)}k`}
+              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+              width={50}
+            />
+            <Tooltip
+              formatter={(value: number, name: string) => [
+                formatBalance(value),
+                name === "netWorth" ? "ความมั่งคั่งสุทธิ" : name === "income" ? "รายรับ" : "รายจ่าย"
+              ]}
+              contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "12px", color: "hsl(var(--foreground))" }}
+              itemStyle={{ color: 'hsl(var(--foreground))' }}
+            />
+            <Legend
+              formatter={(value) => value === "netWorth" ? "ความมั่งคั่งสุทธิ" : value === "income" ? "รายรับ" : "รายจ่าย"}
+              wrapperStyle={{ fontSize: "11px" }}
+            />
+            <Line type="monotone" dataKey="income" stroke="hsl(var(--accent))" strokeWidth={1.5} dot={false} />
+            <Line type="monotone" dataKey="expense" stroke="hsl(var(--destructive))" strokeWidth={1.5} dot={false} />
+            <Line type="monotone" dataKey="netWorth" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 3 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Debt Payoff Planner
+function DebtPayoffPlanner({ liabilityAccounts, privacyMode, formatBalance }: {
+  liabilityAccounts: Account[];
+  privacyMode: boolean;
+  formatBalance: (v: number) => string;
+}) {
+  const [monthlyPayment, setMonthlyPayment] = useState<string>("5000");
+  const [strategy, setStrategy] = useState<"avalanche" | "snowball">("snowball");
+
+  const plan = useMemo(() => {
+    const payment = parseFloat(monthlyPayment) || 0;
+    if (payment <= 0 || liabilityAccounts.length === 0) return null;
+
+    const debts = liabilityAccounts.map((a) => ({
+      name: a.name,
+      balance: Math.abs(Number(a.balance) || 0),
+      type: a.type,
+    })).filter((d) => d.balance > 0);
+
+    if (debts.length === 0) return null;
+
+    // Sort: snowball = smallest balance first, avalanche = largest first
+    const sorted = [...debts].sort((a, b) =>
+      strategy === "snowball" ? a.balance - b.balance : b.balance - a.balance
+    );
+
+    const totalDebt = sorted.reduce((s, d) => s + d.balance, 0);
+    let remaining = sorted.map((d) => d.balance);
+    let months = 0;
+    const maxMonths = 360; // 30 years cap
+    const timeline: { month: number; totalRemaining: number }[] = [];
+
+    while (remaining.some((r) => r > 0) && months < maxMonths) {
+      months++;
+      let leftover = payment;
+      // Pay minimum (distribute evenly), then focus extra on priority debt
+      for (let i = 0; i < remaining.length; i++) {
+        if (remaining[i] <= 0) continue;
+        const pay = Math.min(remaining[i], leftover);
+        remaining[i] -= pay;
+        leftover -= pay;
+        if (leftover <= 0) break;
+      }
+      const totalRemaining = remaining.reduce((s, r) => s + r, 0);
+      if (months % 3 === 0 || totalRemaining <= 0) {
+        timeline.push({ month: months, totalRemaining: Math.max(0, totalRemaining) });
+      }
+    }
+
+    const totalInterestFree = payment * months;
+    const debtFreeDate = new Date();
+    debtFreeDate.setMonth(debtFreeDate.getMonth() + months);
+
+    return {
+      debts: sorted,
+      totalDebt,
+      months,
+      years: Math.floor(months / 12),
+      remainingMonths: months % 12,
+      totalPaid: totalInterestFree,
+      debtFreeDate,
+      timeline,
+    };
+  }, [liabilityAccounts, monthlyPayment, strategy]);
+
+  if (liabilityAccounts.length === 0) return null;
+
+  const totalDebt = liabilityAccounts.reduce((s, a) => s + Math.abs(Number(a.balance) || 0), 0);
+  if (totalDebt <= 0) return null;
+
+  return (
+    <Card className="border-none shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
+          <Calculator className="h-4 w-4 text-destructive" />
+          แผนปลดหนี้
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs">จ่ายต่อเดือน (฿)</Label>
+            <Input
+              type="number"
+              value={monthlyPayment}
+              onChange={(e) => setMonthlyPayment(e.target.value)}
+              className="mt-1"
+              placeholder="5,000"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">กลยุทธ์</Label>
+            <Select value={strategy} onValueChange={(v) => setStrategy(v as "avalanche" | "snowball")}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="snowball">Snowball (หนี้น้อยก่อน)</SelectItem>
+                <SelectItem value="avalanche">Avalanche (หนี้มากก่อน)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Debt list with progress */}
+        <div className="space-y-2">
+          {liabilityAccounts.filter((a) => Math.abs(Number(a.balance) || 0) > 0).map((acc) => {
+            const bal = Math.abs(Number(acc.balance) || 0);
+            return (
+              <div key={acc.id} className="flex items-center justify-between text-sm">
+                <span className="truncate text-muted-foreground">{acc.name}</span>
+                <span className="font-medium text-destructive">{formatBalance(bal)}</span>
+              </div>
+            );
+          })}
+          <div className="flex items-center justify-between text-sm font-semibold border-t pt-2">
+            <span>หนี้สินรวม</span>
+            <span className="text-destructive">{formatBalance(totalDebt)}</span>
+          </div>
+        </div>
+
+        {plan && (
+          <div className="rounded-lg bg-destructive/5 border border-destructive/10 p-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="text-center">
+                <p className="text-2xl font-bold font-display text-destructive">
+                  {plan.years > 0 ? `${plan.years} ปี` : ""}{plan.remainingMonths > 0 ? ` ${plan.remainingMonths} ด.` : ""}
+                </p>
+                <p className="text-[11px] text-muted-foreground">ระยะเวลาปลดหนี้</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold font-display text-foreground">
+                  {privacyMode ? "***" : `฿${plan.totalPaid.toLocaleString("th-TH", { maximumFractionDigits: 0 })}`}
+                </p>
+                <p className="text-[11px] text-muted-foreground">จ่ายรวม</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Calendar className="h-3 w-3" />
+              <span>ปลดหนี้ได้ภายใน {plan.debtFreeDate.toLocaleDateString("th-TH", { month: "long", year: "numeric" })}</span>
+            </div>
+
+            {/* Mini timeline chart */}
+            {plan.timeline.length > 1 && (
+              <div className="h-32">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={plan.timeline} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                    <XAxis
+                      dataKey="month"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(v) => `${v}ด.`}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(val) => privacyMode ? "***" : `${(val / 1000).toFixed(0)}k`}
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      width={45}
+                    />
+                    <Tooltip
+                      formatter={(value: number) => [formatBalance(value), "หนี้คงเหลือ"]}
+                      labelFormatter={(v) => `เดือนที่ ${v}`}
+                      contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))", fontSize: "11px" }}
+                    />
+                    <Bar dataKey="totalRemaining" fill="hsl(var(--destructive))" radius={[2, 2, 0, 0]} opacity={0.7} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Priority order */}
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">ลำดับการชำระ ({strategy === "snowball" ? "Snowball" : "Avalanche"}):</p>
+              {plan.debts.map((d, i) => (
+                <div key={d.name} className="flex items-center gap-2 text-xs">
+                  <span className="w-5 h-5 rounded-full bg-destructive/10 text-destructive flex items-center justify-center text-[10px] font-bold shrink-0">
+                    {i + 1}
+                  </span>
+                  <span className="truncate text-muted-foreground">{d.name}</span>
+                  <span className="ml-auto font-medium">{formatBalance(d.balance)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -422,6 +695,30 @@ export default function AccountsPage() {
           <SidebarTrigger />
           <h1 className="text-lg font-semibold text-foreground">บัญชี / กระเป๋าเงิน</h1>
           <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => {
+              const BOM = "\uFEFF";
+              const headers = ["ชื่อบัญชี", "ประเภท", "ยอดเงิน", "สถานะ"];
+              const rows = displayAccounts.map((a) => [
+                a.name,
+                accountTypeConfig[a.type]?.label || a.type,
+                Number(a.balance).toFixed(2),
+                a.is_active ? "ใช้งาน" : "ปิด",
+              ]);
+              rows.push(["", "", "", ""]);
+              rows.push(["สินทรัพย์รวม", "", totalAssets.toFixed(2), ""]);
+              rows.push(["หนี้สินรวม", "", totalLiabilities.toFixed(2), ""]);
+              rows.push(["ความมั่งคั่งสุทธิ", "", totalNetWorth.toFixed(2), ""]);
+              const csv = BOM + [headers.join(","), ...rows.map((r) => r.map((v) => `"${v}"`).join(","))].join("\n");
+              const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a2 = document.createElement("a");
+              a2.href = url;
+              a2.download = `accounts_${new Date().toISOString().slice(0, 10)}.csv`;
+              a2.click();
+              URL.revokeObjectURL(url);
+            }}>
+              <Download className="h-3.5 w-3.5" /> Export
+            </Button>
             <Button variant="ghost" size="icon" onClick={togglePrivacy}>
               {privacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
@@ -516,6 +813,12 @@ export default function AccountsPage() {
             <AssetPieChart accounts={displayAccounts} privacyMode={privacyMode} formatBalance={formatBalance} liabilityTypes={liabilityTypes} />
             <BalanceComparisonChart assets={totalAssets} liabilities={totalLiabilities} privacyMode={privacyMode} formatBalance={formatBalance} />
           </div>
+
+          {/* Net Worth Trend Chart */}
+          {userId && <NetWorthTrendChart userId={userId} privacyMode={privacyMode} formatBalance={formatBalance} />}
+
+          {/* Debt Payoff Planner */}
+          <DebtPayoffPlanner liabilityAccounts={liabilityAccounts} privacyMode={privacyMode} formatBalance={formatBalance} />
 
           {/* Accounts List (Assets vs Liabilities) */}
           {loading ? (

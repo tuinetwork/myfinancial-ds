@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { doc, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import Index from "./pages/Index";
@@ -165,13 +166,15 @@ const AppWrapper = () => {
       <Toaster />
       <Sonner />
       <TooltipProvider delayDuration={0}>
-        <AuthProvider>
-          <PrivacyProvider>
-            <ErrorBoundary>
-              <AppContent />
-            </ErrorBoundary>
-          </PrivacyProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <PrivacyProvider>
+              <ErrorBoundary>
+                <AppContent />
+              </ErrorBoundary>
+            </PrivacyProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </TooltipProvider>
     </div>
   );

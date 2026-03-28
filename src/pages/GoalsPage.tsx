@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
-import { collection, onSnapshot, getDocs } from "firebase/firestore";
+import { collection, doc, onSnapshot, getDocs } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
-import { createGoal, updateGoal, softDeleteGoal } from "@/lib/firestore-services";
+import { createGoal, updateGoal, softDeleteGoal, createTransactionAtomic, getDefaultAccount } from "@/lib/firestore-services";
 import type { Goal, GoalType, Account } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,12 +25,13 @@ import {
 import {
   Plus, Target, Eye, EyeOff, MoreHorizontal, Pencil, Trash2, Loader2,
   Shield, TrendingUp, Landmark, CreditCard, Sparkles, Link2, LinkIcon,
-  Trophy, Medal, CalendarClock, Repeat,
+  Trophy, Medal, CalendarClock, Repeat, PiggyBank, ArrowRight, BarChart3,
 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { expandRecurrence, formatFrequencyThai } from "@/lib/recurrence";
-import type { BudgetItem } from "@/hooks/useBudgetData";
+import type { BudgetItem, Transaction } from "@/hooks/useBudgetData";
 
 const GOAL_TYPES: { value: GoalType; label: string; icon: typeof Target; color: string }[] = [
   { value: "savings", label: "เก็บออม", icon: Target, color: "text-saving" },
@@ -96,6 +97,104 @@ function countTotalInstallments(item: BudgetItem): number {
   return count;
 }
 
+const THAI_MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+
+const GOAL_COLORS = [
+  "hsl(var(--primary))",
+  "hsl(var(--accent))",
+  "hsl(160 60% 45%)",
+  "hsl(35 90% 55%)",
+  "hsl(280 60% 55%)",
+  "hsl(190 70% 50%)",
+];
+
+function GoalHistoryChart({ goals, userId, privacyMode }: {
+  goals: { name: string; linked_account_id?: string }[];
+  userId: string;
+  privacyMode: boolean;
+}) {
+  const [monthlyData, setMonthlyData] = useState<Record<string, Record<string, number>>[]>([]);
+
+  useEffect(() => {
+    if (!userId || goals.length === 0) return;
+    // Listen to transactions to build monthly savings per goal
+    const linkedGoals = goals.filter((g) => g.linked_account_id);
+    if (linkedGoals.length === 0) return;
+
+    const accountIds = new Set(linkedGoals.map((g) => g.linked_account_id!));
+    const accountToGoal = new Map<string, string>();
+    linkedGoals.forEach((g) => accountToGoal.set(g.linked_account_id!, g.name));
+
+    const unsub = onSnapshot(collection(firestore, "users", userId, "transactions"), (snap) => {
+      const byMonth: Record<string, Record<string, number>> = {};
+
+      snap.forEach((d) => {
+        const t = d.data();
+        if (t.is_deleted) return;
+        const monthYear = (t.month_year as string) || "";
+        if (!monthYear) return;
+
+        // Count transfers TO goal-linked accounts
+        const toId = t.to_account_id as string | undefined;
+        if (toId && accountIds.has(toId)) {
+          const goalName = accountToGoal.get(toId)!;
+          if (!byMonth[monthYear]) byMonth[monthYear] = {};
+          byMonth[monthYear][goalName] = (byMonth[monthYear][goalName] || 0) + (Number(t.amount) || 0);
+        }
+      });
+
+      const sorted = Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b)).slice(-6);
+      const data = sorted.map(([period, goals]) => {
+        const [, m] = period.split("-").map(Number);
+        return { month: THAI_MONTHS_SHORT[(m || 1) - 1], ...goals };
+      });
+      setMonthlyData(data as any);
+    });
+    return () => unsub();
+  }, [userId, goals]);
+
+  const goalNames = goals.filter((g) => g.linked_account_id).map((g) => g.name);
+  if (monthlyData.length < 2 || goalNames.length === 0) return null;
+
+  return (
+    <Card className="border-primary/10">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-primary" />
+          ประวัติการออมรายเดือน
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="h-64 px-2 sm:px-6">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.15} />
+            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={(val) => privacyMode ? "***" : `${(val / 1000).toFixed(0)}k`}
+              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+              width={45}
+            />
+            <Tooltip
+              formatter={(value: number, name: string) => [
+                privacyMode ? "***" : `฿${value.toLocaleString("th-TH", { minimumFractionDigits: 2 })}`,
+                name,
+              ]}
+              contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))", fontSize: "11px", color: "hsl(var(--foreground))" }}
+              itemStyle={{ color: 'hsl(var(--foreground))' }}
+            />
+            <Legend wrapperStyle={{ fontSize: "11px" }} />
+            {goalNames.map((name, i) => (
+              <Bar key={name} dataKey={name} fill={GOAL_COLORS[i % GOAL_COLORS.length]} radius={[3, 3, 0, 0]} stackId="savings" />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
 type FormState = {
   name: string;
   target: string;
@@ -126,6 +225,12 @@ export default function GoalsPage() {
   // Delete state
   const [deleteGoalTarget, setDeleteGoalTarget] = useState<Goal | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Quick save state
+  const [saveGoal, setSaveGoal] = useState<(Goal & { _linkedAccount: Account | null }) | null>(null);
+  const [saveAmount, setSaveAmount] = useState("");
+  const [saveFromAccountId, setSaveFromAccountId] = useState("");
+  const [savingTransfer, setSavingTransfer] = useState(false);
 
   // Budget savings items (for installment schedule display)
   const [savingsBudgetItems, setSavingsBudgetItems] = useState<BudgetItem[]>([]);
@@ -307,6 +412,48 @@ export default function GoalsPage() {
     finally { setDeleting(false); }
   };
 
+  // Quick save: transfer money to linked account
+  const openSaveDialog = async (goal: typeof resolvedGoals[0]) => {
+    setSaveGoal(goal);
+    setSaveAmount("");
+    // Auto-select default account as source
+    if (userId) {
+      const defaultAcc = await getDefaultAccount(userId);
+      setSaveFromAccountId(defaultAcc?.id || "");
+    }
+  };
+
+  const handleQuickSave = async () => {
+    if (!userId || !saveGoal || !saveGoal.linked_account_id || !saveFromAccountId) return;
+    const amount = parseFloat(saveAmount);
+    if (!amount || amount <= 0) return;
+    setSavingTransfer(true);
+    try {
+      const now = new Date();
+      const txId = doc(collection(firestore, "users", userId, "transactions")).id;
+      const destAccount = accountMap.get(saveGoal.linked_account_id);
+      await createTransactionAtomic(userId, txId, {
+        amount,
+        type: "transfer",
+        main_category: "โอนเงิน",
+        sub_category: destAccount?.name || saveGoal.name,
+        note: `ออมเงินเข้า ${saveGoal.name}`,
+        date: now.toISOString().slice(0, 10),
+        month_year: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+        from_account_id: saveFromAccountId,
+        to_account_id: saveGoal.linked_account_id,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      }, [
+        { accountId: saveFromAccountId, delta: -amount },
+        { accountId: saveGoal.linked_account_id, delta: amount },
+      ]);
+      toast.success(`ออมเงิน ${fmt(amount)} เข้า ${saveGoal.name} สำเร็จ`);
+      setSaveGoal(null);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSavingTransfer(false); }
+  };
+
   // When linked account changes in create form, auto-fill current amount
   const handleLinkedAccountChange = (accountId: string, isEdit: boolean) => {
     const acc = accountMap.get(accountId);
@@ -451,6 +598,11 @@ export default function GoalsPage() {
             </Card>
           )}
 
+          {/* Goal History Chart */}
+          {!loading && userId && resolvedGoals.length > 0 && (
+            <GoalHistoryChart goals={resolvedGoals} userId={userId} privacyMode={privacyMode} />
+          )}
+
           {/* Actions Bar */}
           <div className="flex items-center gap-3 flex-wrap">
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -544,6 +696,11 @@ export default function GoalsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-36">
+                              {goal.linked_account_id && pct < 100 && (
+                                <DropdownMenuItem onClick={() => openSaveDialog(goal)} className="gap-2 text-sm text-primary focus:text-primary">
+                                  <PiggyBank className="h-3.5 w-3.5" /> ออมเงิน
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={() => openEdit(goal)} className="gap-2 text-sm">
                                 <Pencil className="h-3.5 w-3.5" /> แก้ไข
                               </DropdownMenuItem>
@@ -680,6 +837,62 @@ export default function GoalsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Quick Save Dialog */}
+      <Dialog open={!!saveGoal} onOpenChange={(o) => !o && setSaveGoal(null)}>
+        <DialogContent className="bg-card border-border sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PiggyBank className="h-4 w-4 text-primary" /> ออมเงินเข้า {saveGoal?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div>
+              <Label>จำนวนเงิน (฿)</Label>
+              <Input
+                type="number"
+                value={saveAmount}
+                onChange={(e) => setSaveAmount(e.target.value)}
+                placeholder="เช่น 500"
+                className="mt-1"
+                autoFocus
+              />
+            </div>
+            <div>
+              <Label>โอนจากบัญชี</Label>
+              <Select value={saveFromAccountId} onValueChange={setSaveFromAccountId}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="เลือกบัญชีต้นทาง" /></SelectTrigger>
+                <SelectContent>
+                  {accounts
+                    .filter((a) => a.id !== saveGoal?.linked_account_id)
+                    .map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name} ({fmt(a.balance)})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {saveGoal && saveFromAccountId && (
+              <div className="rounded-lg bg-muted/50 p-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="truncate">{accounts.find((a) => a.id === saveFromAccountId)?.name}</span>
+                <ArrowRight className="h-3 w-3 shrink-0" />
+                <span className="truncate">{saveGoal._linkedAccount?.name || saveGoal.name}</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveGoal(null)}>ยกเลิก</Button>
+            <Button
+              onClick={handleQuickSave}
+              disabled={savingTransfer || !saveAmount || parseFloat(saveAmount) <= 0 || !saveFromAccountId}
+            >
+              {savingTransfer && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              ออมเงิน
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

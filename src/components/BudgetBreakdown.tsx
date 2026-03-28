@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
-import { EyeOff, Eye } from "lucide-react";
+import { EyeOff, Eye, AlertTriangle, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 interface Props {
   data: BudgetData;
@@ -61,6 +62,21 @@ export function BudgetBreakdown({ data }: Props) {
   const totalActual = filtered.reduce((sum, item) => sum + (actualByCategory[item.label] || 0), 0);
   const totalBudget = filtered.reduce((sum, item) => sum + item.budget, 0);
 
+  // Budget alerts: items over 80% or 100%
+  const alerts = useMemo(() => {
+    return allBudgets
+      .filter((b) => {
+        const actual = actualByCategory[b.label] || 0;
+        return b.budget > 0 && actual >= b.budget * 0.8;
+      })
+      .map((b) => {
+        const actual = actualByCategory[b.label] || 0;
+        const pct = Math.round((actual / b.budget) * 100);
+        return { label: b.label, actual, budget: b.budget, pct, over: actual > b.budget };
+      })
+      .sort((a, b) => b.pct - a.pct);
+  }, [allBudgets, actualByCategory]);
+
   return (
     <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "640ms" }}>
       <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2 flex-wrap">
@@ -90,26 +106,69 @@ export function BudgetBreakdown({ data }: Props) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Overspending alert banner */}
+        {alerts.length > 0 && (
+          <div className={cn(
+            "rounded-lg p-3 space-y-1.5",
+            alerts.some((a) => a.over)
+              ? "bg-destructive/10 border border-destructive/20"
+              : "bg-amber-500/10 border border-amber-500/20"
+          )}>
+            <div className="flex items-center gap-1.5 text-xs font-medium">
+              <AlertTriangle className={cn("h-3.5 w-3.5", alerts.some((a) => a.over) ? "text-destructive" : "text-amber-500")} />
+              <span className={alerts.some((a) => a.over) ? "text-destructive" : "text-amber-500"}>
+                {alerts.filter((a) => a.over).length > 0
+                  ? `${alerts.filter((a) => a.over).length} หมวดเกินงบ`
+                  : `${alerts.length} หมวดใกล้เต็มงบ`}
+              </span>
+            </div>
+            {alerts.slice(0, 3).map((a) => (
+              <div key={a.label} className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground truncate">{a.label}</span>
+                <span className={cn("font-medium", a.over ? "text-destructive" : "text-amber-500")}>
+                  {a.pct}%
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-center justify-between text-xs text-muted-foreground mb-3 px-1">
           <span>ใช้จริงรวม: <span className="font-semibold text-foreground">{formatCurrency(totalActual)}</span></span>
           <span>งบรวม: <span className="font-semibold text-foreground">{formatCurrency(totalBudget)}</span></span>
         </div>
         {filtered.map((item) => {
           const actual = actualByCategory[item.label] || 0;
-          const pct = Math.min((actual / item.budget) * 100, 100);
+          const rawPct = item.budget > 0 ? (actual / item.budget) * 100 : 0;
+          const pct = Math.min(rawPct, 100);
           const over = actual > item.budget;
+          const nearLimit = rawPct >= 80 && !over;
 
           return (
             <div key={item.label}>
               <div className="flex items-center justify-between text-sm mb-1">
-                <span className="truncate mr-2">{item.label}</span>
-                <span className={`font-display text-xs ${over ? "text-expense font-semibold" : "text-muted-foreground"}`}>
-                  {formatCurrency(actual)} / {formatCurrency(item.budget)}
+                <span className="truncate mr-2 flex items-center gap-1">
+                  {over && <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />}
+                  {nearLimit && <TrendingUp className="h-3 w-3 text-amber-500 shrink-0" />}
+                  {item.label}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  {(over || nearLimit) && (
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                      over ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-500"
+                    )}>
+                      {Math.round(rawPct)}%
+                    </span>
+                  )}
+                  <span className={`font-display text-xs ${over ? "text-expense font-semibold" : "text-muted-foreground"}`}>
+                    {formatCurrency(actual)} / {formatCurrency(item.budget)}
+                  </span>
                 </span>
               </div>
               <Progress
                 value={pct}
-                className={`h-2 ${over ? "[&>div]:bg-expense" : "[&>div]:bg-income"}`}
+                className={`h-2 ${over ? "[&>div]:bg-expense" : nearLimit ? "[&>div]:bg-amber-500" : "[&>div]:bg-income"}`}
               />
             </div>
           );

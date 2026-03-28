@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard, Receipt, Settings, ChevronDown, ChevronRight, ChevronUp,
   CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart, ShieldCheck, Wallet,
-  TrendingUp, Landmark, Terminal,
+  TrendingUp, Landmark, Terminal, Sun, Moon, Monitor,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
@@ -111,6 +112,7 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { userRole, user } = useAuth();
+  const { theme, setTheme } = useTheme();
   const isAdminUser = userRole === "dev" || userRole === "admin";
   const isDevUser = userRole === "dev";
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -431,6 +433,35 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           )
+        )}
+
+        {/* Theme Toggle */}
+        {collapsed ? (
+          <SidebarMenuItem>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SidebarMenuButton
+                  className="w-full justify-center hover:bg-sidebar-accent/50"
+                  onClick={() => setTheme(theme === "dark" ? "light" : theme === "light" ? "system" : "dark")}
+                >
+                  {theme === "dark" ? <Moon className="h-4 w-4" /> : theme === "light" ? <Sun className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
+                </SidebarMenuButton>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="bg-sidebar text-sidebar-foreground border-sidebar-border">
+                ธีม: {theme === "dark" ? "มืด" : theme === "light" ? "สว่าง" : "ตามระบบ"}
+              </TooltipContent>
+            </Tooltip>
+          </SidebarMenuItem>
+        ) : (
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              className="w-full hover:bg-sidebar-accent/50"
+              onClick={() => setTheme(theme === "dark" ? "light" : theme === "light" ? "system" : "dark")}
+            >
+              {theme === "dark" ? <Moon className="h-4 w-4" /> : theme === "light" ? <Sun className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
+              <span>{theme === "dark" ? "ธีมมืด" : theme === "light" ? "ธีมสว่าง" : "ตามระบบ"}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         )}
 
         {/* Settings with sub-items */}

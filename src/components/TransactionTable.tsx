@@ -142,6 +142,8 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(0);
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
 
   // Edit state
   const [editTx, setEditTx] = useState<Transaction | null>(null);
@@ -216,6 +218,12 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
       );
     }
 
+    // Amount range filter
+    const minVal = parseFloat(minAmount);
+    const maxVal = parseFloat(maxAmount);
+    if (!isNaN(minVal)) items = items.filter((t) => t.amount >= minVal);
+    if (!isNaN(maxVal)) items = items.filter((t) => t.amount <= maxVal);
+
     // Date range filter
     if (dateFrom || dateTo) {
       items = items.filter((t) => {
@@ -260,7 +268,7 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
     });
 
     return indexed;
-  }, [baseTransactions, filter, search, sortKey, sortDir, dateFrom, dateTo]);
+  }, [baseTransactions, filter, search, sortKey, sortDir, dateFrom, dateTo, minAmount, maxAmount]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((sum, t) => sum + t.amount, 0),
@@ -271,7 +279,7 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
   // Reset page when filter/search/pageSize changes
-  useMemo(() => { setPage(0); }, [filter, search, pageSize, dateFrom, dateTo]);
+  useMemo(() => { setPage(0); }, [filter, search, pageSize, dateFrom, dateTo, minAmount, maxAmount]);
 
   const exportCSV = () => {
     const BOM = "\uFEFF";
@@ -550,13 +558,35 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
                 </Button>
               )}
 
-              <div className="flex items-center gap-2 ml-auto">
+              <div className="flex items-center gap-2 ml-auto flex-wrap">
                 <Input
                   placeholder="ค้นหา..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="h-8 w-28 sm:w-48 text-xs"
                 />
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    placeholder="ขั้นต่ำ"
+                    value={minAmount}
+                    onChange={(e) => setMinAmount(e.target.value)}
+                    className="h-8 w-20 text-xs"
+                  />
+                  <span className="text-xs text-muted-foreground">-</span>
+                  <Input
+                    type="number"
+                    placeholder="สูงสุด"
+                    value={maxAmount}
+                    onChange={(e) => setMaxAmount(e.target.value)}
+                    className="h-8 w-20 text-xs"
+                  />
+                  {(minAmount || maxAmount) && (
+                    <Button variant="ghost" size="sm" className="h-8 text-xs px-1.5" onClick={() => { setMinAmount(""); setMaxAmount(""); }}>
+                      ✕
+                    </Button>
+                  )}
+                </div>
                 <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0" onClick={exportCSV}>
                   <Download className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Export CSV</span>
