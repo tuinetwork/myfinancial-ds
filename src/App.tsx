@@ -19,6 +19,7 @@ import AdminPanel from "./pages/AdminPanel";
 import AccountsPage from "./pages/AccountsPage";
 import InvestmentsPage from "./pages/InvestmentsPage";
 import GoalsPage from "./pages/GoalsPage";
+import DebtPlannerPage from "./pages/DebtPlannerPage";
 import CommandCenter from "./pages/CommandCenter";
 import NotFound from "./pages/NotFound";
 import GoogleLogin from "./components/GoogleLogin";
@@ -150,6 +151,7 @@ const AppContent = () => {
             <Route path="/accounts" element={<AccountsPage />} />
             <Route path="/investments" element={<InvestmentsPage />} />
             <Route path="/goals" element={<GoalsPage />} />
+            <Route path="/debt-planner" element={<DebtPlannerPage />} />
             <Route path="/command-center" element={<CommandCenter />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

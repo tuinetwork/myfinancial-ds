@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Receipt, ChevronDown, ChevronRight,
   CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart, ShieldCheck, Wallet,
-  TrendingUp, Landmark, Terminal,
+  TrendingUp, Landmark, Terminal, Calculator,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,8 +43,9 @@ const assetItems: MenuItem[] = [
   { title: "การลงทุน", url: "/investments", icon: TrendingUp },
 ];
 
-const otherItems: MenuItem[] = [
+const planningItems: MenuItem[] = [
   { title: "เป้าหมาย", url: "/goals", icon: Target },
+  { title: "แผนปลดหนี้", url: "/debt-planner", icon: Calculator },
 ];
 
 const settingsItems: MenuItem[] = [
@@ -348,7 +349,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {otherItems.map((item) => renderSimpleItem(item))}
+              {planningItems.map((item) => renderSimpleItem(item))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
