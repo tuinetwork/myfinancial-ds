@@ -25,14 +25,14 @@ export function YearlyView({ yearlyData }: Props) {
 
       <MonthlyTrendChart yearlyData={yearlyData} />
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
         <ExpenseChart data={aggregated} />
         <ExpenseTabsChart data={aggregated} />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-stretch">
         <BudgetBreakdown data={aggregated} />
-        <div className="xl:col-span-2">
+        <div className="xl:col-span-2 min-h-0">
           <YearlyTransactionTable yearlyData={yearlyData} />
         </div>
       </div>

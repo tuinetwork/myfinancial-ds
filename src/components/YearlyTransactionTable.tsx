@@ -162,7 +162,7 @@ export function YearlyTransactionTable({ yearlyData }: Props) {
   const isIncomeFilter = filter === "รายรับ";
 
   return (
-    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "560ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in h-full" style={{ animationDelay: "560ms" }}>
       <CardHeader className="pb-2 space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-base font-semibold">
