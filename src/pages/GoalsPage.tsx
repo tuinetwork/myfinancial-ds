@@ -3,7 +3,7 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
-import { createGoal, updateGoal } from "@/lib/firestore-services";
+import { createGoal, updateGoal, softDeleteGoal } from "@/lib/firestore-services";
 import type { Goal } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -12,8 +12,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Target, Eye, EyeOff } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Plus, Target, Eye, EyeOff, MoreHorizontal, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +32,15 @@ export default function GoalsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ name: "", target: "", current: "", deadline: "" });
   const [saving, setSaving] = useState(false);
+
+  // Edit state
+  const [editGoal, setEditGoal] = useState<Goal | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", target: "", current: "", deadline: "" });
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Delete state
+  const [deleteGoal, setDeleteGoal] = useState<Goal | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -54,6 +70,43 @@ export default function GoalsPage() {
       setForm({ name: "", target: "", current: "", deadline: "" });
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
+  };
+
+  const openEdit = (goal: Goal) => {
+    setEditGoal(goal);
+    setEditForm({
+      name: goal.name,
+      target: String(goal.target_amount),
+      current: String(goal.current_amount),
+      deadline: goal.deadline || "",
+    });
+  };
+
+  const handleEdit = async () => {
+    if (!userId || !editGoal || !editForm.name.trim() || !editForm.target) return;
+    setEditSaving(true);
+    try {
+      await updateGoal(userId, editGoal.id, {
+        name: editForm.name.trim(),
+        target_amount: parseFloat(editForm.target) || 0,
+        current_amount: parseFloat(editForm.current) || 0,
+        deadline: editForm.deadline || "",
+      });
+      toast.success("แก้ไขเป้าหมายสำเร็จ");
+      setEditGoal(null);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setEditSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!userId || !deleteGoal) return;
+    setDeleting(true);
+    try {
+      await softDeleteGoal(userId, deleteGoal.id);
+      toast.success("ลบเป้าหมายสำเร็จ");
+      setDeleteGoal(null);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setDeleting(false); }
   };
 
   const getProgressColor = (pct: number) => {
@@ -118,12 +171,29 @@ export default function GoalsPage() {
                             {goal.deadline && <p className="text-xs text-muted-foreground">กำหนด: {goal.deadline}</p>}
                           </div>
                         </div>
-                        <span className={cn(
-                          "text-xs px-2 py-0.5 rounded-full font-medium",
-                          pct >= 100 ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"
-                        )}>
-                          {pct >= 100 ? "สำเร็จ!" : `${pct.toFixed(0)}%`}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className={cn(
+                            "text-xs px-2 py-0.5 rounded-full font-medium",
+                            pct >= 100 ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"
+                          )}>
+                            {pct >= 100 ? "สำเร็จ!" : `${pct.toFixed(0)}%`}
+                          </span>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-36">
+                              <DropdownMenuItem onClick={() => openEdit(goal)} className="gap-2 text-sm">
+                                <Pencil className="h-3.5 w-3.5" /> แก้ไข
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setDeleteGoal(goal)} className="gap-2 text-sm text-destructive focus:text-destructive">
+                                <Trash2 className="h-3.5 w-3.5" /> ลบ
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
 
                       <div className="space-y-1.5">
@@ -147,6 +217,59 @@ export default function GoalsPage() {
           )}
         </main>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editGoal} onOpenChange={(o) => !o && setEditGoal(null)}>
+        <DialogContent className="bg-card border-border sm:max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Pencil className="h-4 w-4 text-primary" /> แก้ไขเป้าหมาย</DialogTitle></DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div><Label>ชื่อเป้าหมาย</Label><Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="mt-1" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>เป้าหมาย (฿)</Label><Input type="number" value={editForm.target} onChange={(e) => setEditForm({ ...editForm, target: e.target.value })} className="mt-1" /></div>
+              <div><Label>ยอดปัจจุบัน (฿)</Label><Input type="number" value={editForm.current} onChange={(e) => setEditForm({ ...editForm, current: e.target.value })} className="mt-1" /></div>
+            </div>
+            <div><Label>กำหนดเป้า</Label><Input type="date" value={editForm.deadline} onChange={(e) => setEditForm({ ...editForm, deadline: e.target.value })} className="mt-1" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditGoal(null)}>ยกเลิก</Button>
+            <Button onClick={handleEdit} disabled={editSaving || !editForm.name.trim() || !editForm.target}>
+              {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              บันทึก
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteGoal} onOpenChange={(o) => !o && setDeleteGoal(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-destructive" />
+              ยืนยันการลบเป้าหมาย
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteGoal && (
+                <span className="block">
+                  ต้องการลบเป้าหมาย "<span className="font-semibold text-foreground">{deleteGoal.name}</span>" หรือไม่?
+                  การกระทำนี้ไม่สามารถย้อนกลับได้
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              ลบเป้าหมาย
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
