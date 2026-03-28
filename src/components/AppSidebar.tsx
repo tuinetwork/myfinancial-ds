@@ -51,7 +51,6 @@ const otherItems: MenuItem[] = [
 const settingsChildren = [
   { title: "งบประมาณ", url: "/settings?tab=budget", icon: DollarSign },
   { title: "หมวดหมู่", url: "/settings?tab=categories", icon: Tags },
-  { title: "เป้าหมายการออม", url: "/settings?tab=savings", icon: Target },
 ];
 
 /* ── Floating Popout for Mini Mode ── */
