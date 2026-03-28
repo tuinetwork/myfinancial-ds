@@ -55,7 +55,7 @@ export function SavingsGoalCard({ data }: Props) {
     }).filter((g) => g.target > 0);
 
     const totalTarget = goals.reduce((s, g) => s + g.target, 0);
-    const totalActual = goals.reduce((s, g) => s + g.actual, 0);
+    const totalActual = goals.reduce((s, g) => s + Math.min(g.actual, g.target), 0);
     const overallPct = totalTarget > 0 ? Math.min((totalActual / totalTarget) * 100, 100) : 0;
 
     return { goals, totalTarget, totalActual, overallPct };
