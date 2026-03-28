@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { collection, doc, onSnapshot, getDoc } from "firebase/firestore";
+import { collection, onSnapshot, getDocs } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
@@ -153,27 +153,34 @@ export default function GoalsPage() {
     return () => unsub();
   }, [userId]);
 
-  // Fetch budget savings items for installment info
+  // Fetch budget savings items from ALL months for installment info
   useEffect(() => {
     if (!userId) return;
-    const now = new Date();
-    const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const budgetRef = doc(firestore, "users", userId, "budgets", period);
-    getDoc(budgetRef).then((snap) => {
-      if (!snap.exists()) return;
-      const data = snap.data();
-      const savingsCat = (data.expense_budgets as any)?.["เงินออมและการลงทุน"];
-      if (!savingsCat || typeof savingsCat !== "object") return;
-      const items: BudgetItem[] = Object.entries(savingsCat).map(([label, val]: [string, any]) => ({
-        label,
-        budget: typeof val === "number" ? val : val?.amount ?? 0,
-        dueDate: val?.due_date ?? null,
-        recurrence: val?.recurrence ?? null,
-        startDate: val?.start_date ?? null,
-        endDate: val?.end_date ?? null,
-        paidDates: val?.paid_dates ?? [],
-      }));
-      setSavingsBudgetItems(items);
+    const budgetsCol = collection(firestore, "users", userId, "budgets");
+    getDocs(budgetsCol).then((snap) => {
+      const merged = new Map<string, BudgetItem>();
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        const savingsCat = (data.expense_budgets as any)?.["เงินออมและการลงทุน"];
+        if (!savingsCat || typeof savingsCat !== "object") return;
+        Object.entries(savingsCat).forEach(([label, val]: [string, any]) => {
+          const item: BudgetItem = {
+            label,
+            budget: typeof val === "number" ? val : val?.amount ?? 0,
+            dueDate: val?.due_date ?? null,
+            recurrence: val?.recurrence ?? null,
+            startDate: val?.start_date ?? null,
+            endDate: val?.end_date ?? null,
+            paidDates: val?.paid_dates ?? [],
+          };
+          // Keep the one with recurrence info (prefer over non-recurrence)
+          const existing = merged.get(label);
+          if (!existing || (item.recurrence && !existing.recurrence)) {
+            merged.set(label, item);
+          }
+        });
+      });
+      setSavingsBudgetItems(Array.from(merged.values()));
     });
   }, [userId]);
 
