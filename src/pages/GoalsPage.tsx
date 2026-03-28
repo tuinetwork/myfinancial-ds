@@ -186,27 +186,35 @@ export default function GoalsPage() {
 
   // Build budget map for matching goals to installment schedules
   const budgetMap = useMemo(() => {
-    const map = new Map<string, BudgetItem & { totalInstallments: number }>();
+    const map = new Map<string, BudgetItem & { totalInstallments: number; budgetTotal: number }>();
     savingsBudgetItems.forEach((item) => {
       if (item.recurrence && item.budget > 0) {
-        map.set(item.label, { ...item, totalInstallments: countTotalInstallments(item) });
+        const totalInstallments = countTotalInstallments(item);
+        map.set(item.label, { ...item, totalInstallments, budgetTotal: item.budget * totalInstallments });
       }
     });
     return map;
   }, [savingsBudgetItems]);
 
-  // Resolve current_amount: use linked account balance if available
+  // Resolve current_amount and target_amount from linked account/budget
   const resolvedGoals = useMemo(() => {
     return goals.map((g) => {
+      let resolved = { ...g, _linkedAccount: null as Account | null };
+      // Sync current_amount from linked account balance
       if (g.linked_account_id) {
         const acc = accountMap.get(g.linked_account_id);
         if (acc) {
-          return { ...g, current_amount: acc.balance, _linkedAccount: acc };
+          resolved = { ...resolved, current_amount: acc.balance, _linkedAccount: acc };
         }
       }
-      return { ...g, _linkedAccount: null as Account | null };
+      // Sync target_amount from budget installment total
+      const matched = budgetMap.get(g.name);
+      if (matched && matched.budgetTotal > 0) {
+        resolved.target_amount = matched.budgetTotal;
+      }
+      return resolved;
     });
-  }, [goals, accountMap]);
+  }, [goals, accountMap, budgetMap]);
 
   // Filter goals
   const filteredGoals = useMemo(() => {
