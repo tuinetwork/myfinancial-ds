@@ -341,10 +341,10 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* OTHERS */}
+        {/* PLANNING */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
-            Others
+            Planning
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
