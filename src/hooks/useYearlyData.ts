@@ -8,6 +8,7 @@ import {
 import { firestore } from "@/lib/firebase";
 import { BudgetData, BudgetItem, Transaction } from "./useBudgetData";
 import { useAuth } from "@/contexts/AuthContext";
+import { expandRecurrence } from "@/lib/recurrence";
 
 const EXPENSE_CATEGORY_MAP: Record<string, keyof BudgetData["expenses"]> = {
   "ค่าใช้จ่ายทั่วไป": "general",
@@ -97,12 +98,22 @@ function parseBudgetDocForYear(budgetDoc: any, period: string, transactions: Tra
   return {
     status: "ok",
     month: monthName,
+    period,
     timestamp: new Date().toISOString(),
     income,
     expenses,
     transactions,
     carryOver: (data.carry_over as number) ?? 0,
   };
+}
+
+/** Get effective monthly budget by expanding recurrence occurrences */
+function getExpandedBudget(item: BudgetItem, period: string): number {
+  if (!item.recurrence || !item.dueDate) return item.budget;
+  const [y, m] = period.split("-").map(Number);
+  if (!y || !m) return item.budget;
+  const occurrences = expandRecurrence(item.dueDate, item.recurrence, y, m, item.startDate, item.endDate).length;
+  return occurrences > 0 ? item.budget * occurrences : item.budget;
 }
 
 function mergeMonths(year: string, monthsData: { month: string; data: BudgetData }[]): YearlyData {
@@ -116,14 +127,15 @@ function mergeMonths(year: string, monthsData: { month: string; data: BudgetData
     savings: {} as Record<string, number>,
   };
 
-  for (const { data } of monthsData) {
+  for (const { month, data } of monthsData) {
     allTransactions.push(...data.transactions);
     for (const item of data.income) {
       incomeMap[item.label] = (incomeMap[item.label] || 0) + item.budget;
     }
     for (const key of Object.keys(expenseGroups) as (keyof typeof expenseGroups)[]) {
       for (const item of data.expenses[key]) {
-        expenseGroups[key][item.label] = (expenseGroups[key][item.label] || 0) + item.budget;
+        const expanded = getExpandedBudget(item, month);
+        expenseGroups[key][item.label] = (expenseGroups[key][item.label] || 0) + expanded;
       }
     }
   }
@@ -134,6 +146,7 @@ function mergeMonths(year: string, monthsData: { month: string; data: BudgetData
   const aggregated: BudgetData = {
     status: "ok",
     month: `ปี ${year}`,
+    period: year,
     timestamp: new Date().toISOString(),
     income: toBudgetItems(incomeMap),
     expenses: {
