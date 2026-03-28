@@ -17,7 +17,8 @@ import { FinancialHealthCard } from "@/components/FinancialHealthCard";
 import { SavingsGoalCard } from "@/components/SavingsGoalCard";
 import { UpcomingBills } from "@/components/UpcomingBills";
 import { MonthComparison } from "@/components/MonthComparison";
-import { SpendingInsights } from "@/components/SpendingInsights";
+import { SpendingInsightsButton } from "@/components/SpendingInsights";
+import { useSpendingInsights } from "@/hooks/useSpendingInsights";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -96,6 +97,7 @@ const Index = () => {
   );
 
   const carryOver = data?.carryOver ?? 0;
+  const insights = useSpendingInsights(data, carryOver);
 
   const isPageLoading = viewMode === "monthly"
     ? isLoading || monthsLoading || !selectedPeriod
@@ -172,6 +174,7 @@ const Index = () => {
                 <FileDown className={cn("h-4 w-4", exporting && "animate-pulse")} />
               </Button>
             )}
+            {viewMode === "monthly" && <SpendingInsightsButton insights={insights} />}
             <NotificationBell />
             <UserProfilePopover />
           </div>
@@ -277,8 +280,6 @@ const Index = () => {
                   <BudgetBreakdown data={data} />
                 </div>
 
-                {/* 7. คำแนะนำ */}
-                <SpendingInsights data={data} carryOver={carryOver} />
               </>
             ) : viewMode === "yearly" && yearlyData ? (
               <YearlyView yearlyData={yearlyData} />
