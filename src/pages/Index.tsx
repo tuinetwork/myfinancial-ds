@@ -257,24 +257,24 @@ const Index = () => {
                 </div>
 
                 {/* 4. กราฟรายวัน + ธุรกรรมล่าสุด */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                  <div className="xl:col-span-2">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-stretch">
+                  <div className="xl:col-span-2 min-h-0">
                     <DailyChart data={data} />
                   </div>
                   <RecentTransactions data={data} />
                 </div>
 
                 {/* 5. กราฟรายจ่าย + หมวดจ่ายสูงสุด */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                  <div className="xl:col-span-2">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-stretch">
+                  <div className="xl:col-span-2 min-h-0">
                     <ExpenseChart data={data} />
                   </div>
                   <TopSpendingCategories data={data} />
                 </div>
 
                 {/* 6. กราฟแยกหมวด + ติดตามงบ */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                  <div className="xl:col-span-2">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-stretch">
+                  <div className="xl:col-span-2 min-h-0">
                     <ExpenseTabsChart data={data} />
                   </div>
                   <BudgetBreakdown data={data} />

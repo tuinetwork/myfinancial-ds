@@ -163,7 +163,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
   }
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">

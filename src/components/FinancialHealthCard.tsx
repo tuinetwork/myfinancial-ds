@@ -79,7 +79,7 @@ export function FinancialHealthCard({ data, carryOver = 0 }: Props) {
   }, [data, carryOver]);
 
   return (
-    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "440ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in h-full" style={{ animationDelay: "440ms" }}>
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-muted-foreground" />

@@ -86,7 +86,7 @@ export function ExpenseChart({ data }: Props) {
   };
 
   return (
-    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "400ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in h-full" style={{ animationDelay: "400ms" }}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base font-semibold">งบประมาณ vs ใช้จริง</CardTitle>

@@ -35,7 +35,7 @@ export function TopSpendingCategories({ data }: Props) {
   const maxAmount = topCategories[0]?.amount || 1;
 
   return (
-    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "560ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in h-full" style={{ animationDelay: "560ms" }}>
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-muted-foreground" />

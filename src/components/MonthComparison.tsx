@@ -97,7 +97,7 @@ export function MonthComparison({ data }: Props) {
   const prevNet = prevData.income - prevData.expense;
 
   return (
-    <Card className="border-none shadow-sm">
+    <Card className="border-none shadow-sm h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-primary" />

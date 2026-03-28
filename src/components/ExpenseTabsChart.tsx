@@ -76,7 +76,7 @@ export function ExpenseTabsChart({ data }: Props) {
     : `รายละเอียดสัดส่วน ${selectedType}`;
 
   return (
-    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "480ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in h-full" style={{ animationDelay: "480ms" }}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-sm sm:text-base font-semibold truncate">{title}</CardTitle>

@@ -82,7 +82,7 @@ export function SavingsGoalCard({ data }: Props) {
       : "bg-expense";
 
   return (
-    <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "520ms" }}>
+    <Card className="border-none shadow-sm animate-fade-in h-full" style={{ animationDelay: "520ms" }}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
