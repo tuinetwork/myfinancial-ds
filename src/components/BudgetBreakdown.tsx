@@ -62,10 +62,13 @@ export function BudgetBreakdown({ data }: Props) {
   const totalActual = filtered.reduce((sum, item) => sum + (actualByCategory[item.label] || 0), 0);
   const totalBudget = filtered.reduce((sum, item) => sum + item.budget, 0);
 
-  // Budget alerts: items over 80% or 100%
+  // Budget alerts: items over 80% or 100% (exclude income — income over budget is good)
+  const incomeLabels = new Set(data.income.map((i) => i.label));
+
   const alerts = useMemo(() => {
     return allBudgets
       .filter((b) => {
+        if (incomeLabels.has(b.label)) return false; // skip income
         const actual = actualByCategory[b.label] || 0;
         return b.budget > 0 && actual >= b.budget * 0.8;
       })
@@ -143,32 +146,46 @@ export function BudgetBreakdown({ data }: Props) {
           const pct = Math.min(rawPct, 100);
           const over = actual > item.budget;
           const nearLimit = rawPct >= 80 && !over;
+          const isIncome = incomeLabels.has(item.label);
 
           return (
             <div key={item.label}>
               <div className="flex items-center justify-between text-sm mb-1">
                 <span className="truncate mr-2 flex items-center gap-1">
-                  {over && <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />}
-                  {nearLimit && <TrendingUp className="h-3 w-3 text-amber-500 shrink-0" />}
+                  {over && !isIncome && <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />}
+                  {over && isIncome && <TrendingUp className="h-3 w-3 text-accent shrink-0" />}
+                  {nearLimit && !isIncome && <TrendingUp className="h-3 w-3 text-amber-500 shrink-0" />}
                   {item.label}
                 </span>
                 <span className="flex items-center gap-1.5">
                   {(over || nearLimit) && (
                     <span className={cn(
                       "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
-                      over ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-500"
+                      isIncome
+                        ? "bg-accent/10 text-accent"
+                        : over ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-500"
                     )}>
                       {Math.round(rawPct)}%
                     </span>
                   )}
-                  <span className={`font-display text-xs ${over ? "text-expense font-semibold" : "text-muted-foreground"}`}>
+                  <span className={cn(
+                    "font-display text-xs",
+                    isIncome && over ? "text-accent font-semibold"
+                      : over ? "text-expense font-semibold"
+                      : "text-muted-foreground"
+                  )}>
                     {formatCurrency(actual)} / {formatCurrency(item.budget)}
                   </span>
                 </span>
               </div>
               <Progress
                 value={pct}
-                className={`h-2 ${over ? "[&>div]:bg-expense" : nearLimit ? "[&>div]:bg-amber-500" : "[&>div]:bg-income"}`}
+                className={cn("h-2",
+                  isIncome ? "[&>div]:bg-income"
+                    : over ? "[&>div]:bg-expense"
+                    : nearLimit ? "[&>div]:bg-amber-500"
+                    : "[&>div]:bg-income"
+                )}
               />
             </div>
           );
