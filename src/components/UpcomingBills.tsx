@@ -66,11 +66,11 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
       }
     }
 
-    // Use the selected period from data, not today's date
+    // Use the selected period — only show bills for the selected month
+    // (we only have transactions for this month to match against)
     const [pYear, pMonth] = data.period.split("-").map(Number);
     const months: { year: number; month: number }[] = [
       { year: pYear, month: pMonth },
-      { year: pMonth === 12 ? pYear + 1 : pYear, month: pMonth === 12 ? 1 : pMonth + 1 },
     ];
 
     // Reference date for overdue calculation: use last day of selected period or today (whichever is earlier)
