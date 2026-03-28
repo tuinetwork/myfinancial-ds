@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
-import { createAccount, updateAccount, deleteAccountWithTransactions } from "@/lib/firestore-services";
+import { createAccount, updateAccount, deleteAccountWithTransactions, createGoal } from "@/lib/firestore-services";
 import type { Account, AccountType } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -15,13 +15,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Wallet, Landmark, TrendingUp, CreditCard, Building2, Package, Plus, Eye, EyeOff, Trash2, Pencil, UserCheck, UserX } from "lucide-react";
+import { Wallet, Landmark, TrendingUp, CreditCard, Building2, Package, Plus, Eye, EyeOff, Trash2, Pencil, UserCheck, UserX, PiggyBank } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const accountTypeConfig: Record<AccountType, { label: string; icon: React.ComponentType<{ className?: string }>; group: string }> = {
   cash: { label: "เงินสด", icon: Wallet, group: "Cash / Bank" },
   bank: { label: "ธนาคาร", icon: Landmark, group: "Cash / Bank" },
+  savings: { label: "เงินออม", icon: PiggyBank, group: "Cash / Bank" },
   investment: { label: "การลงทุน", icon: TrendingUp, group: "Investments" },
   credit_card: { label: "บัตรเครดิต", icon: CreditCard, group: "Credit / Loans" },
   loan: { label: "สินเชื่อ", icon: Building2, group: "Credit / Loans" },
@@ -30,7 +31,7 @@ const accountTypeConfig: Record<AccountType, { label: string; icon: React.Compon
   inventory: { label: "สินค้าคงคลัง", icon: Package, group: "Inventory / Business" },
 };
 
-const accountTypes: AccountType[] = ["cash", "bank", "investment", "credit_card", "loan", "receivable", "payable", "inventory"];
+const accountTypes: AccountType[] = ["cash", "bank", "savings", "investment", "credit_card", "loan", "receivable", "payable", "inventory"];
 
 const PIE_COLORS = [
   "hsl(var(--primary))",
@@ -192,6 +193,7 @@ export default function AccountsPage() {
   const [editName, setEditName] = useState("");
   const [editType, setEditType] = useState<AccountType>("cash");
   const [editSaving, setEditSaving] = useState(false);
+  const [newTargetAmount, setNewTargetAmount] = useState("");
 
   // State เก็บความมั่งคั่งสุทธิที่แท้จริงจาก Transactions
   const [trueNetWorth, setTrueNetWorth] = useState<number>(0);
@@ -314,7 +316,7 @@ export default function AccountsPage() {
     if (!userId || !newName.trim()) return;
     setSaving(true);
     try {
-      await createAccount(userId, {
+      const accountId = await createAccount(userId, {
         name: newName.trim(),
         type: newType,
         balance: parseFloat(newBalance) || 0,
@@ -324,11 +326,33 @@ export default function AccountsPage() {
         created_at: Date.now(),
         updated_at: Date.now(),
       });
-      toast.success("สร้างบัญชีสำเร็จ");
+
+      // ถ้าเป็นบัญชีเงินออม ให้สร้างเป้าหมายผูกอัตโนมัติ
+      if (newType === "savings") {
+        const target = parseFloat(newTargetAmount) || 0;
+        if (target > 0) {
+          await createGoal(userId, {
+            name: newName.trim(),
+            target_amount: target,
+            current_amount: parseFloat(newBalance) || 0,
+            deadline: "",
+            status: "active",
+            is_deleted: false,
+            goal_type: "savings",
+            linked_account_id: accountId,
+          });
+        }
+      }
+
+      toast.success(newType === "savings" && parseFloat(newTargetAmount) > 0
+        ? "สร้างบัญชีและเป้าหมายการออมสำเร็จ"
+        : "สร้างบัญชีสำเร็จ"
+      );
       setDialogOpen(false);
       setNewName("");
       setNewType("cash");
       setNewBalance("");
+      setNewTargetAmount("");
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -463,6 +487,20 @@ export default function AccountsPage() {
                         <Label>ยอดเงินเริ่มต้น (฿)</Label>
                         <Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} placeholder="0.00" className="mt-1" />
                       </div>
+                      {newType === "savings" && (
+                        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+                          <p className="text-xs text-primary font-medium flex items-center gap-1.5">
+                            <PiggyBank className="h-3.5 w-3.5" /> ตั้งเป้าหมายการออม
+                          </p>
+                          <div>
+                            <Label className="text-xs">เป้าหมาย (฿)</Label>
+                            <Input type="number" value={newTargetAmount} onChange={(e) => setNewTargetAmount(e.target.value)} placeholder="เช่น 50,000" className="mt-1" />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            ระบบจะสร้างเป้าหมายในหน้า "เป้าหมาย" และผูกกับบัญชีนี้อัตโนมัติ
+                          </p>
+                        </div>
+                      )}
                       <Button onClick={handleCreate} disabled={saving || !newName.trim()} className="w-full">
                         {saving ? "กำลังสร้าง..." : "สร้างบัญชี"}
                       </Button>

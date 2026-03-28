@@ -248,7 +248,7 @@ const AddTransactionFAB = () => {
         txData.to_account_id = toAccountId;
         txData.main_category = "โอนเงิน";
         const destAccount = accounts.find(a => a.id === toAccountId);
-        txData.sub_category = (destAccount?.type === 'investment')
+        txData.sub_category = (destAccount?.type === 'investment' || destAccount?.type === 'savings')
           ? destAccount.name
           : "โอนระหว่างบัญชี";
 

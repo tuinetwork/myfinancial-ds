@@ -292,7 +292,7 @@ const CalendarPage = () => {
       // Fetch ALL transactions for installment tx matching across months
       const txCol = collection(firestore, "users", userId, "transactions");
       Promise.all([getDocs(txCol), getAccounts(userId)]).then(([txSnap, accs]) => {
-        const investMap = new Map(accs.filter(a => a.type === "investment").map(a => [a.id, a.name]));
+        const investMap = new Map(accs.filter(a => a.type === "investment" || a.type === "savings").map(a => [a.id, a.name]));
         const allTxMap: Record<string, TxEntry[]> = {};
         txSnap.forEach((d) => {
           const data = d.data();
@@ -320,7 +320,7 @@ const CalendarPage = () => {
     const txCol = collection(firestore, "users", userId, "transactions");
     const txQ = query(txCol, where("month_year", "==", period));
     Promise.all([getDocs(txQ), getAccounts(userId)]).then(([txSnap, accs]) => {
-      const investMap = new Map(accs.filter(a => a.type === "investment").map(a => [a.id, a.name]));
+      const investMap = new Map(accs.filter(a => a.type === "investment" || a.type === "savings").map(a => [a.id, a.name]));
       const map: Record<string, TxEntry[]> = {};
       txSnap.forEach((d) => {
         const data = d.data();

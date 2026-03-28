@@ -194,7 +194,7 @@ function enrichTransferCategories(
   return transactions.map(t => {
     if (t.type === "โอน" && t.category === "โอนระหว่างบัญชี" && t.to_account_id) {
       const dest = accountMap.get(t.to_account_id);
-      if (dest && dest.type === "investment") {
+      if (dest && (dest.type === "investment" || dest.type === "savings")) {
         return { ...t, category: dest.name };
       }
     }

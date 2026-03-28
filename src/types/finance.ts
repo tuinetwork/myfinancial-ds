@@ -1,5 +1,5 @@
 // ===== Account =====
-export type AccountType = 'cash' | 'bank' | 'investment' | 'credit_card' | 'loan' | 'receivable' | 'payable' | 'inventory';
+export type AccountType = 'cash' | 'bank' | 'savings' | 'investment' | 'credit_card' | 'loan' | 'receivable' | 'payable' | 'inventory';
 
 export interface Account {
   id: string;
@@ -29,6 +29,8 @@ export interface Investment {
 }
 
 // ===== Goal =====
+export type GoalType = 'savings' | 'emergency' | 'investment' | 'debt' | 'other';
+
 export interface Goal {
   id: string;
   name: string;
@@ -37,6 +39,8 @@ export interface Goal {
   deadline: string;
   status: string;
   is_deleted: boolean;
+  linked_account_id?: string;
+  goal_type?: GoalType;
 }
 
 // ===== Extended Transaction fields (optional, backward compatible) =====

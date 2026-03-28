@@ -1,17 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { createGoal, updateGoal, softDeleteGoal } from "@/lib/firestore-services";
-import type { Goal } from "@/types/finance";
+import type { Goal, GoalType, Account } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -20,28 +19,96 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Target, Eye, EyeOff, MoreHorizontal, Pencil, Trash2, Loader2 } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Plus, Target, Eye, EyeOff, MoreHorizontal, Pencil, Trash2, Loader2,
+  Shield, TrendingUp, Landmark, CreditCard, Sparkles, Link2, LinkIcon,
+  Trophy, Medal,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+const GOAL_TYPES: { value: GoalType; label: string; icon: typeof Target; color: string }[] = [
+  { value: "savings", label: "เก็บออม", icon: Target, color: "text-saving" },
+  { value: "emergency", label: "เงินสำรองฉุกเฉิน", icon: Shield, color: "text-amber-500" },
+  { value: "investment", label: "ลงทุน", icon: TrendingUp, color: "text-primary" },
+  { value: "debt", label: "ปลดหนี้", icon: CreditCard, color: "text-destructive" },
+  { value: "other", label: "อื่น ๆ", icon: Sparkles, color: "text-muted-foreground" },
+];
+
+function getGoalTypeConfig(type?: GoalType) {
+  return GOAL_TYPES.find((t) => t.value === type) || GOAL_TYPES[0];
+}
+
+function getProgressColor(pct: number) {
+  if (pct >= 100) return "bg-accent";
+  if (pct >= 60) return "bg-primary";
+  if (pct >= 30) return "bg-debt";
+  return "bg-destructive";
+}
+
+function getMilestones(pct: number) {
+  const milestones: { label: string; reached: boolean }[] = [
+    { label: "25%", reached: pct >= 25 },
+    { label: "50%", reached: pct >= 50 },
+    { label: "75%", reached: pct >= 75 },
+    { label: "100%", reached: pct >= 100 },
+  ];
+  return milestones;
+}
+
+function getDaysRemaining(deadline: string) {
+  if (!deadline) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const target = new Date(deadline);
+  const diff = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  return diff;
+}
+
+function getMonthlySavingsNeeded(remaining: number, deadline: string) {
+  if (!deadline || remaining <= 0) return null;
+  const days = getDaysRemaining(deadline);
+  if (!days || days <= 0) return null;
+  const months = days / 30;
+  if (months < 0.5) return remaining; // less than half a month
+  return Math.ceil(remaining / months);
+}
+
+type FormState = {
+  name: string;
+  target: string;
+  current: string;
+  deadline: string;
+  goal_type: GoalType;
+  linked_account_id: string;
+};
+
+const emptyForm: FormState = { name: "", target: "", current: "", deadline: "", goal_type: "savings", linked_account_id: "" };
 
 export default function GoalsPage() {
   const { userId } = useAuth();
   const { privacyMode, togglePrivacy } = usePrivacy();
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", target: "", current: "", deadline: "" });
+  const [form, setForm] = useState<FormState>({ ...emptyForm });
   const [saving, setSaving] = useState(false);
+  const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
 
   // Edit state
   const [editGoal, setEditGoal] = useState<Goal | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", target: "", current: "", deadline: "" });
+  const [editForm, setEditForm] = useState<FormState>({ ...emptyForm });
   const [editSaving, setEditSaving] = useState(false);
 
   // Delete state
-  const [deleteGoal, setDeleteGoal] = useState<Goal | null>(null);
+  const [deleteGoalTarget, setDeleteGoalTarget] = useState<Goal | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Listen to goals
   useEffect(() => {
     if (!userId) return;
     const unsub = onSnapshot(collection(firestore, "users", userId, "goals"), (snap) => {
@@ -50,6 +117,59 @@ export default function GoalsPage() {
     });
     return () => unsub();
   }, [userId]);
+
+  // Listen to accounts
+  useEffect(() => {
+    if (!userId) return;
+    const unsub = onSnapshot(collection(firestore, "users", userId, "accounts"), (snap) => {
+      setAccounts(
+        snap.docs
+          .map((d) => ({ id: d.id, ...d.data() } as Account))
+          .filter((a) => !a.is_deleted && a.is_active)
+      );
+    });
+    return () => unsub();
+  }, [userId]);
+
+  // Build account map for linked balances
+  const accountMap = useMemo(() => {
+    const map = new Map<string, Account>();
+    accounts.forEach((a) => map.set(a.id, a));
+    return map;
+  }, [accounts]);
+
+  // Resolve current_amount: use linked account balance if available
+  const resolvedGoals = useMemo(() => {
+    return goals.map((g) => {
+      if (g.linked_account_id) {
+        const acc = accountMap.get(g.linked_account_id);
+        if (acc) {
+          return { ...g, current_amount: acc.balance, _linkedAccount: acc };
+        }
+      }
+      return { ...g, _linkedAccount: null as Account | null };
+    });
+  }, [goals, accountMap]);
+
+  // Filter goals
+  const filteredGoals = useMemo(() => {
+    return resolvedGoals.filter((g) => {
+      const pct = g.target_amount > 0 ? (g.current_amount / g.target_amount) * 100 : 0;
+      if (filter === "active") return pct < 100;
+      if (filter === "completed") return pct >= 100;
+      return true;
+    });
+  }, [resolvedGoals, filter]);
+
+  // Summary stats
+  const summary = useMemo(() => {
+    const total = resolvedGoals.length;
+    const completed = resolvedGoals.filter((g) => g.target_amount > 0 && g.current_amount >= g.target_amount).length;
+    const totalTarget = resolvedGoals.reduce((s, g) => s + g.target_amount, 0);
+    const totalCurrent = resolvedGoals.reduce((s, g) => s + Math.min(g.current_amount, g.target_amount), 0);
+    const overallPct = totalTarget > 0 ? Math.min((totalCurrent / totalTarget) * 100, 100) : 0;
+    return { total, completed, active: total - completed, totalTarget, totalCurrent, overallPct };
+  }, [resolvedGoals]);
 
   const fmt = (n: number) => privacyMode ? "***" : `฿${n.toLocaleString("th-TH", { minimumFractionDigits: 2 })}`;
 
@@ -64,10 +184,12 @@ export default function GoalsPage() {
         deadline: form.deadline || "",
         status: "active",
         is_deleted: false,
+        goal_type: form.goal_type,
+        linked_account_id: form.linked_account_id || undefined,
       });
       toast.success("สร้างเป้าหมายสำเร็จ");
       setDialogOpen(false);
-      setForm({ name: "", target: "", current: "", deadline: "" });
+      setForm({ ...emptyForm });
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
   };
@@ -79,6 +201,8 @@ export default function GoalsPage() {
       target: String(goal.target_amount),
       current: String(goal.current_amount),
       deadline: goal.deadline || "",
+      goal_type: goal.goal_type || "savings",
+      linked_account_id: goal.linked_account_id || "",
     });
   };
 
@@ -91,6 +215,8 @@ export default function GoalsPage() {
         target_amount: parseFloat(editForm.target) || 0,
         current_amount: parseFloat(editForm.current) || 0,
         deadline: editForm.deadline || "",
+        goal_type: editForm.goal_type,
+        linked_account_id: editForm.linked_account_id || undefined,
       });
       toast.success("แก้ไขเป้าหมายสำเร็จ");
       setEditGoal(null);
@@ -99,22 +225,102 @@ export default function GoalsPage() {
   };
 
   const handleDelete = async () => {
-    if (!userId || !deleteGoal) return;
+    if (!userId || !deleteGoalTarget) return;
     setDeleting(true);
     try {
-      await softDeleteGoal(userId, deleteGoal.id);
+      await softDeleteGoal(userId, deleteGoalTarget.id);
       toast.success("ลบเป้าหมายสำเร็จ");
-      setDeleteGoal(null);
+      setDeleteGoalTarget(null);
     } catch (e: any) { toast.error(e.message); }
     finally { setDeleting(false); }
   };
 
-  const getProgressColor = (pct: number) => {
-    if (pct >= 100) return "bg-accent";
-    if (pct >= 60) return "bg-primary";
-    if (pct >= 30) return "bg-debt";
-    return "bg-destructive";
+  // When linked account changes in create form, auto-fill current amount
+  const handleLinkedAccountChange = (accountId: string, isEdit: boolean) => {
+    const acc = accountMap.get(accountId);
+    if (isEdit) {
+      setEditForm((f) => ({
+        ...f,
+        linked_account_id: accountId,
+        current: acc ? String(acc.balance) : f.current,
+        name: f.name || acc?.name || "",
+      }));
+    } else {
+      setForm((f) => ({
+        ...f,
+        linked_account_id: accountId,
+        current: acc ? String(acc.balance) : f.current,
+        name: f.name || acc?.name || "",
+      }));
+    }
   };
+
+  const renderGoalForm = (f: FormState, setF: (v: FormState) => void, isEdit: boolean) => (
+    <div className="space-y-3 pt-2">
+      <div>
+        <Label>ชื่อเป้าหมาย</Label>
+        <Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="เช่น เก็บเงินสำรองฉุกเฉิน" className="mt-1" />
+      </div>
+      <div>
+        <Label>ประเภท</Label>
+        <Select value={f.goal_type} onValueChange={(v) => setF({ ...f, goal_type: v as GoalType })}>
+          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {GOAL_TYPES.map((t) => (
+              <SelectItem key={t.value} value={t.value}>
+                <span className="flex items-center gap-2">
+                  <t.icon className={cn("h-3.5 w-3.5", t.color)} />
+                  {t.label}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>ผูกบัญชี (ยอดจะ sync อัตโนมัติ)</Label>
+        <Select value={f.linked_account_id || "_none"} onValueChange={(v) => handleLinkedAccountChange(v === "_none" ? "" : v, isEdit)}>
+          <SelectTrigger className="mt-1"><SelectValue placeholder="ไม่ผูกบัญชี" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_none">ไม่ผูกบัญชี</SelectItem>
+            {accounts.map((a) => (
+              <SelectItem key={a.id} value={a.id}>
+                <span className="flex items-center gap-2">
+                  <Landmark className="h-3.5 w-3.5 text-muted-foreground" />
+                  {a.name} ({fmt(a.balance)})
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>เป้าหมาย (฿)</Label>
+          <Input type="number" value={f.target} onChange={(e) => setF({ ...f, target: e.target.value })} className="mt-1" />
+        </div>
+        <div>
+          <Label>ยอดปัจจุบัน (฿)</Label>
+          <Input
+            type="number"
+            value={f.current}
+            onChange={(e) => setF({ ...f, current: e.target.value })}
+            className="mt-1"
+            disabled={!!f.linked_account_id}
+          />
+          {f.linked_account_id && (
+            <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1">
+              <Link2 className="h-3 w-3" /> sync จากบัญชีที่ผูก
+            </p>
+          )}
+        </div>
+      </div>
+      <div>
+        <Label>กำหนดเป้า</Label>
+        <Input type="date" value={f.deadline} onChange={(e) => setF({ ...f, deadline: e.target.value })} className="mt-1" />
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -131,44 +337,123 @@ export default function GoalsPage() {
         </header>
 
         <main className="flex-1 p-4 md:p-6 space-y-6 overflow-y-auto">
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2"><Plus className="h-4 w-4" /> เพิ่มเป้าหมาย</Button>
-            </DialogTrigger>
-            <DialogContent className="bg-card border-border">
-              <DialogHeader><DialogTitle>สร้างเป้าหมายใหม่</DialogTitle></DialogHeader>
-              <div className="space-y-3 pt-2">
-                <div><Label>ชื่อเป้าหมาย</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="เช่น ซื้อรถ" className="mt-1" /></div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><Label>เป้าหมาย (฿)</Label><Input type="number" value={form.target} onChange={(e) => setForm({ ...form, target: e.target.value })} className="mt-1" /></div>
-                  <div><Label>ยอดปัจจุบัน (฿)</Label><Input type="number" value={form.current} onChange={(e) => setForm({ ...form, current: e.target.value })} className="mt-1" /></div>
+          {/* Summary Card */}
+          {!loading && resolvedGoals.length > 0 && (
+            <Card className="border-primary/20 bg-gradient-to-br from-card to-primary/5">
+              <CardContent className="p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Trophy className="h-5 w-5 text-primary" />
+                      <span className="font-semibold text-foreground">ภาพรวมเป้าหมาย</span>
+                    </div>
+                    <div className="flex items-end gap-3">
+                      <span className="text-3xl font-bold font-display">{summary.overallPct.toFixed(0)}%</span>
+                      <span className="text-sm text-muted-foreground pb-1">
+                        {fmt(summary.totalCurrent)} / {fmt(summary.totalTarget)}
+                      </span>
+                    </div>
+                    <div className="relative h-2.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn("h-full rounded-full transition-all duration-700", getProgressColor(summary.overallPct))}
+                        style={{ width: `${summary.overallPct}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-4 text-center">
+                    <div>
+                      <p className="text-2xl font-bold font-display text-foreground">{summary.total}</p>
+                      <p className="text-xs text-muted-foreground">ทั้งหมด</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold font-display text-primary">{summary.active}</p>
+                      <p className="text-xs text-muted-foreground">กำลังดำเนินการ</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold font-display text-accent">{summary.completed}</p>
+                      <p className="text-xs text-muted-foreground">สำเร็จ</p>
+                    </div>
+                  </div>
                 </div>
-                <div><Label>กำหนดเป้า</Label><Input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} className="mt-1" /></div>
-                <Button onClick={handleCreate} disabled={saving || !form.name.trim() || !form.target} className="w-full">{saving ? "กำลังสร้าง..." : "สร้างเป้าหมาย"}</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </CardContent>
+            </Card>
+          )}
 
+          {/* Actions Bar */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2"><Plus className="h-4 w-4" /> เพิ่มเป้าหมาย</Button>
+              </DialogTrigger>
+              <DialogContent className="bg-card border-border sm:max-w-md">
+                <DialogHeader><DialogTitle>สร้างเป้าหมายใหม่</DialogTitle></DialogHeader>
+                {renderGoalForm(form, setForm, false)}
+                <DialogFooter>
+                  <Button onClick={handleCreate} disabled={saving || !form.name.trim() || !form.target} className="w-full">
+                    {saving ? "กำลังสร้าง..." : "สร้างเป้าหมาย"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Filter Buttons */}
+            {resolvedGoals.length > 0 && (
+              <div className="flex gap-1 ml-auto">
+                {([
+                  { key: "all", label: "ทั้งหมด" },
+                  { key: "active", label: "กำลังดำเนินการ" },
+                  { key: "completed", label: "สำเร็จ" },
+                ] as const).map((f) => (
+                  <Button
+                    key={f.key}
+                    variant={filter === f.key ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFilter(f.key)}
+                    className="text-xs"
+                  >
+                    {f.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Goals Grid */}
           {loading ? (
             <div className="text-center text-muted-foreground py-12">กำลังโหลด...</div>
-          ) : goals.length === 0 ? (
-            <div className="text-center text-muted-foreground py-12">ยังไม่มีเป้าหมาย</div>
+          ) : filteredGoals.length === 0 ? (
+            <div className="text-center text-muted-foreground py-12">
+              {goals.length === 0 ? "ยังไม่มีเป้าหมาย" : "ไม่มีเป้าหมายในหมวดนี้"}
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {goals.map((goal) => {
+              {filteredGoals.map((goal) => {
                 const pct = goal.target_amount > 0 ? Math.min((goal.current_amount / goal.target_amount) * 100, 100) : 0;
-                const remaining = goal.target_amount - goal.current_amount;
+                const remaining = Math.max(goal.target_amount - goal.current_amount, 0);
+                const daysLeft = getDaysRemaining(goal.deadline);
+                const monthlyNeeded = getMonthlySavingsNeeded(remaining, goal.deadline);
+                const milestones = getMilestones(pct);
+                const typeConfig = getGoalTypeConfig(goal.goal_type);
+                const TypeIcon = typeConfig.icon;
+
                 return (
                   <Card key={goal.id} className="hover:border-primary/30 transition-colors">
                     <CardContent className="p-5 space-y-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="h-9 w-9 rounded-lg bg-saving/10 flex items-center justify-center">
-                            <Target className="h-4.5 w-4.5 text-saving" />
+                          <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center", "bg-saving/10")}>
+                            <TypeIcon className={cn("h-4.5 w-4.5", typeConfig.color)} />
                           </div>
                           <div>
                             <p className="font-medium text-foreground text-sm">{goal.name}</p>
-                            {goal.deadline && <p className="text-xs text-muted-foreground">กำหนด: {goal.deadline}</p>}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={cn("text-[11px]", typeConfig.color)}>{typeConfig.label}</span>
+                              {goal._linkedAccount && (
+                                <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
+                                  <LinkIcon className="h-2.5 w-2.5" /> {goal._linkedAccount.name}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
@@ -188,7 +473,7 @@ export default function GoalsPage() {
                               <DropdownMenuItem onClick={() => openEdit(goal)} className="gap-2 text-sm">
                                 <Pencil className="h-3.5 w-3.5" /> แก้ไข
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setDeleteGoal(goal)} className="gap-2 text-sm text-destructive focus:text-destructive">
+                              <DropdownMenuItem onClick={() => setDeleteGoalTarget(goal)} className="gap-2 text-sm text-destructive focus:text-destructive">
                                 <Trash2 className="h-3.5 w-3.5" /> ลบ
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -196,6 +481,7 @@ export default function GoalsPage() {
                         </div>
                       </div>
 
+                      {/* Progress Bar */}
                       <div className="space-y-1.5">
                         <div className="relative h-2 rounded-full bg-muted overflow-hidden">
                           <div className={cn("h-full rounded-full transition-all duration-500", getProgressColor(pct))} style={{ width: `${pct}%` }} />
@@ -206,9 +492,42 @@ export default function GoalsPage() {
                         </div>
                       </div>
 
-                      {remaining > 0 && (
-                        <p className="text-xs text-muted-foreground">เหลืออีก {fmt(remaining)}</p>
-                      )}
+                      {/* Milestones */}
+                      <div className="flex items-center gap-1.5">
+                        {milestones.map((m) => (
+                          <div
+                            key={m.label}
+                            className={cn(
+                              "flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full",
+                              m.reached
+                                ? "bg-primary/10 text-primary"
+                                : "bg-muted text-muted-foreground"
+                            )}
+                          >
+                            {m.reached && <Medal className="h-2.5 w-2.5" />}
+                            {m.label}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Info lines */}
+                      <div className="space-y-1 text-xs text-muted-foreground">
+                        {remaining > 0 && (
+                          <p>เหลืออีก {fmt(remaining)}</p>
+                        )}
+                        {daysLeft !== null && (
+                          <p className={cn(daysLeft <= 30 && daysLeft > 0 && "text-amber-500", daysLeft <= 0 && "text-destructive")}>
+                            {daysLeft > 0
+                              ? `เหลือเวลาอีก ${daysLeft} วัน`
+                              : daysLeft === 0
+                                ? "ถึงกำหนดวันนี้!"
+                                : `เลยกำหนด ${Math.abs(daysLeft)} วัน`}
+                          </p>
+                        )}
+                        {monthlyNeeded && monthlyNeeded > 0 && remaining > 0 && (
+                          <p>ต้องออมเดือนละ {fmt(monthlyNeeded)}</p>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 );
@@ -222,14 +541,7 @@ export default function GoalsPage() {
       <Dialog open={!!editGoal} onOpenChange={(o) => !o && setEditGoal(null)}>
         <DialogContent className="bg-card border-border sm:max-w-md">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Pencil className="h-4 w-4 text-primary" /> แก้ไขเป้าหมาย</DialogTitle></DialogHeader>
-          <div className="space-y-3 pt-2">
-            <div><Label>ชื่อเป้าหมาย</Label><Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="mt-1" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>เป้าหมาย (฿)</Label><Input type="number" value={editForm.target} onChange={(e) => setEditForm({ ...editForm, target: e.target.value })} className="mt-1" /></div>
-              <div><Label>ยอดปัจจุบัน (฿)</Label><Input type="number" value={editForm.current} onChange={(e) => setEditForm({ ...editForm, current: e.target.value })} className="mt-1" /></div>
-            </div>
-            <div><Label>กำหนดเป้า</Label><Input type="date" value={editForm.deadline} onChange={(e) => setEditForm({ ...editForm, deadline: e.target.value })} className="mt-1" /></div>
-          </div>
+          {renderGoalForm(editForm, setEditForm, true)}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditGoal(null)}>ยกเลิก</Button>
             <Button onClick={handleEdit} disabled={editSaving || !editForm.name.trim() || !editForm.target}>
@@ -241,7 +553,7 @@ export default function GoalsPage() {
       </Dialog>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteGoal} onOpenChange={(o) => !o && setDeleteGoal(null)}>
+      <AlertDialog open={!!deleteGoalTarget} onOpenChange={(o) => !o && setDeleteGoalTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
@@ -249,9 +561,9 @@ export default function GoalsPage() {
               ยืนยันการลบเป้าหมาย
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteGoal && (
+              {deleteGoalTarget && (
                 <span className="block">
-                  ต้องการลบเป้าหมาย "<span className="font-semibold text-foreground">{deleteGoal.name}</span>" หรือไม่?
+                  ต้องการลบเป้าหมาย "<span className="font-semibold text-foreground">{deleteGoalTarget.name}</span>" หรือไม่?
                   การกระทำนี้ไม่สามารถย้อนกลับได้
                 </span>
               )}
