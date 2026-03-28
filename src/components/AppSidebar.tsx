@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  LayoutDashboard, Receipt, Settings, ChevronDown, ChevronRight, ChevronUp,
+  LayoutDashboard, Receipt, Settings as SettingsIcon, ChevronDown, ChevronRight, ChevronUp,
   CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart, ShieldCheck, Wallet,
   TrendingUp, Landmark, Terminal, Sun, Moon, Monitor,
 } from "lucide-react";
@@ -467,7 +467,7 @@ export function AppSidebar() {
         {/* Settings with sub-items */}
         {renderCollapsibleItem(
           {
-            title: "ตั้งค่า", url: "/settings", icon: Settings,
+            title: "ตั้งค่า", url: "/settings", icon: SettingsIcon,
             children: settingsChildren,
           },
           settingsOpen,
