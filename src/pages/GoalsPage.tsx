@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, doc, onSnapshot, getDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
@@ -25,10 +25,12 @@ import {
 import {
   Plus, Target, Eye, EyeOff, MoreHorizontal, Pencil, Trash2, Loader2,
   Shield, TrendingUp, Landmark, CreditCard, Sparkles, Link2, LinkIcon,
-  Trophy, Medal,
+  Trophy, Medal, CalendarClock, Repeat,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { expandRecurrence, formatFrequencyThai } from "@/lib/recurrence";
+import type { BudgetItem } from "@/hooks/useBudgetData";
 
 const GOAL_TYPES: { value: GoalType; label: string; icon: typeof Target; color: string }[] = [
   { value: "savings", label: "เก็บออม", icon: Target, color: "text-saving" },
@@ -77,6 +79,23 @@ function getMonthlySavingsNeeded(remaining: number, deadline: string) {
   return Math.ceil(remaining / months);
 }
 
+function countTotalInstallments(item: BudgetItem): number {
+  if (!item.recurrence || !item.startDate || !item.endDate) return 0;
+  const start = new Date(item.startDate);
+  const end = new Date(item.endDate);
+  let count = 0;
+  let y = start.getFullYear();
+  let m = start.getMonth() + 1;
+  const endY = end.getFullYear();
+  const endM = end.getMonth() + 1;
+  while (y < endY || (y === endY && m <= endM)) {
+    count += expandRecurrence(item.dueDate, item.recurrence, y, m, item.startDate, item.endDate).length;
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return count;
+}
+
 type FormState = {
   name: string;
   target: string;
@@ -108,6 +127,9 @@ export default function GoalsPage() {
   const [deleteGoalTarget, setDeleteGoalTarget] = useState<Goal | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Budget savings items (for installment schedule display)
+  const [savingsBudgetItems, setSavingsBudgetItems] = useState<BudgetItem[]>([]);
+
   // Listen to goals
   useEffect(() => {
     if (!userId) return;
@@ -131,12 +153,47 @@ export default function GoalsPage() {
     return () => unsub();
   }, [userId]);
 
+  // Fetch budget savings items for installment info
+  useEffect(() => {
+    if (!userId) return;
+    const now = new Date();
+    const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const budgetRef = doc(firestore, "users", userId, "budgets", period);
+    getDoc(budgetRef).then((snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      const savingsCat = (data.expense_budgets as any)?.["เงินออมและการลงทุน"];
+      if (!savingsCat || typeof savingsCat !== "object") return;
+      const items: BudgetItem[] = Object.entries(savingsCat).map(([label, val]: [string, any]) => ({
+        label,
+        budget: typeof val === "number" ? val : val?.amount ?? 0,
+        dueDate: val?.due_date ?? null,
+        recurrence: val?.recurrence ?? null,
+        startDate: val?.start_date ?? null,
+        endDate: val?.end_date ?? null,
+        paidDates: val?.paid_dates ?? [],
+      }));
+      setSavingsBudgetItems(items);
+    });
+  }, [userId]);
+
   // Build account map for linked balances
   const accountMap = useMemo(() => {
     const map = new Map<string, Account>();
     accounts.forEach((a) => map.set(a.id, a));
     return map;
   }, [accounts]);
+
+  // Build budget map for matching goals to installment schedules
+  const budgetMap = useMemo(() => {
+    const map = new Map<string, BudgetItem & { totalInstallments: number }>();
+    savingsBudgetItems.forEach((item) => {
+      if (item.recurrence && item.budget > 0) {
+        map.set(item.label, { ...item, totalInstallments: countTotalInstallments(item) });
+      }
+    });
+    return map;
+  }, [savingsBudgetItems]);
 
   // Resolve current_amount: use linked account balance if available
   const resolvedGoals = useMemo(() => {
@@ -435,6 +492,8 @@ export default function GoalsPage() {
                 const milestones = getMilestones(pct);
                 const typeConfig = getGoalTypeConfig(goal.goal_type);
                 const TypeIcon = typeConfig.icon;
+                const matchedBudget = budgetMap.get(goal.name);
+                const paidInstallments = matchedBudget ? Math.floor(goal.current_amount / matchedBudget.budget) : 0;
 
                 return (
                   <Card key={goal.id} className="hover:border-primary/30 transition-colors">
@@ -510,6 +569,30 @@ export default function GoalsPage() {
                         ))}
                       </div>
 
+                      {/* Installment schedule (from budget) */}
+                      {matchedBudget && (
+                        <div className="rounded-md bg-primary/5 border border-primary/10 p-2.5 space-y-1">
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                            <CalendarClock className="h-3 w-3" />
+                            แผนผ่อนชำระ
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Repeat className="h-3 w-3" />
+                            {formatFrequencyThai(matchedBudget.recurrence)} · {fmt(matchedBudget.budget)}/งวด
+                          </div>
+                          {matchedBudget.totalInstallments > 0 && (
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">
+                                งวดที่ {paidInstallments} / {matchedBudget.totalInstallments}
+                              </span>
+                              <span className="text-muted-foreground">
+                                เหลือ {matchedBudget.totalInstallments - paidInstallments} งวด
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Info lines */}
                       <div className="space-y-1 text-xs text-muted-foreground">
                         {remaining > 0 && (
@@ -524,7 +607,7 @@ export default function GoalsPage() {
                                 : `เลยกำหนด ${Math.abs(daysLeft)} วัน`}
                           </p>
                         )}
-                        {monthlyNeeded && monthlyNeeded > 0 && remaining > 0 && (
+                        {!matchedBudget && monthlyNeeded && monthlyNeeded > 0 && remaining > 0 && (
                           <p>ต้องออมเดือนละ {fmt(monthlyNeeded)}</p>
                         )}
                       </div>
