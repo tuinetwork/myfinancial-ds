@@ -32,12 +32,12 @@ function formatThaiDate(dateStr: string): string {
   return `${day} ${thaiMonth} ${buddhistYear}`;
 }
 
-function getDaysUntil(dateStr: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+function getDaysUntil(dateStr: string, refDate?: Date): number {
+  const ref = refDate ? new Date(refDate) : new Date();
+  ref.setHours(0, 0, 0, 0);
   const dueDate = new Date(dateStr);
   dueDate.setHours(0, 0, 0, 0);
-  const diffTime = dueDate.getTime() - today.getTime();
+  const diffTime = dueDate.getTime() - ref.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
@@ -66,11 +66,18 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
       }
     }
 
-    const now = new Date();
+    // Use the selected period from data, not today's date
+    const [pYear, pMonth] = data.period.split("-").map(Number);
     const months: { year: number; month: number }[] = [
-      { year: now.getFullYear(), month: now.getMonth() + 1 },
-      { year: now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear(), month: now.getMonth() === 11 ? 1 : now.getMonth() + 2 },
+      { year: pYear, month: pMonth },
+      { year: pMonth === 12 ? pYear + 1 : pYear, month: pMonth === 12 ? 1 : pMonth + 1 },
     ];
+
+    // Reference date for overdue calculation: use last day of selected period or today (whichever is earlier)
+    const periodEnd = new Date(pYear, pMonth, 0); // last day of selected month
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const refDate = periodEnd < today ? periodEnd : today;
 
     const seenKeys = new Set<string>();
 
@@ -93,7 +100,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
               const key = `${item.label}::${expDate}`;
               if (seenKeys.has(key)) continue;
               seenKeys.add(key);
-              const daysUntil = getDaysUntil(expDate);
+              const daysUntil = getDaysUntil(expDate, refDate);
               const isPaidByDate = paidDates.includes(expDate);
               const isPaidByTx = !isPaidByDate && (txMatchMap.get(expDate)?.isPaid ?? false);
               const isPaid = isPaidByDate || isPaidByTx;
@@ -112,7 +119,7 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
             }
           }
         } else {
-          const daysUntil = getDaysUntil(item.dueDate);
+          const daysUntil = getDaysUntil(item.dueDate, refDate);
           const paidDates = item.paidDates ?? [];
           const isPaidByDate = paidDates.includes(item.dueDate ?? "");
           const txList = txBySubDate[item.label] ?? [];

@@ -45,6 +45,7 @@ export interface Transaction {
 export interface BudgetData {
   status: string;
   month: string;
+  period: string; // "YYYY-MM" format
   timestamp: string;
   income: BudgetItem[];
   expenses: {
@@ -152,6 +153,7 @@ function parseBudgetDoc(
   return {
     status: "ok",
     month: monthName,
+    period,
     timestamp: new Date().toISOString(),
     income,
     expenses,
