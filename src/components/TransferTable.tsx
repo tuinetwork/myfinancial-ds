@@ -16,14 +16,19 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
   ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Download,
-  MoreHorizontal, Trash2, Loader2, ArrowRightLeft,
+  MoreHorizontal, Pencil, Trash2, Loader2, ArrowRightLeft,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { BudgetData, Transaction, formatCurrency } from "@/hooks/useBudgetData";
-import { deleteTransactionAtomic } from "@/lib/firestore-services";
+import { deleteTransactionAtomic, updateTransactionAtomic } from "@/lib/firestore-services";
 import { toast } from "sonner";
 import { Account } from "@/types/finance";
 
@@ -68,6 +73,11 @@ export function TransferTable({ data, userId, onMutate }: Props) {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(0);
   const [accounts, setAccounts] = useState<Account[]>([]);
+
+  // Edit state
+  const [editTx, setEditTx] = useState<Transaction | null>(null);
+  const [editNote, setEditNote] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   // Delete state
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
@@ -202,6 +212,29 @@ export function TransferTable({ data, userId, onMutate }: Props) {
     setDeleting(false);
   };
 
+  const openEdit = (tx: Transaction) => {
+    setEditTx(tx);
+    setEditNote(tx.description || "");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTx || !userId) return;
+    if (editNote.length > 500) {
+      toast.error("บันทึกต้องไม่เกิน 500 ตัวอักษร");
+      return;
+    }
+    setEditSaving(true);
+    try {
+      await updateTransactionAtomic(userId, editTx.id, { note: editNote.trim() }, [], []);
+      toast.success("แก้ไขรายละเอียดสำเร็จ");
+      setEditTx(null);
+      onMutate?.();
+    } catch (err: any) {
+      toast.error("แก้ไขล้มเหลว: " + err.message);
+    }
+    setEditSaving(false);
+  };
+
   const headerClass = "text-sm cursor-pointer select-none hover:text-foreground transition-colors";
 
   const getPageNumbers = () => {
@@ -316,6 +349,9 @@ export function TransferTable({ data, userId, onMutate }: Props) {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-36">
+                                <DropdownMenuItem onClick={() => openEdit(t)} className="gap-2 text-sm">
+                                  <Pencil className="h-3.5 w-3.5" /> แก้ไข
+                                </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => setDeleteTx(t)}
                                   className="gap-2 text-sm text-destructive focus:text-destructive"
@@ -374,6 +410,52 @@ export function TransferTable({ data, userId, onMutate }: Props) {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editTx} onOpenChange={(o) => !o && setEditTx(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-4 w-4 text-primary" />
+              แก้ไขรายละเอียดการโอน
+            </DialogTitle>
+          </DialogHeader>
+          {editTx && (
+            <div className="space-y-4 py-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>{formatDate(editTx.date)}</span>
+                <span>—</span>
+                <Badge variant="outline" className="text-xs font-normal">
+                  {accountMap[editTx.from_account_id || ""] || "-"}
+                </Badge>
+                <ArrowRightLeft className="h-3 w-3" />
+                <Badge variant="outline" className="text-xs font-normal">
+                  {accountMap[editTx.to_account_id || ""] || "-"}
+                </Badge>
+                <span className="ml-auto font-medium">{formatCurrency(editTx.amount)}</span>
+              </div>
+              <div className="space-y-2">
+                <Label>รายละเอียด</Label>
+                <Textarea
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  placeholder="เพิ่มรายละเอียด เช่น ค่าโอนคืน, ออมแชร์งวดที่ 3..."
+                  maxLength={500}
+                  rows={3}
+                />
+                <p className="text-[11px] text-muted-foreground text-right">{editNote.length}/500</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTx(null)}>ยกเลิก</Button>
+            <Button onClick={handleSaveEdit} disabled={editSaving}>
+              {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              บันทึก
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteTx} onOpenChange={(o) => !o && setDeleteTx(null)}>
