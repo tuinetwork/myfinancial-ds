@@ -27,7 +27,7 @@ import {
   BreadcrumbItem,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { Home, LayoutDashboard, ChevronUp, ChevronDown, Lock, Unlock, FileDown, RotateCcw } from "lucide-react";
+import { Home, LayoutDashboard, FileDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,48 +38,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type WidgetRow = { id: string; widgets: string[] };
-
-const DEFAULT_LAYOUT: WidgetRow[] = [
-  { id: "row-0", widgets: ["MonthComparison"] },
-  { id: "row-1", widgets: ["FinancialHealthCard", "SavingsGoalCard", "UpcomingBills"] },
-  { id: "row-2", widgets: ["DailyChart", "RecentTransactions"] },
-  { id: "row-3", widgets: ["ExpenseChart", "TopSpendingCategories"] },
-  { id: "row-4", widgets: ["ExpenseTabsChart", "BudgetBreakdown"] },
-  { id: "row-5", widgets: ["SpendingInsights"] },
-];
-
-const STORAGE_KEY = "dashboard-layout";
-
-function loadLayout(): WidgetRow[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const parsed: WidgetRow[] = JSON.parse(stored);
-      const existingWidgets = new Set(parsed.flatMap((r) => r.widgets));
-      const allDefault = DEFAULT_LAYOUT.flatMap((r) => r.widgets);
-      const missing = allDefault.filter((w) => !existingWidgets.has(w));
-      if (missing.length > 0) {
-        parsed.push({ id: `row-extra-${Date.now()}`, widgets: missing });
-      }
-      return parsed;
-    }
-  } catch {}
-  return DEFAULT_LAYOUT;
-}
-
-function saveLayout(layout: WidgetRow[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
-}
-
 const Index = () => {
   const [searchParams] = useSearchParams();
   const viewMode = (searchParams.get("view") || "monthly") as "monthly" | "yearly";
   const { data: months, isLoading: monthsLoading } = useAvailableMonths();
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | undefined>(undefined);
-  const [layout, setLayout] = useState<WidgetRow[]>(loadLayout);
-  const [editMode, setEditMode] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const APPS_SCRIPT_URL = import.meta.env.VITE_APPS_SCRIPT_URL || "";
@@ -181,45 +145,6 @@ const Index = () => {
     }
   }, [data?.period]);
 
-  const moveRowUp = useCallback((rowIdx: number) => {
-    if (rowIdx <= 0) return;
-    const newLayout = [...layout];
-    [newLayout[rowIdx - 1], newLayout[rowIdx]] = [newLayout[rowIdx], newLayout[rowIdx - 1]];
-    setLayout(newLayout);
-    saveLayout(newLayout);
-  }, [layout]);
-
-  const moveRowDown = useCallback((rowIdx: number) => {
-    if (rowIdx >= layout.length - 1) return;
-    const newLayout = [...layout];
-    [newLayout[rowIdx], newLayout[rowIdx + 1]] = [newLayout[rowIdx + 1], newLayout[rowIdx]];
-    setLayout(newLayout);
-    saveLayout(newLayout);
-  }, [layout]);
-
-  const resetLayout = useCallback(() => {
-    setLayout(DEFAULT_LAYOUT);
-    saveLayout(DEFAULT_LAYOUT);
-  }, []);
-
-  const renderWidget = useCallback((id: string) => {
-    if (!data) return null;
-    switch (id) {
-      case "FinancialHealthCard": return <FinancialHealthCard data={data} carryOver={carryOver} />;
-      case "SavingsGoalCard": return <SavingsGoalCard data={data} />;
-      case "UpcomingBills": return <UpcomingBills data={data} />;
-      case "DailyChart": return <DailyChart data={data} />;
-      case "RecentTransactions": return <RecentTransactions data={data} />;
-      case "ExpenseChart": return <ExpenseChart data={data} />;
-      case "TopSpendingCategories": return <TopSpendingCategories data={data} />;
-      case "ExpenseTabsChart": return <ExpenseTabsChart data={data} />;
-      case "BudgetBreakdown": return <BudgetBreakdown data={data} />;
-      case "MonthComparison": return <MonthComparison data={data} />;
-      case "SpendingInsights": return <SpendingInsights data={data} carryOver={carryOver} />;
-      default: return null;
-    }
-  }, [data, carryOver]);
-
   return (
     <>
       <AppSidebar />
@@ -245,17 +170,6 @@ const Index = () => {
                 className="h-8 w-8"
               >
                 <FileDown className={cn("h-4 w-4", exporting && "animate-pulse")} />
-              </Button>
-            )}
-            {viewMode === "monthly" && (
-              <Button
-                variant={editMode ? "default" : "ghost"}
-                size="icon"
-                onClick={() => setEditMode((v) => !v)}
-                title={editMode ? "ล็อคเลย์เอาท์" : "จัดเรียงวิดเจ็ต"}
-                className="h-8 w-8"
-              >
-                {editMode ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
               </Button>
             )}
             <NotificationBell />
@@ -311,15 +225,6 @@ const Index = () => {
               </div>
             </div>
 
-            {editMode && (
-              <div className="flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-xs text-primary">
-                <span>กดปุ่มลูกศรเพื่อจัดเรียงวิดเจ็ต</span>
-                <Button variant="outline" size="sm" className="h-6 text-[11px] ml-auto gap-1" onClick={resetLayout}>
-                  <RotateCcw className="h-3 w-3" /> รีเซ็ต
-                </Button>
-              </div>
-            )}
-
             {isPageLoading ? (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -335,54 +240,45 @@ const Index = () => {
               </div>
             ) : viewMode === "monthly" && data ? (
               <>
+                {/* 1. สรุปยอด */}
                 <SummaryCards data={data} carryOver={carryOver} />
 
-                {layout.map((row, rowIdx) => {
-                  const colClass = row.widgets.length >= 3
-                    ? "grid-cols-1 xl:grid-cols-3"
-                    : row.widgets.length === 2
-                      ? "grid-cols-1 xl:grid-cols-3"
-                      : "grid-cols-1";
-                  const isTwo = row.widgets.length === 2;
-                  const wideWidgets = ["DailyChart", "ExpenseChart", "ExpenseTabsChart"];
+                {/* 2. เปรียบเทียบเดือน */}
+                <MonthComparison data={data} />
 
-                  return (
-                    <div key={row.id} className="relative group">
-                      {editMode && (
-                        <div className="absolute -left-1 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-6 w-6 bg-card shadow"
-                            onClick={() => moveRowUp(rowIdx)}
-                            disabled={rowIdx === 0}
-                          >
-                            <ChevronUp className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-6 w-6 bg-card shadow"
-                            onClick={() => moveRowDown(rowIdx)}
-                            disabled={rowIdx === layout.length - 1}
-                          >
-                            <ChevronDown className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      )}
-                      <div className={`grid ${colClass} gap-4 ${editMode ? "ring-1 ring-dashed ring-border rounded-lg p-1" : ""}`}>
-                        {row.widgets.map((widgetId, idx) => {
-                          const isWide = isTwo && idx === 0 && wideWidgets.includes(widgetId);
-                          return (
-                            <div key={widgetId} className={isWide ? "xl:col-span-2" : ""}>
-                              {renderWidget(widgetId)}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
+                {/* 3. การ์ดสถานะ 3 ใบ */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                  <FinancialHealthCard data={data} carryOver={carryOver} />
+                  <SavingsGoalCard data={data} />
+                  <UpcomingBills data={data} />
+                </div>
+
+                {/* 4. กราฟรายวัน + ธุรกรรมล่าสุด */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                  <div className="xl:col-span-2">
+                    <DailyChart data={data} />
+                  </div>
+                  <RecentTransactions data={data} />
+                </div>
+
+                {/* 5. กราฟรายจ่าย + หมวดจ่ายสูงสุด */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                  <div className="xl:col-span-2">
+                    <ExpenseChart data={data} />
+                  </div>
+                  <TopSpendingCategories data={data} />
+                </div>
+
+                {/* 6. กราฟแยกหมวด + ติดตามงบ */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                  <div className="xl:col-span-2">
+                    <ExpenseTabsChart data={data} />
+                  </div>
+                  <BudgetBreakdown data={data} />
+                </div>
+
+                {/* 7. คำแนะนำ */}
+                <SpendingInsights data={data} carryOver={carryOver} />
               </>
             ) : viewMode === "yearly" && yearlyData ? (
               <YearlyView yearlyData={yearlyData} />
