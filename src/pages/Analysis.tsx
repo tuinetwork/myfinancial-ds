@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { NotificationBell } from "@/components/NotificationBell";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { AppFooter } from "@/components/AppFooter";
 import { useBudgetData, useAvailableMonths, formatCurrency } from "@/hooks/useBudgetData";
 import { useYearlyData } from "@/hooks/useYearlyData";
@@ -251,6 +252,7 @@ const Analysis = () => {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <ThemeToggle />
             <NotificationBell />
             <UserProfilePopover />
           </div>

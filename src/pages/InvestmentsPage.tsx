@@ -7,6 +7,7 @@ import { updateAccount } from "@/lib/firestore-services";
 import type { AssetClass } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -155,7 +156,8 @@ export default function InvestmentsPage() {
         <header className="h-14 flex items-center border-b border-border px-4 gap-3 bg-background sticky top-0 z-20">
           <SidebarTrigger />
           <h1 className="text-lg font-semibold text-foreground">พอร์ตการลงทุน</h1>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={togglePrivacy}>
               {privacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>

@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  LayoutDashboard, Receipt, Settings as SettingsIcon, ChevronDown, ChevronRight, ChevronUp,
+  Receipt, ChevronDown, ChevronRight,
   CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart, ShieldCheck, Wallet,
-  TrendingUp, Landmark, Terminal, Sun, Moon, Monitor,
+  TrendingUp, Landmark, Terminal,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
@@ -48,7 +47,7 @@ const otherItems: MenuItem[] = [
   { title: "เป้าหมาย", url: "/goals", icon: Target },
 ];
 
-const settingsChildren = [
+const settingsItems: MenuItem[] = [
   { title: "งบประมาณ", url: "/settings?tab=budget", icon: DollarSign },
   { title: "หมวดหมู่", url: "/settings?tab=categories", icon: Tags },
 ];
@@ -111,17 +110,9 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { userRole, user } = useAuth();
-  const { theme, setTheme } = useTheme();
   const isAdminUser = userRole === "dev" || userRole === "admin";
   const isDevUser = userRole === "dev";
   const sidebarRef = useRef<HTMLDivElement>(null);
-
-  const isSettingsActive = location.pathname.startsWith("/settings");
-  const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
-
-  useEffect(() => {
-    if (isSettingsActive) setSettingsOpen(true);
-  }, [isSettingsActive]);
 
   const renderChildActive = (childUrl: string) => {
     const childUrlObj = new URL(childUrl, "http://x");
@@ -361,6 +352,18 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* SETTINGS */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
+            Settings
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {settingsItems.map((item) => renderSimpleItem(item))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       {/* ── Footer: Command Center (Dev only) + Admin + Settings ── */}
@@ -434,45 +437,6 @@ export function AppSidebar() {
           )
         )}
 
-        {/* Theme Toggle */}
-        {collapsed ? (
-          <SidebarMenuItem>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <SidebarMenuButton
-                  className="w-full justify-center hover:bg-sidebar-accent/50"
-                  onClick={() => setTheme(theme === "dark" ? "light" : theme === "light" ? "system" : "dark")}
-                >
-                  {theme === "dark" ? <Moon className="h-4 w-4" /> : theme === "light" ? <Sun className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
-                </SidebarMenuButton>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="bg-sidebar text-sidebar-foreground border-sidebar-border">
-                ธีม: {theme === "dark" ? "มืด" : theme === "light" ? "สว่าง" : "ตามระบบ"}
-              </TooltipContent>
-            </Tooltip>
-          </SidebarMenuItem>
-        ) : (
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              className="w-full hover:bg-sidebar-accent/50"
-              onClick={() => setTheme(theme === "dark" ? "light" : theme === "light" ? "system" : "dark")}
-            >
-              {theme === "dark" ? <Moon className="h-4 w-4" /> : theme === "light" ? <Sun className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
-              <span>{theme === "dark" ? "ธีมมืด" : theme === "light" ? "ธีมสว่าง" : "ตามระบบ"}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        )}
-
-        {/* Settings with sub-items */}
-        {renderCollapsibleItem(
-          {
-            title: "ตั้งค่า", url: "/settings", icon: SettingsIcon,
-            children: settingsChildren,
-          },
-          settingsOpen,
-          setSettingsOpen,
-          isSettingsActive,
-        )}
       </SidebarFooter>
     </Sidebar>
   );

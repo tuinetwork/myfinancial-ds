@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { NotificationBell } from "@/components/NotificationBell";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -289,6 +290,7 @@ export default function AdminPanel() {
             <h1 className="text-lg font-semibold">Admin Panel</h1>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             <NotificationBell />
             <UserProfilePopover />
           </div>

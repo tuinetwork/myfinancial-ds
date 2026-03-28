@@ -8,6 +8,7 @@ import { createAccount, updateAccount, deleteAccountWithTransactions, createGoal
 import type { Account, AccountType } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -695,6 +696,7 @@ export default function AccountsPage() {
           <SidebarTrigger />
           <h1 className="text-lg font-semibold text-foreground">บัญชี / กระเป๋าเงิน</h1>
           <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => {
               const BOM = "\uFEFF";
               const headers = ["ชื่อบัญชี", "ประเภท", "ยอดเงิน", "สถานะ"];

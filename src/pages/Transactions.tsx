@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { AppFooter } from "@/components/AppFooter";
 import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
 import { TransactionTable } from "@/components/TransactionTable";
@@ -85,6 +86,7 @@ const Transactions = () => {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <ThemeToggle />
             <NotificationBell />
             <UserProfilePopover />
           </div>

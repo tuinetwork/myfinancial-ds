@@ -19,6 +19,7 @@ import { UpcomingBills } from "@/components/UpcomingBills";
 import { MonthComparison } from "@/components/MonthComparison";
 import { SpendingInsightsButton } from "@/components/SpendingInsights";
 import { useSpendingInsights } from "@/hooks/useSpendingInsights";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -175,6 +176,7 @@ const Index = () => {
               </Button>
             )}
             {viewMode === "monthly" && <SpendingInsightsButton insights={insights} />}
+            <ThemeToggle />
             <NotificationBell />
             <UserProfilePopover />
           </div>
