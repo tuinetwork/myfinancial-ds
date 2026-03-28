@@ -31,9 +31,13 @@ export function SavingsGoalCard({ data }: Props) {
   const { goals, totalTarget, totalActual, overallPct } = useMemo(() => {
     const savingsBudgets = data.expenses.savings;
 
+    const savingsLabels = new Set(savingsBudgets.map(item => item.label));
     const actualByCategory: Record<string, number> = {};
     data.transactions
-      .filter((t) => t.type === "เงินออม/การลงทุน")
+      .filter((t) =>
+        t.type === "เงินออม/การลงทุน" ||
+        (t.type === "โอน" && savingsLabels.has(t.category))
+      )
       .forEach((t) => {
         actualByCategory[t.category] = (actualByCategory[t.category] || 0) + t.amount;
       });

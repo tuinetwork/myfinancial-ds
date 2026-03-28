@@ -247,7 +247,10 @@ const AddTransactionFAB = () => {
         txData.from_account_id = fromAccountId;
         txData.to_account_id = toAccountId;
         txData.main_category = "โอนเงิน";
-        txData.sub_category = "โอนระหว่างบัญชี";
+        const destAccount = accounts.find(a => a.id === toAccountId);
+        txData.sub_category = (destAccount?.type === 'investment')
+          ? destAccount.name
+          : "โอนระหว่างบัญชี";
 
         if (fromAccountId) balanceUpdates.push({ accountId: fromAccountId, delta: -numAmount });
         if (toAccountId) balanceUpdates.push({ accountId: toAccountId, delta: numAmount });

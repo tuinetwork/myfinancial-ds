@@ -14,6 +14,8 @@ import {
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { getAccounts } from "@/lib/firestore-services";
+import type { Account } from "@/types/finance";
 
 export interface BudgetItem {
   label: string;
@@ -182,6 +184,22 @@ function mapTransaction(docId: string, docData: Record<string, unknown>): Transa
     to_account_id: (docData.to_account_id as string) || undefined,
     tags: (docData.tags as string[]) || undefined,
   };
+}
+
+function enrichTransferCategories(
+  transactions: Transaction[],
+  accounts: Account[]
+): Transaction[] {
+  const accountMap = new Map(accounts.map(a => [a.id, a]));
+  return transactions.map(t => {
+    if (t.type === "โอน" && t.category === "โอนระหว่างบัญชี" && t.to_account_id) {
+      const dest = accountMap.get(t.to_account_id);
+      if (dest && dest.type === "investment") {
+        return { ...t, category: dest.name };
+      }
+    }
+    return t;
+  });
 }
 
 function getPreviousPeriod(period: string): string {
@@ -441,9 +459,10 @@ export function useBudgetData(period?: string) {
         transactionsCollection(userId),
         where("month_year", "==", period)
       );
-      const txSnap = await getDocs(txQuery);
-      const transactions = txSnap.docs.map((d) =>
-        mapTransaction(d.id, d.data() as Record<string, unknown>)
+      const [txSnap, accs] = await Promise.all([getDocs(txQuery), getAccounts(userId)]);
+      const transactions = enrichTransferCategories(
+        txSnap.docs.map((d) => mapTransaction(d.id, d.data() as Record<string, unknown>)),
+        accs
       );
       queryClient.setQueryData(
         ["budget-data", period],
@@ -456,10 +475,11 @@ export function useBudgetData(period?: string) {
       where("month_year", "==", period)
     );
     const unsubTx = onSnapshot(txQuery, async (txSnap) => {
-      const budgetSnap = await getDoc(budgetDocRef);
+      const [budgetSnap, accs] = await Promise.all([getDoc(budgetDocRef), getAccounts(userId)]);
       if (!budgetSnap.exists()) return;
-      const transactions = txSnap.docs.map((d) =>
-        mapTransaction(d.id, d.data() as Record<string, unknown>)
+      const transactions = enrichTransferCategories(
+        txSnap.docs.map((d) => mapTransaction(d.id, d.data() as Record<string, unknown>)),
+        accs
       );
       queryClient.setQueryData(
         ["budget-data", period],
@@ -477,6 +497,7 @@ export function useBudgetData(period?: string) {
     queryKey: ["budget-data", period],
     queryFn: async () => {
       if (!userId) throw new Error("Not authenticated");
+      const accs = await getAccounts(userId);
       const budgetSnap = await getDoc(
         doc(firestore, "users", userId, "budgets", period!)
       );
@@ -492,8 +513,9 @@ export function useBudgetData(period?: string) {
           where("month_year", "==", period!)
         );
         const txSnap2 = await getDocs(txQuery2);
-        const transactions2 = txSnap2.docs.map((d) =>
-          mapTransaction(d.id, d.data() as Record<string, unknown>)
+        const transactions2 = enrichTransferCategories(
+          txSnap2.docs.map((d) => mapTransaction(d.id, d.data() as Record<string, unknown>)),
+          accs
         );
         return parseBudgetDoc(newSnap.data() as Record<string, unknown>, transactions2);
       }
@@ -502,8 +524,9 @@ export function useBudgetData(period?: string) {
         where("month_year", "==", period!)
       );
       const txSnap = await getDocs(txQuery);
-      const transactions = txSnap.docs.map((d) =>
-        mapTransaction(d.id, d.data() as Record<string, unknown>)
+      const transactions = enrichTransferCategories(
+        txSnap.docs.map((d) => mapTransaction(d.id, d.data() as Record<string, unknown>)),
+        accs
       );
       return parseBudgetDoc(
         budgetSnap.data() as Record<string, unknown>,

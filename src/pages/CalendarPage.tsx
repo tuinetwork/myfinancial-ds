@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { getAccounts } from "@/lib/firestore-services";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -290,11 +291,17 @@ const CalendarPage = () => {
 
       // Fetch ALL transactions for installment tx matching across months
       const txCol = collection(firestore, "users", userId, "transactions");
-      getDocs(txCol).then((txSnap) => {
+      Promise.all([getDocs(txCol), getAccounts(userId)]).then(([txSnap, accs]) => {
+        const investMap = new Map(accs.filter(a => a.type === "investment").map(a => [a.id, a.name]));
         const allTxMap: Record<string, TxEntry[]> = {};
         txSnap.forEach((d) => {
           const data = d.data();
-          const subCat = (data.sub_category as string) ?? "";
+          let subCat = (data.sub_category as string) ?? "";
+          // Resolve transfer sub_category to destination account name
+          if (data.type === "transfer" && subCat === "โอนระหว่างบัญชี" && data.to_account_id) {
+            const resolved = investMap.get(data.to_account_id as string);
+            if (resolved) subCat = resolved;
+          }
           const amount = (data.amount as number) ?? 0;
           const date = (data.date as string) ?? "";
           if (subCat && date) {
@@ -312,11 +319,16 @@ const CalendarPage = () => {
     if (!userId || !period) return;
     const txCol = collection(firestore, "users", userId, "transactions");
     const txQ = query(txCol, where("month_year", "==", period));
-    getDocs(txQ).then((txSnap) => {
+    Promise.all([getDocs(txQ), getAccounts(userId)]).then(([txSnap, accs]) => {
+      const investMap = new Map(accs.filter(a => a.type === "investment").map(a => [a.id, a.name]));
       const map: Record<string, TxEntry[]> = {};
       txSnap.forEach((d) => {
         const data = d.data();
-        const subCat = (data.sub_category as string) ?? "";
+        let subCat = (data.sub_category as string) ?? "";
+        if (data.type === "transfer" && subCat === "โอนระหว่างบัญชี" && data.to_account_id) {
+          const resolved = investMap.get(data.to_account_id as string);
+          if (resolved) subCat = resolved;
+        }
         const amount = (data.amount as number) ?? 0;
         const date = (data.date as string) ?? "";
         if (subCat && date) {
