@@ -2,12 +2,22 @@ import { useState, useMemo } from "react";
 import { EyeOff, Eye, AlertTriangle, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
+import { BudgetData, BudgetItem, formatCurrency } from "@/hooks/useBudgetData";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { expandRecurrence } from "@/lib/recurrence";
 
 interface Props {
   data: BudgetData;
+}
+
+/** Get effective monthly budget: multiply per-occurrence amount by occurrences in the month */
+function getMonthlyBudget(item: BudgetItem, period: string): number {
+  if (!item.recurrence || !item.dueDate) return item.budget;
+  const [y, m] = period.split("-").map(Number);
+  if (!y || !m) return item.budget;
+  const occurrences = expandRecurrence(item.dueDate, item.recurrence, y, m, item.startDate, item.endDate).length;
+  return occurrences > 0 ? item.budget * occurrences : item.budget;
 }
 
 export function BudgetBreakdown({ data }: Props) {
@@ -60,7 +70,7 @@ export function BudgetBreakdown({ data }: Props) {
     : baseFiltered;
 
   const totalActual = filtered.reduce((sum, item) => sum + (actualByCategory[item.label] || 0), 0);
-  const totalBudget = filtered.reduce((sum, item) => sum + item.budget, 0);
+  const totalBudget = filtered.reduce((sum, item) => sum + getMonthlyBudget(item, data.period), 0);
 
   // Budget alerts: items over 80% or 100% (exclude income — income over budget is good)
   const incomeLabels = new Set(data.income.map((i) => i.label));
@@ -70,15 +80,17 @@ export function BudgetBreakdown({ data }: Props) {
       .filter((b) => {
         if (incomeLabels.has(b.label)) return false; // skip income
         const actual = actualByCategory[b.label] || 0;
-        return b.budget > 0 && actual >= b.budget * 0.8;
+        const monthly = getMonthlyBudget(b, data.period);
+        return monthly > 0 && actual >= monthly * 0.8;
       })
       .map((b) => {
         const actual = actualByCategory[b.label] || 0;
-        const pct = Math.round((actual / b.budget) * 100);
-        return { label: b.label, actual, budget: b.budget, pct, over: actual > b.budget };
+        const monthly = getMonthlyBudget(b, data.period);
+        const pct = Math.round((actual / monthly) * 100);
+        return { label: b.label, actual, budget: monthly, pct, over: actual > monthly };
       })
       .sort((a, b) => b.pct - a.pct);
-  }, [allBudgets, actualByCategory]);
+  }, [allBudgets, actualByCategory, data.period]);
 
   return (
     <Card className="border-none shadow-sm animate-fade-in" style={{ animationDelay: "640ms" }}>
@@ -142,9 +154,10 @@ export function BudgetBreakdown({ data }: Props) {
         </div>
         {filtered.map((item) => {
           const actual = actualByCategory[item.label] || 0;
-          const rawPct = item.budget > 0 ? (actual / item.budget) * 100 : 0;
+          const monthly = getMonthlyBudget(item, data.period);
+          const rawPct = monthly > 0 ? (actual / monthly) * 100 : 0;
           const pct = Math.min(rawPct, 100);
-          const over = actual > item.budget;
+          const over = actual > monthly;
           const nearLimit = rawPct >= 80 && !over;
           const isIncome = incomeLabels.has(item.label);
 
@@ -174,7 +187,7 @@ export function BudgetBreakdown({ data }: Props) {
                       : over ? "text-expense font-semibold"
                       : "text-muted-foreground"
                   )}>
-                    {formatCurrency(actual)} / {formatCurrency(item.budget)}
+                    {formatCurrency(actual)} / {formatCurrency(monthly)}
                   </span>
                 </span>
               </div>

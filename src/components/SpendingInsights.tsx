@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Lightbulb, TrendingDown, TrendingUp, AlertTriangle, CheckCircle2, PiggyBank } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BudgetData } from "@/hooks/useBudgetData";
+import type { BudgetData, BudgetItem } from "@/hooks/useBudgetData";
+import { expandRecurrence } from "@/lib/recurrence";
 
 interface Props {
   data: BudgetData;
@@ -83,6 +84,13 @@ export function SpendingInsights({ data, carryOver }: Props) {
     }
 
     // 3. Budget overruns
+    const getMonthly = (item: BudgetItem): number => {
+      if (!item.recurrence || !item.dueDate) return item.budget;
+      const [y, m] = data.period.split("-").map(Number);
+      if (!y || !m) return item.budget;
+      const occ = expandRecurrence(item.dueDate, item.recurrence, y, m, item.startDate, item.endDate).length;
+      return occ > 0 ? item.budget * occ : item.budget;
+    };
     const allBudgets = [
       ...data.expenses.general,
       ...data.expenses.bills,
@@ -92,7 +100,8 @@ export function SpendingInsights({ data, carryOver }: Props) {
     ];
     const overBudgetCount = allBudgets.filter((b) => {
       const actual = byCategory[b.label] || 0;
-      return b.budget > 0 && actual > b.budget;
+      const monthly = getMonthly(b);
+      return monthly > 0 && actual > monthly;
     }).length;
 
     if (overBudgetCount > 0) {
