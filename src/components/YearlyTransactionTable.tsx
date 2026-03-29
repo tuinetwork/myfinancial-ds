@@ -191,22 +191,22 @@ export function YearlyTransactionTable({ yearlyData }: Props) {
           ))}
         </div>
       </CardHeader>
-      <CardContent className="px-0">
-        <div className="max-h-96 overflow-auto">
-          <Table>
+      <CardContent className="px-0 pb-0">
+        <div className="max-h-[600px] overflow-auto">
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow className="border-border">
-                <TableHead className={`${headerClass} w-28`} onClick={() => handleSort("date")}>
+                <TableHead className={`${headerClass} w-[12%]`} onClick={() => handleSort("date")}>
                   <span className="flex items-center">วันที่ <SortIcon column="date" /></span>
                 </TableHead>
-                <TableHead className={headerClass} onClick={() => handleSort("type")}>
+                <TableHead className={`${headerClass} w-[15%]`} onClick={() => handleSort("type")}>
                   <span className="flex items-center">ประเภท <SortIcon column="type" /></span>
                 </TableHead>
-                <TableHead className={headerClass} onClick={() => handleSort("category")}>
+                <TableHead className={`${headerClass} w-[20%]`} onClick={() => handleSort("category")}>
                   <span className="flex items-center">หมวดหมู่ <SortIcon column="category" /></span>
                 </TableHead>
                 <TableHead className="text-sm hidden sm:table-cell">รายละเอียด</TableHead>
-                <TableHead className={`${headerClass} text-right`} onClick={() => handleSort("amount")}>
+                <TableHead className={`${headerClass} text-right w-[15%]`} onClick={() => handleSort("amount")}>
                   <span className="flex items-center justify-end">จำนวน <SortIcon column="amount" /></span>
                 </TableHead>
               </TableRow>
