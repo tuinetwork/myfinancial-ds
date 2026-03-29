@@ -215,41 +215,67 @@ function getPreviousPeriod(period: string): string {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
-/** Calculate carry_over from ALL transactions before a given period */
-async function calculateCarryOverFromHistory(userId: string, currentPeriod: string): Promise<number> {
-  const txQuery = query(
-    transactionsCollection(userId),
-    where("month_year", "<", currentPeriod)
-  );
-  const txSnap = await getDocs(txQuery);
-
-  let income = 0;
-  let expenses = 0;
-  txSnap.docs.forEach((d) => {
-    const data = d.data();
-    if (data.type === "transfer") return; // skip transfers
-    if (data.type === "income") {
-      income += (data.amount as number) ?? 0;
-    } else {
-      expenses += (data.amount as number) ?? 0;
-    }
-  });
-
-  return income - expenses;
-}
-
-/** Auto-sync carry_over: calculate from all historical transactions before current month */
+/** Incremental carry_over: use previous month's carry_over + previous month's net income
+ *  Falls back to full scan only when previous month has no carry_over data */
 async function syncCarryOver(userId: string, currentPeriod: string): Promise<void> {
-  const carryOver = await calculateCarryOverFromHistory(userId, currentPeriod);
+  const prevPeriod = getPreviousPeriod(currentPeriod);
+  const prevDocRef = doc(firestore, "users", userId, "budgets", prevPeriod);
+  const prevSnap = await getDoc(prevDocRef);
+
+  let carryOver: number;
+
+  if (prevSnap.exists()) {
+    const prevData = prevSnap.data();
+    const prevCarry = (prevData.carry_over as number) ?? 0;
+
+    // Get only previous month's transactions (not all history)
+    const prevTxQuery = query(
+      transactionsCollection(userId),
+      where("month_year", "==", prevPeriod)
+    );
+    const prevTxSnap = await getDocs(prevTxQuery);
+
+    let prevIncome = 0;
+    let prevExpenses = 0;
+    prevTxSnap.docs.forEach((d) => {
+      const data = d.data();
+      if (data.type === "transfer") return;
+      if (data.type === "income") {
+        prevIncome += (data.amount as number) ?? 0;
+      } else {
+        prevExpenses += (data.amount as number) ?? 0;
+      }
+    });
+
+    carryOver = prevCarry + prevIncome - prevExpenses;
+  } else {
+    // Fallback: full scan for first month or missing data
+    const txQuery = query(
+      transactionsCollection(userId),
+      where("month_year", "<", currentPeriod)
+    );
+    const txSnap = await getDocs(txQuery);
+
+    let income = 0;
+    let expenses = 0;
+    txSnap.docs.forEach((d) => {
+      const data = d.data();
+      if (data.type === "transfer") return;
+      if (data.type === "income") {
+        income += (data.amount as number) ?? 0;
+      } else {
+        expenses += (data.amount as number) ?? 0;
+      }
+    });
+    carryOver = income - expenses;
+  }
 
   const currentDocRef = doc(firestore, "users", userId, "budgets", currentPeriod);
   const currentSnap = await getDoc(currentDocRef);
   if (!currentSnap.exists()) return;
 
-  const currentData = currentSnap.data();
-  const existingCarryOver = (currentData.carry_over as number) ?? 0;
+  const existingCarryOver = (currentSnap.data().carry_over as number) ?? 0;
 
-  // Only write if value changed (avoid unnecessary writes)
   if (Math.abs(existingCarryOver - carryOver) > 0.01) {
     await setDoc(currentDocRef, { carry_over: carryOver }, { merge: true });
   }
@@ -336,7 +362,21 @@ export async function createBudgetFromLatest(userId: string, period: string): Pr
   return true;
 }
 
-/** Fetch available year/month options from budgets collection */
+/** Parse budgets snapshot into MonthOption[] */
+function parseBudgetSnapshotToOptions(snapshot: any): MonthOption[] {
+  const options: MonthOption[] = [];
+  snapshot.forEach((d: any) => {
+    const data = d.data();
+    const period = (data.period as string) ?? d.id;
+    const [year, monthNum] = period.split("-");
+    const monthName = periodToMonthName(period);
+    options.push({ year, month: monthNum, monthName, period, label: `${monthName} ${year}` });
+  });
+  options.sort((a, b) => b.period.localeCompare(a.period));
+  return options;
+}
+
+/** Fetch available year/month options from budgets collection (single shared listener) */
 export function useAvailableMonths() {
   const queryClient = useQueryClient();
   const { userId } = useAuth();
@@ -344,22 +384,9 @@ export function useAvailableMonths() {
   useEffect(() => {
     if (!userId) return;
     const unsubscribe = onSnapshot(budgetsCollection(userId), (snapshot) => {
-      const options: MonthOption[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const period = (data.period as string) ?? doc.id;
-        const [year, monthNum] = period.split("-");
-        const monthName = periodToMonthName(period);
-        options.push({
-          year,
-          month: monthNum,
-          monthName,
-          period,
-          label: `${monthName} ${year}`,
-        });
-      });
-      options.sort((a, b) => b.period.localeCompare(a.period));
+      const options = parseBudgetSnapshotToOptions(snapshot);
       queryClient.setQueryData(["available-months", userId], ensureCurrentMonth(options));
+      queryClient.setQueryData(["available-months-next", userId], ensureUpToNextMonth(options));
     });
     return () => unsubscribe();
   }, [queryClient, userId]);
@@ -369,65 +396,23 @@ export function useAvailableMonths() {
     queryFn: async () => {
       if (!userId) return [];
       const snapshot = await getDocs(budgetsCollection(userId));
-      const options: MonthOption[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const period = (data.period as string) ?? doc.id;
-        const [year, monthNum] = period.split("-");
-        const monthName = periodToMonthName(period);
-        options.push({
-          year,
-          month: monthNum,
-          monthName,
-          period,
-          label: `${monthName} ${year}`,
-        });
-      });
-      options.sort((a, b) => b.period.localeCompare(a.period));
-      return ensureCurrentMonth(options);
+      return ensureCurrentMonth(parseBudgetSnapshotToOptions(snapshot));
     },
     enabled: !!userId,
     staleTime: Infinity,
   });
 }
 
-/** Like useAvailableMonths but includes next month for budget planning */
+/** Like useAvailableMonths but includes next month for budget planning — shares listener with useAvailableMonths */
 export function useAvailableMonthsWithNextMonth() {
-  const queryClient = useQueryClient();
   const { userId } = useAuth();
-
-  useEffect(() => {
-    if (!userId) return;
-    const unsubscribe = onSnapshot(budgetsCollection(userId), (snapshot) => {
-      const options: MonthOption[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const period = (data.period as string) ?? doc.id;
-        const [year, monthNum] = period.split("-");
-        const monthName = periodToMonthName(period);
-        options.push({ year, month: monthNum, monthName, period, label: `${monthName} ${year}` });
-      });
-      options.sort((a, b) => b.period.localeCompare(a.period));
-      queryClient.setQueryData(["available-months-next", userId], ensureUpToNextMonth(options));
-    });
-    return () => unsubscribe();
-  }, [queryClient, userId]);
 
   return useQuery<MonthOption[]>({
     queryKey: ["available-months-next", userId],
     queryFn: async () => {
       if (!userId) return [];
       const snapshot = await getDocs(budgetsCollection(userId));
-      const options: MonthOption[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const period = (data.period as string) ?? doc.id;
-        const [year, monthNum] = period.split("-");
-        const monthName = periodToMonthName(period);
-        options.push({ year, month: monthNum, monthName, period, label: `${monthName} ${year}` });
-      });
-      options.sort((a, b) => b.period.localeCompare(a.period));
-      return ensureUpToNextMonth(options);
+      return ensureUpToNextMonth(parseBudgetSnapshotToOptions(snapshot));
     },
     enabled: !!userId,
     staleTime: Infinity,
@@ -450,6 +435,37 @@ export function useBudgetData(period?: string) {
   useEffect(() => {
     if (!period || !userId) return;
 
+    let latestBudgetData: Record<string, unknown> | null = null;
+    let latestTxDocs: any[] = [];
+    let accountsCache: Account[] | null = null;
+    let accountsFetchPromise: Promise<Account[]> | null = null;
+
+    const getCachedAccounts = async (): Promise<Account[]> => {
+      if (accountsCache) return accountsCache;
+      if (!accountsFetchPromise) {
+        accountsFetchPromise = getAccounts(userId).then((accs) => {
+          accountsCache = accs;
+          // Invalidate cache after 60s to stay fresh
+          setTimeout(() => { accountsCache = null; accountsFetchPromise = null; }, 60000);
+          return accs;
+        });
+      }
+      return accountsFetchPromise;
+    };
+
+    const rebuild = async () => {
+      if (!latestBudgetData) return;
+      const accs = await getCachedAccounts();
+      const transactions = enrichTransferCategories(
+        latestTxDocs.map((d: any) => mapTransaction(d.id, d.data() as Record<string, unknown>)),
+        accs
+      );
+      queryClient.setQueryData(
+        ["budget-data", period],
+        parseBudgetDoc(latestBudgetData, transactions)
+      );
+    };
+
     const budgetDocRef = doc(firestore, "users", userId, "budgets", period);
     const unsubBudget = onSnapshot(budgetDocRef, async (budgetSnap) => {
       if (!budgetSnap.exists()) {
@@ -457,36 +473,19 @@ export function useBudgetData(period?: string) {
         if (!created) return;
         return;
       }
-      const txQuery = query(
-        transactionsCollection(userId),
-        where("month_year", "==", period)
-      );
-      const [txSnap, accs] = await Promise.all([getDocs(txQuery), getAccounts(userId)]);
-      const transactions = enrichTransferCategories(
-        txSnap.docs.map((d) => mapTransaction(d.id, d.data() as Record<string, unknown>)),
-        accs
-      );
-      queryClient.setQueryData(
-        ["budget-data", period],
-        parseBudgetDoc(budgetSnap.data() as Record<string, unknown>, transactions)
-      );
+      latestBudgetData = budgetSnap.data() as Record<string, unknown>;
+      rebuild();
     });
 
     const txQuery = query(
       transactionsCollection(userId),
       where("month_year", "==", period)
     );
-    const unsubTx = onSnapshot(txQuery, async (txSnap) => {
-      const [budgetSnap, accs] = await Promise.all([getDoc(budgetDocRef), getAccounts(userId)]);
-      if (!budgetSnap.exists()) return;
-      const transactions = enrichTransferCategories(
-        txSnap.docs.map((d) => mapTransaction(d.id, d.data() as Record<string, unknown>)),
-        accs
-      );
-      queryClient.setQueryData(
-        ["budget-data", period],
-        parseBudgetDoc(budgetSnap.data() as Record<string, unknown>, transactions)
-      );
+    const unsubTx = onSnapshot(txQuery, (txSnap) => {
+      latestTxDocs = txSnap.docs;
+      accountsCache = null; // refresh accounts on tx change (may have new transfers)
+      accountsFetchPromise = null;
+      rebuild();
     });
 
     return () => {

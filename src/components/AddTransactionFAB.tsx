@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Plus, X, CalendarIcon, ChevronLeft, CircleDot, ArrowRightLeft, Hash } from "lucide-react";
-import { collection, doc, getDocs, query, where, onSnapshot } from "firebase/firestore";
+import { collection, doc, getDocs, query, where, orderBy, limit as fbLimit } from "firebase/firestore";
 import { getDefaultAccount, getAccounts, createTransactionAtomic } from "@/lib/firestore-services";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -77,23 +77,21 @@ const AddTransactionFAB = () => {
 
   const [categories, setCategories] = useState<Record<string, CategoryData>>({});
 
-  // Fetch accounts
+  // Fetch accounts (one-time, refresh when dialog opens)
   useEffect(() => {
-    if (!userId) return;
-    const unsub = onSnapshot(collection(firestore, "users", userId, "accounts"), (snap) => {
-      const accs = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() } as Account))
-        .filter((a) => !a.is_deleted && a.is_active);
-      setAccounts(accs);
-    });
-    return () => unsub();
-  }, [userId]);
+    if (!userId || !open) return;
+    getAccounts(userId).then(setAccounts);
+  }, [userId, open]);
 
-  // Fetch suggested tags from recent transactions
+  // Fetch suggested tags from recent transactions (limited to 100 latest)
   useEffect(() => {
-    if (!userId) return;
-    const txCol = collection(firestore, "users", userId, "transactions");
-    getDocs(txCol).then((snap) => {
+    if (!userId || !open) return;
+    const txQ = query(
+      collection(firestore, "users", userId, "transactions"),
+      orderBy("date", "desc"),
+      fbLimit(100)
+    );
+    getDocs(txQ).then((snap) => {
       const tagCounts: Record<string, number> = {};
       snap.docs.forEach((d) => {
         const data = d.data();
@@ -113,15 +111,13 @@ const AddTransactionFAB = () => {
 
   useEffect(() => {
     if (!userId) return;
-    const catCol = collection(firestore, "users", userId, "categories");
-    const unsubscribe = onSnapshot(catCol, (snap) => {
+    getDocs(collection(firestore, "users", userId, "categories")).then((snap) => {
       const cats: Record<string, CategoryData> = {};
       snap.forEach((d) => {
         cats[d.id] = d.data() as CategoryData;
       });
       setCategories(cats);
     });
-    return () => unsubscribe();
   }, [userId]);
 
   const currentCat = type !== "transfer" ? categories[type] : null;

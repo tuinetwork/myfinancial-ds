@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { collection, onSnapshot, getDocs } from "firebase/firestore";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend } from "recharts";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -190,7 +190,7 @@ function NetWorthTrendChart({ userId, privacyMode, formatBalance }: {
 
   useEffect(() => {
     if (!userId) return;
-    const unsub = onSnapshot(collection(firestore, "users", userId, "transactions"), (snap) => {
+    getDocs(collection(firestore, "users", userId, "transactions")).then((snap) => {
       const monthlyData: Record<string, { income: number; expense: number }> = {};
       snap.forEach((d) => {
         const t = d.data();
@@ -214,9 +214,8 @@ function NetWorthTrendChart({ userId, privacyMode, formatBalance }: {
           netWorth: cumulative,
         };
       });
-      setTrendData(data.slice(-12)); // Last 12 months
+      setTrendData(data.slice(-12));
     });
-    return () => unsub();
   }, [userId]);
 
   if (trendData.length < 2) return null;
@@ -283,10 +282,10 @@ export default function AccountsPage() {
 
   const isMainAccount = (acc: Account) => acc.name === "กระเป๋าเงินสดหลัก";
 
-  // ดึงข้อมูล Transactions เพื่อหา True Net Worth
+  // ดึงข้อมูล Transactions เพื่อหา True Net Worth (one-time read)
   useEffect(() => {
     if (!userId) return;
-    const unsub = onSnapshot(collection(firestore, "users", userId, "transactions"), (snap) => {
+    getDocs(collection(firestore, "users", userId, "transactions")).then((snap) => {
       let income = 0;
       let expense = 0;
       snap.forEach(doc => {
@@ -298,7 +297,6 @@ export default function AccountsPage() {
       });
       setTrueNetWorth(income - expense);
     });
-    return () => unsub();
   }, [userId]);
 
   const handleDelete = async () => {

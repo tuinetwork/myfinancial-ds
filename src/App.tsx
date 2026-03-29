@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,21 +10,32 @@ import { PrivacyProvider } from "@/contexts/PrivacyContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { doc, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
-import Index from "./pages/Index";
-import Transactions from "./pages/Transactions";
-import Analysis from "./pages/Analysis";
-import CalendarPage from "./pages/CalendarPage";
-import Settings from "./pages/Settings";
-import AdminPanel from "./pages/AdminPanel";
-import AccountsPage from "./pages/AccountsPage";
-import InvestmentsPage from "./pages/InvestmentsPage";
-import GoalsPage from "./pages/GoalsPage";
-import DebtPlannerPage from "./pages/DebtPlannerPage";
-import CommandCenter from "./pages/CommandCenter";
-import NotFound from "./pages/NotFound";
 import GoogleLogin from "./components/GoogleLogin";
 import AddTransactionFAB from "./components/AddTransactionFAB";
 import { Loader2, AlertTriangle, X, Megaphone } from "lucide-react";
+
+// Lazy load all page components for code splitting
+const Index = lazy(() => import("./pages/Index"));
+const Transactions = lazy(() => import("./pages/Transactions"));
+const Analysis = lazy(() => import("./pages/Analysis"));
+const CalendarPage = lazy(() => import("./pages/CalendarPage"));
+const Settings = lazy(() => import("./pages/Settings"));
+const AdminPanel = lazy(() => import("./pages/AdminPanel"));
+const AccountsPage = lazy(() => import("./pages/AccountsPage"));
+const InvestmentsPage = lazy(() => import("./pages/InvestmentsPage"));
+const GoalsPage = lazy(() => import("./pages/GoalsPage"));
+const DebtPlannerPage = lazy(() => import("./pages/DebtPlannerPage"));
+const CommandCenter = lazy(() => import("./pages/CommandCenter"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Loading fallback for lazy-loaded pages
+function PageLoader() {
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
 
 // Error Boundary to catch and log component stack
 class ErrorBoundary extends React.Component<
@@ -141,20 +152,22 @@ const AppContent = () => {
       <SidebarProvider>
         <SystemOverlays />
         <div className="min-h-screen flex w-full">
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/analysis" element={<Analysis />} />
-            <Route path="/calendar" element={<CalendarPage />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/admin" element={<AdminPanel />} />
-            <Route path="/accounts" element={<AccountsPage />} />
-            <Route path="/investments" element={<InvestmentsPage />} />
-            <Route path="/goals" element={<GoalsPage />} />
-            <Route path="/debt-planner" element={<DebtPlannerPage />} />
-            <Route path="/command-center" element={<CommandCenter />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/transactions" element={<Transactions />} />
+              <Route path="/analysis" element={<Analysis />} />
+              <Route path="/calendar" element={<CalendarPage />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/accounts" element={<AccountsPage />} />
+              <Route path="/investments" element={<InvestmentsPage />} />
+              <Route path="/goals" element={<GoalsPage />} />
+              <Route path="/debt-planner" element={<DebtPlannerPage />} />
+              <Route path="/command-center" element={<CommandCenter />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
           <AddTransactionFAB />
         </div>
       </SidebarProvider>

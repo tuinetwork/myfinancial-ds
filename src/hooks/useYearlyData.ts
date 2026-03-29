@@ -4,6 +4,9 @@ import {
   collection,
   getDocs,
   onSnapshot,
+  query,
+  where,
+  orderBy,
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { BudgetData, BudgetItem, Transaction } from "./useBudgetData";
@@ -166,32 +169,38 @@ export function useYearlyData(year?: string) {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
 
-  // Real-time listener for yearly data
+  // Real-time listener for yearly data — scoped to selected year only
   useEffect(() => {
     if (!year || !userId) return;
 
-    const budgetsCol = collection(firestore, "users", userId, "budgets");
-    const txCol = collection(firestore, "users", userId, "transactions");
+    const periodStart = `${year}-01`;
+    const periodEnd = `${year}-12`;
 
-    const buildYearlyData = async (budgetSnap: any, txSnap: any) => {
-      const yearBudgets = budgetSnap.docs.filter((d: any) => {
-        const period = (d.data().period as string) ?? d.id;
-        return period.startsWith(year);
-      });
+    // Budgets: filter by document ID range (period field = "YYYY-MM")
+    const budgetsQ = query(
+      collection(firestore, "users", userId, "budgets"),
+      where("period", ">=", periodStart),
+      where("period", "<=", periodEnd)
+    );
+    // Transactions: filter by month_year range
+    const txQ = query(
+      collection(firestore, "users", userId, "transactions"),
+      where("month_year", ">=", periodStart),
+      where("month_year", "<=", periodEnd)
+    );
 
-      if (yearBudgets.length === 0) return;
+    const buildYearlyData = (budgetSnap: any, txSnap: any) => {
+      if (budgetSnap.empty) return;
 
       const txByMonth: Record<string, Transaction[]> = {};
       txSnap.docs.forEach((d: any) => {
         const data = d.data();
         const monthYear = (data.month_year as string) ?? "";
-        if (monthYear.startsWith(year)) {
-          if (!txByMonth[monthYear]) txByMonth[monthYear] = [];
-          txByMonth[monthYear].push(mapTransaction(d.id, data as Record<string, unknown>));
-        }
+        if (!txByMonth[monthYear]) txByMonth[monthYear] = [];
+        txByMonth[monthYear].push(mapTransaction(d.id, data as Record<string, unknown>));
       });
 
-      const monthsData = yearBudgets.map((budgetDoc: any) => {
+      const monthsData = budgetSnap.docs.map((budgetDoc: any) => {
         const data = budgetDoc.data();
         const period = (data.period as string) ?? budgetDoc.id;
         return {
@@ -207,12 +216,12 @@ export function useYearlyData(year?: string) {
     let latestBudgetSnap: any = null;
     let latestTxSnap: any = null;
 
-    const unsubBudgets = onSnapshot(budgetsCol, (snap) => {
+    const unsubBudgets = onSnapshot(budgetsQ, (snap) => {
       latestBudgetSnap = snap;
       if (latestTxSnap) buildYearlyData(snap, latestTxSnap);
     });
 
-    const unsubTx = onSnapshot(txCol, (snap) => {
+    const unsubTx = onSnapshot(txQ, (snap) => {
       latestTxSnap = snap;
       if (latestBudgetSnap) buildYearlyData(latestBudgetSnap, snap);
     });
@@ -227,29 +236,33 @@ export function useYearlyData(year?: string) {
     queryKey: ["yearly-data", year, userId],
     queryFn: async () => {
       if (!userId) throw new Error("Not authenticated");
-      const budgetsCol = collection(firestore, "users", userId, "budgets");
-      const budgetSnap = await getDocs(budgetsCol);
-      
-      const yearBudgets = budgetSnap.docs.filter((d) => {
-        const period = (d.data().period as string) ?? d.id;
-        return period.startsWith(year!);
-      });
 
-      if (yearBudgets.length === 0) throw new Error("No data found");
+      const periodStart = `${year}-01`;
+      const periodEnd = `${year}-12`;
 
-      const txCol = collection(firestore, "users", userId, "transactions");
-      const allTxSnap = await getDocs(txCol);
+      const budgetsQ = query(
+        collection(firestore, "users", userId, "budgets"),
+        where("period", ">=", periodStart),
+        where("period", "<=", periodEnd)
+      );
+      const txQ = query(
+        collection(firestore, "users", userId, "transactions"),
+        where("month_year", ">=", periodStart),
+        where("month_year", "<=", periodEnd)
+      );
+
+      const [budgetSnap, txSnap] = await Promise.all([getDocs(budgetsQ), getDocs(txQ)]);
+      if (budgetSnap.empty) throw new Error("No data found");
+
       const txByMonth: Record<string, Transaction[]> = {};
-      allTxSnap.forEach((d) => {
+      txSnap.forEach((d) => {
         const data = d.data();
         const monthYear = (data.month_year as string) ?? "";
-        if (monthYear.startsWith(year!)) {
-          if (!txByMonth[monthYear]) txByMonth[monthYear] = [];
-          txByMonth[monthYear].push(mapTransaction(d.id, data as Record<string, unknown>));
-        }
+        if (!txByMonth[monthYear]) txByMonth[monthYear] = [];
+        txByMonth[monthYear].push(mapTransaction(d.id, data as Record<string, unknown>));
       });
 
-      const monthsData = yearBudgets.map((budgetDoc) => {
+      const monthsData = budgetSnap.docs.map((budgetDoc) => {
         const data = budgetDoc.data();
         const period = (data.period as string) ?? budgetDoc.id;
         return {

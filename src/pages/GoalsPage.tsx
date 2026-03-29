@@ -126,7 +126,7 @@ function GoalHistoryChart({ goals, userId, privacyMode }: {
     const accountToGoal = new Map<string, string>();
     linkedGoals.forEach((g) => accountToGoal.set(g.linked_account_id!, g.name));
 
-    const unsub = onSnapshot(collection(firestore, "users", userId, "transactions"), (snap) => {
+    getDocs(collection(firestore, "users", userId, "transactions")).then((snap) => {
       const byMonth: Record<string, Record<string, number>> = {};
 
       snap.forEach((d) => {
@@ -151,7 +151,6 @@ function GoalHistoryChart({ goals, userId, privacyMode }: {
       });
       setMonthlyData(data as any);
     });
-    return () => unsub();
   }, [userId, goals]);
 
   const goalNames = goals.filter((g) => g.linked_account_id).map((g) => g.name);

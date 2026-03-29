@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, getDocs } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
@@ -60,10 +60,9 @@ export default function InvestmentsPage() {
 
   useEffect(() => {
     if (!userId) return;
-    const unsub = onSnapshot(collection(firestore, "users", userId, "transactions"), (snap) => {
+    getDocs(collection(firestore, "users", userId, "transactions")).then((snap) => {
       setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
-    return () => unsub();
   }, [userId]);
 
   const fmt = (n: number) => privacyMode ? "***" : n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
