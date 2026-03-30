@@ -176,35 +176,54 @@ export async function createTransactionAtomic(
 ): Promise<void> {
   const txRef = doc(firestore, "users", userId, "transactions", transactionId);
 
-  await runTransaction(firestore, async (transaction) => {
-    // Read all affected accounts first (Firestore requires reads before writes)
-    const accountRefs = balanceUpdates.map((u) =>
-      doc(firestore, "users", userId, "accounts", u.accountId)
-    );
-    const accountSnaps = await Promise.all(
-      accountRefs.map((ref) => transaction.get(ref))
-    );
+  try {
+    await runTransaction(firestore, async (transaction) => {
+      // Read all affected accounts first (Firestore requires reads before writes)
+      const accountRefs = balanceUpdates.map((u) =>
+        doc(firestore, "users", userId, "accounts", u.accountId)
+      );
+      const accountSnaps = await Promise.all(
+        accountRefs.map((ref) => transaction.get(ref))
+      );
 
-    // Validate all accounts exist
-    accountSnaps.forEach((snap, i) => {
-      if (!snap.exists()) {
-        throw new Error(`Account ${balanceUpdates[i].accountId} not found`);
-      }
-    });
+      // Validate all accounts exist
+      accountSnaps.forEach((snap, i) => {
+        if (!snap.exists()) {
+          throw new Error(`Account ${balanceUpdates[i].accountId} not found`);
+        }
+      });
 
-    // Write transaction document
-    transaction.set(txRef, txData);
+      // Write transaction document
+      transaction.set(txRef, txData);
 
-    // Update each account balance atomically
-    accountSnaps.forEach((snap, i) => {
-      const currentBalance = snap.data()!.balance ?? 0;
-      const newBalance = Math.round((currentBalance + balanceUpdates[i].delta) * 100) / 100;
-      transaction.update(accountRefs[i], {
-        balance: newBalance,
-        updated_at: Date.now(),
+      // Update each account balance atomically
+      accountSnaps.forEach((snap, i) => {
+        const currentBalance = snap.data()!.balance ?? 0;
+        const newBalance = Math.round((currentBalance + balanceUpdates[i].delta) * 100) / 100;
+        transaction.update(accountRefs[i], {
+          balance: newBalance,
+          updated_at: Date.now(),
+        });
       });
     });
-  });
+  } catch (err: any) {
+    // Offline fallback: runTransaction fails offline, use direct writes instead
+    // Firestore persistent cache will queue these and sync when back online
+    if (err?.code === "unavailable" || err?.message?.includes("offline")) {
+      await setDoc(txRef, txData);
+      for (const update of balanceUpdates) {
+        const accRef = doc(firestore, "users", userId, "accounts", update.accountId);
+        const accSnap = await getDoc(accRef);
+        if (accSnap.exists()) {
+          const currentBalance = accSnap.data().balance ?? 0;
+          const newBalance = Math.round((currentBalance + update.delta) * 100) / 100;
+          await updateDoc(accRef, { balance: newBalance, updated_at: Date.now() });
+        }
+      }
+    } else {
+      throw err;
+    }
+  }
 }
 
 /**
@@ -217,31 +236,48 @@ export async function deleteTransactionAtomic(
 ): Promise<void> {
   const txRef = doc(firestore, "users", userId, "transactions", transactionId);
 
-  await runTransaction(firestore, async (transaction) => {
-    const txSnap = await transaction.get(txRef);
-    if (!txSnap.exists()) throw new Error("Transaction not found");
+  try {
+    await runTransaction(firestore, async (transaction) => {
+      const txSnap = await transaction.get(txRef);
+      if (!txSnap.exists()) throw new Error("Transaction not found");
 
-    const accountRefs = balanceReversals.map((u) =>
-      doc(firestore, "users", userId, "accounts", u.accountId)
-    );
-    const accountSnaps = await Promise.all(
-      accountRefs.map((ref) => transaction.get(ref))
-    );
+      const accountRefs = balanceReversals.map((u) =>
+        doc(firestore, "users", userId, "accounts", u.accountId)
+      );
+      const accountSnaps = await Promise.all(
+        accountRefs.map((ref) => transaction.get(ref))
+      );
 
-    // Delete transaction
-    transaction.delete(txRef);
+      // Delete transaction
+      transaction.delete(txRef);
 
-    // Reverse balance changes
-    accountSnaps.forEach((snap, i) => {
-      if (!snap.exists()) return;
-      const currentBalance = snap.data()!.balance ?? 0;
-      const newBalance = Math.round((currentBalance + balanceReversals[i].delta) * 100) / 100;
-      transaction.update(accountRefs[i], {
-        balance: newBalance,
-        updated_at: Date.now(),
+      // Reverse balance changes
+      accountSnaps.forEach((snap, i) => {
+        if (!snap.exists()) return;
+        const currentBalance = snap.data()!.balance ?? 0;
+        const newBalance = Math.round((currentBalance + balanceReversals[i].delta) * 100) / 100;
+        transaction.update(accountRefs[i], {
+          balance: newBalance,
+          updated_at: Date.now(),
+        });
       });
     });
-  });
+  } catch (err: any) {
+    if (err?.code === "unavailable" || err?.message?.includes("offline")) {
+      await deleteDoc(txRef);
+      for (const rev of balanceReversals) {
+        const accRef = doc(firestore, "users", userId, "accounts", rev.accountId);
+        const accSnap = await getDoc(accRef);
+        if (accSnap.exists()) {
+          const currentBalance = accSnap.data().balance ?? 0;
+          const newBalance = Math.round((currentBalance + rev.delta) * 100) / 100;
+          await updateDoc(accRef, { balance: newBalance, updated_at: Date.now() });
+        }
+      }
+    } else {
+      throw err;
+    }
+  }
 }
 
 /**
@@ -267,32 +303,50 @@ export async function updateTransactionAtomic(
     allUpdates.set(u.accountId, (allUpdates.get(u.accountId) ?? 0) + u.delta);
   }
 
-  await runTransaction(firestore, async (transaction) => {
-    const txSnap = await transaction.get(txRef);
-    if (!txSnap.exists()) throw new Error("Transaction not found");
+  try {
+    await runTransaction(firestore, async (transaction) => {
+      const txSnap = await transaction.get(txRef);
+      if (!txSnap.exists()) throw new Error("Transaction not found");
 
-    const accountEntries = Array.from(allUpdates.entries());
-    const accountRefs = accountEntries.map(([id]) =>
-      doc(firestore, "users", userId, "accounts", id)
-    );
-    const accountSnaps = await Promise.all(
-      accountRefs.map((ref) => transaction.get(ref))
-    );
+      const accountEntries = Array.from(allUpdates.entries());
+      const accountRefs = accountEntries.map(([id]) =>
+        doc(firestore, "users", userId, "accounts", id)
+      );
+      const accountSnaps = await Promise.all(
+        accountRefs.map((ref) => transaction.get(ref))
+      );
 
-    // Update transaction
-    transaction.update(txRef, { ...updatedFields, updated_at: Date.now() });
+      // Update transaction
+      transaction.update(txRef, { ...updatedFields, updated_at: Date.now() });
 
-    // Apply net balance changes
-    accountSnaps.forEach((snap, i) => {
-      if (!snap.exists()) return;
-      const currentBalance = snap.data()!.balance ?? 0;
-      const netDelta = accountEntries[i][1];
-      if (netDelta === 0) return;
-      const newBalance = Math.round((currentBalance + netDelta) * 100) / 100;
-      transaction.update(accountRefs[i], {
-        balance: newBalance,
-        updated_at: Date.now(),
+      // Apply net balance changes
+      accountSnaps.forEach((snap, i) => {
+        if (!snap.exists()) return;
+        const currentBalance = snap.data()!.balance ?? 0;
+        const netDelta = accountEntries[i][1];
+        if (netDelta === 0) return;
+        const newBalance = Math.round((currentBalance + netDelta) * 100) / 100;
+        transaction.update(accountRefs[i], {
+          balance: newBalance,
+          updated_at: Date.now(),
+        });
       });
     });
-  });
+  } catch (err: any) {
+    if (err?.code === "unavailable" || err?.message?.includes("offline")) {
+      await updateDoc(txRef, { ...updatedFields, updated_at: Date.now() });
+      for (const [accountId, netDelta] of allUpdates.entries()) {
+        if (netDelta === 0) continue;
+        const accRef = doc(firestore, "users", userId, "accounts", accountId);
+        const accSnap = await getDoc(accRef);
+        if (accSnap.exists()) {
+          const currentBalance = accSnap.data().balance ?? 0;
+          const newBalance = Math.round((currentBalance + netDelta) * 100) / 100;
+          await updateDoc(accRef, { balance: newBalance, updated_at: Date.now() });
+        }
+      }
+    } else {
+      throw err;
+    }
+  }
 }
