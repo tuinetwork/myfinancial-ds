@@ -8,6 +8,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { SettingsProvider } from "@/contexts/SettingsContext";
 import { doc, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import GoogleLogin from "./components/GoogleLogin";
@@ -183,11 +184,13 @@ const AppWrapper = () => {
       <TooltipProvider delayDuration={0}>
         <ThemeProvider>
           <AuthProvider>
-            <PrivacyProvider>
-              <ErrorBoundary>
-                <AppContent />
-              </ErrorBoundary>
-            </PrivacyProvider>
+            <SettingsProvider>
+              <PrivacyProvider>
+                <ErrorBoundary>
+                  <AppContent />
+                </ErrorBoundary>
+              </PrivacyProvider>
+            </SettingsProvider>
           </AuthProvider>
         </ThemeProvider>
       </TooltipProvider>

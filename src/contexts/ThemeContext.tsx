@@ -36,15 +36,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [resolvedTheme]);
 
   useEffect(() => {
-    if (theme === "system") return;
-    // Listen for system theme changes when set to "system"
+    if (theme !== "system") return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => {
-      if (theme === "system") {
-        const root = document.documentElement;
-        root.classList.remove("light", "dark");
-        root.classList.add(mq.matches ? "dark" : "light");
-      }
+      const root = document.documentElement;
+      root.classList.remove("light", "dark");
+      root.classList.add(mq.matches ? "dark" : "light");
     };
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
