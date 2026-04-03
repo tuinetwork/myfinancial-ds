@@ -23,12 +23,15 @@ function getPrevPeriod(period: string): string {
   return `${py}-${String(pm).padStart(2, "0")}`;
 }
 
-function ChangeIndicator({ current, previous, label, invertColor = false, tooltip }: {
+type TooltipRow = { label: string; value: string; highlight?: boolean };
+
+function ChangeIndicator({ current, previous, label, invertColor = false, rows, tooltipTitle }: {
   current: number;
   previous: number;
   label: string;
   invertColor?: boolean;
-  tooltip: string;
+  rows: TooltipRow[];
+  tooltipTitle: string;
 }) {
   const diff = current - previous;
   const pct = previous > 0 ? Math.round((diff / previous) * 100) : current > 0 ? 100 : 0;
@@ -64,8 +67,20 @@ function ChangeIndicator({ current, previous, label, invertColor = false, toolti
             <Info className="h-3 w-3 text-muted-foreground/40" />
           </div>
         </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={8} className="max-w-sm whitespace-pre-line z-50">
-          <p className="text-xs leading-relaxed">{tooltip}</p>
+        <TooltipContent side="bottom" sideOffset={16} className="z-[100] p-0 border-border bg-popover shadow-xl rounded-lg">
+          <div className="px-3 py-2 border-b border-border">
+            <p className="text-xs font-semibold text-foreground">{tooltipTitle}</p>
+          </div>
+          <table className="text-xs w-full">
+            <tbody>
+              {rows.map((row, ri) => (
+                <tr key={ri} className={row.highlight ? "bg-muted/50" : ""}>
+                  <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{row.label}</td>
+                  <td className={`px-3 py-1.5 text-right whitespace-nowrap ${row.highlight ? "font-semibold text-foreground" : "text-foreground"}`}>{row.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </TooltipContent>
       </Tooltip>
     </div>
@@ -104,6 +119,7 @@ export function MonthComparison({ data }: Props) {
 
   const currentNet = currentIncome - currentExpense;
   const prevNet = prevData.income - prevData.expense;
+  const fmt = (n: number) => `฿${n.toLocaleString("th-TH")}`;
 
   return (
     <Card className="border-none shadow-sm h-full">
@@ -119,20 +135,36 @@ export function MonthComparison({ data }: Props) {
             current={currentIncome}
             previous={prevData.income}
             label="รายรับ"
-            tooltip={`เดือนนี้: ฿${currentIncome.toLocaleString("th-TH")}\nเดือนก่อน: ฿${prevData.income.toLocaleString("th-TH")}\nผลต่าง: ฿${(currentIncome - prevData.income).toLocaleString("th-TH")}\n\n% = ((${currentIncome.toLocaleString("th-TH")} - ${prevData.income.toLocaleString("th-TH")}) / ${prevData.income.toLocaleString("th-TH")}) × 100`}
+            tooltipTitle="รายรับ — เปรียบเทียบ"
+            rows={[
+              { label: "เดือนนี้", value: fmt(currentIncome), highlight: true },
+              { label: "เดือนก่อน", value: fmt(prevData.income) },
+              { label: "ผลต่าง", value: fmt(currentIncome - prevData.income), highlight: true },
+            ]}
           />
           <ChangeIndicator
             current={currentExpense}
             previous={prevData.expense}
             label="รายจ่าย"
             invertColor
-            tooltip={`เดือนนี้: ฿${currentExpense.toLocaleString("th-TH")}\nเดือนก่อน: ฿${prevData.expense.toLocaleString("th-TH")}\nผลต่าง: ฿${(currentExpense - prevData.expense).toLocaleString("th-TH")}\n\n% = ((${currentExpense.toLocaleString("th-TH")} - ${prevData.expense.toLocaleString("th-TH")}) / ${prevData.expense.toLocaleString("th-TH")}) × 100`}
+            tooltipTitle="รายจ่าย — เปรียบเทียบ"
+            rows={[
+              { label: "เดือนนี้", value: fmt(currentExpense), highlight: true },
+              { label: "เดือนก่อน", value: fmt(prevData.expense) },
+              { label: "ผลต่าง", value: fmt(currentExpense - prevData.expense), highlight: true },
+            ]}
           />
           <ChangeIndicator
             current={currentNet}
             previous={prevNet}
             label="คงเหลือ"
-            tooltip={`เดือนนี้: ฿${currentNet.toLocaleString("th-TH")} (${currentIncome.toLocaleString("th-TH")} - ${currentExpense.toLocaleString("th-TH")})\nเดือนก่อน: ฿${prevNet.toLocaleString("th-TH")} (${prevData.income.toLocaleString("th-TH")} - ${prevData.expense.toLocaleString("th-TH")})\nผลต่าง: ฿${(currentNet - prevNet).toLocaleString("th-TH")}\n\n* ไม่รวมรายการโอนระหว่างบัญชี`}
+            tooltipTitle="คงเหลือ — เปรียบเทียบ"
+            rows={[
+              { label: "เดือนนี้", value: fmt(currentNet), highlight: true },
+              { label: "เดือนก่อน", value: fmt(prevNet) },
+              { label: "ผลต่าง", value: fmt(currentNet - prevNet), highlight: true },
+              { label: "หมายเหตุ", value: "ไม่รวมรายการโอน" },
+            ]}
           />
         </div>
       </CardContent>
