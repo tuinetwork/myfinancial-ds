@@ -184,11 +184,13 @@ const AppWrapper = () => {
       <TooltipProvider delayDuration={0}>
         <ThemeProvider>
           <AuthProvider>
-            <PrivacyProvider>
-              <ErrorBoundary>
-                <AppContent />
-              </ErrorBoundary>
-            </PrivacyProvider>
+            <SettingsProvider>
+              <PrivacyProvider>
+                <ErrorBoundary>
+                  <AppContent />
+                </ErrorBoundary>
+              </PrivacyProvider>
+            </SettingsProvider>
           </AuthProvider>
         </ThemeProvider>
       </TooltipProvider>
