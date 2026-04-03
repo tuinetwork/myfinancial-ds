@@ -238,7 +238,11 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
                     {card.rows.map((row, ri) => (
                       <tr key={ri} className={row.highlight ? "bg-muted/50" : ""}>
                         <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{row.label}</td>
-                        <td className={`px-3 py-1.5 text-right whitespace-nowrap ${row.highlight ? "font-semibold text-foreground" : "text-foreground"}`}>{row.value}</td>
+                        <td className={`px-3 py-1.5 text-right whitespace-nowrap ${
+                          row.color === "green" ? "font-semibold text-emerald-500" :
+                          row.color === "red" ? "font-semibold text-red-500" :
+                          row.highlight ? "font-semibold text-foreground" : "text-foreground"
+                        }`}>{row.value}</td>
                       </tr>
                     ))}
                   </tbody>
