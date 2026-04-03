@@ -67,7 +67,7 @@ function ChangeIndicator({ current, previous, label, invertColor = false, rows, 
             <Info className="h-3 w-3 text-muted-foreground/40" />
           </div>
         </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={16} collisionPadding={20} className="z-[9999] p-0 border-border bg-popover shadow-xl rounded-lg">
+        <TooltipContent side="bottom" sideOffset={16} collisionPadding={20} className="p-0 border-border bg-popover shadow-xl rounded-lg">
           <div className="px-3 py-2 border-b border-border">
             <p className="text-xs font-semibold text-foreground">{tooltipTitle}</p>
           </div>
