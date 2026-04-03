@@ -117,6 +117,8 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
     ? ((actualNonIncome - totalExpenseBudget) / totalExpenseBudget) * 100
     : 0;
 
+  const fmtC = (n: number) => formatCurrency(Math.abs(n));
+
   const cards = [
     {
       title: "รายรับ",
@@ -128,8 +130,8 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
       sparkData: sparklines.income,
       sparkType: "line" as const,
       tooltip: includeCarryOver
-        ? `ยอดรวม = รายรับจริง (${formatCurrency(actualIncome)}) + ยอดยกมา (${formatCurrency(carryOver)})\n% = ((ยอดรวม - งบประมาณ) / งบประมาณ) × 100`
-        : `ยอดรวม = รายรับจริง (ไม่รวมยอดยกมา)\n% = ((รายรับจริง - งบประมาณ) / งบประมาณ) × 100`,
+        ? `รายรับจริง: ${fmtC(actualIncome)}\nยอดยกมา: ${fmtC(carryOver)}\nยอดรวม: ${fmtC(actualIncome)} + ${fmtC(carryOver)} = ${fmtC(displayIncome)}\n\nงบประมาณรายรับ: ${fmtC(totalIncome)}\n% = ((${fmtC(displayIncome)} - ${fmtC(totalIncome)}) / ${fmtC(totalIncome)}) × 100 = ${incomePct.toFixed(1)}%`
+        : `รายรับจริง: ${fmtC(actualIncome)} (ไม่รวมยอดยกมา)\n\nงบประมาณรายรับ: ${fmtC(totalIncome)}\n% = ((${fmtC(actualIncome)} - ${fmtC(totalIncome)}) / ${fmtC(totalIncome)}) × 100 = ${incomePct.toFixed(1)}%`,
     },
     {
       title: "รายจ่าย",
@@ -140,7 +142,7 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
       gradient: "from-[hsl(180,70%,50%)] to-[hsl(180,70%,42%)]",
       sparkData: sparklines.expense,
       sparkType: "line" as const,
-      tooltip: `ยอดรวม = รายจ่ายจริง (ไม่รวมรายการโอน)\n% = ((รายจ่ายจริง - งบประมาณ) / งบประมาณ) × 100`,
+      tooltip: `รายจ่ายจริง: ${fmtC(actualNonIncome)} (ไม่รวมรายการโอน)\n\nงบประมาณรายจ่าย: ${fmtC(totalExpenseBudget)}\n% = ((${fmtC(actualNonIncome)} - ${fmtC(totalExpenseBudget)}) / ${fmtC(totalExpenseBudget)}) × 100 = ${expensePct.toFixed(1)}%`,
     },
     {
       title: "คงเหลือสุทธิ",
@@ -154,8 +156,8 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
       sparkData: sparklines.net,
       sparkType: "bar" as const,
       tooltip: includeCarryOver
-        ? `คงเหลือ = รายรับจริง + ยอดยกมา - รายจ่ายจริง\n(ไม่รวมรายการโอนระหว่างบัญชี)`
-        : `คงเหลือ = รายรับจริง - รายจ่ายจริง\n(ไม่รวมรายการโอนระหว่างบัญชี)`,
+        ? `คงเหลือ = รายรับจริง + ยอดยกมา - รายจ่ายจริง\n= ${fmtC(actualIncome)} + ${fmtC(carryOver)} - ${fmtC(actualNonIncome)}\n= ${fmtC(netBalance)}\n\n* ไม่รวมรายการโอนระหว่างบัญชี`
+        : `คงเหลือ = รายรับจริง - รายจ่ายจริง\n= ${fmtC(actualIncome)} - ${fmtC(actualNonIncome)}\n= ${fmtC(netBalance)}\n\n* ไม่รวมรายการโอนระหว่างบัญชี`,
     },
   ];
 
