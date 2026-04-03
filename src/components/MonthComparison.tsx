@@ -64,8 +64,8 @@ function ChangeIndicator({ current, previous, label, invertColor = false, toolti
             <Info className="h-3 w-3 text-muted-foreground/40" />
           </div>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-xs">
-          <p className="text-xs">{tooltip}</p>
+        <TooltipContent side="bottom" sideOffset={8} className="max-w-sm whitespace-pre-line z-50">
+          <p className="text-xs leading-relaxed">{tooltip}</p>
         </TooltipContent>
       </Tooltip>
     </div>
