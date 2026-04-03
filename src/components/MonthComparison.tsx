@@ -123,7 +123,10 @@ export function MonthComparison({ data }: Props) {
 
   const currentNet = currentIncome - currentExpense;
   const prevNet = prevData.income - prevData.expense;
-  const fmt = (n: number) => `฿${n.toLocaleString("th-TH")}`;
+  const incomeDiff = currentIncome - prevData.income;
+  const expenseDiff = currentExpense - prevData.expense;
+  const netDiff = currentNet - prevNet;
+  const fmt = (n: number) => `฿${Math.abs(n).toLocaleString("th-TH")}`;
 
   return (
     <Card className="border-none shadow-sm h-full">
