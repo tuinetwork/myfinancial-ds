@@ -229,7 +229,7 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
                   <Info className="h-3 w-3 opacity-50" />
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={8} avoidCollisions className="z-[200] p-0 border-border bg-popover shadow-xl rounded-lg">
+              <TooltipContent side="bottom" sideOffset={20} collisionPadding={20} className="z-[9999] p-0 border-border bg-popover shadow-xl rounded-lg">
                 <div className="px-3 py-2 border-b border-border">
                   <p className="text-xs font-semibold text-foreground">{card.title} — คำอธิบาย</p>
                 </div>
