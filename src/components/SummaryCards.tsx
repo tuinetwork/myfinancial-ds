@@ -191,8 +191,8 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
                   <Info className="h-3 w-3 opacity-50" />
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-xs whitespace-pre-line">
-                <p className="text-xs">{card.tooltip}</p>
+              <TooltipContent side="bottom" sideOffset={12} className="max-w-sm whitespace-pre-line z-50">
+                <p className="text-xs leading-relaxed">{card.tooltip}</p>
               </TooltipContent>
             </Tooltip>
           </CardContent>
