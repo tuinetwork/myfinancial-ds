@@ -143,7 +143,7 @@ export function MonthComparison({ data }: Props) {
             rows={[
               { label: "เดือนนี้", value: fmt(currentIncome), highlight: true },
               { label: "เดือนก่อน", value: fmt(prevData.income) },
-              { label: "ผลต่าง", value: fmt(currentIncome - prevData.income), highlight: true },
+              { label: "ผลต่าง", value: `${incomeDiff >= 0 ? "+" : ""}${fmt(incomeDiff)}`, highlight: true, color: incomeDiff >= 0 ? "green" : "red" },
             ]}
           />
           <ChangeIndicator
@@ -155,7 +155,7 @@ export function MonthComparison({ data }: Props) {
             rows={[
               { label: "เดือนนี้", value: fmt(currentExpense), highlight: true },
               { label: "เดือนก่อน", value: fmt(prevData.expense) },
-              { label: "ผลต่าง", value: fmt(currentExpense - prevData.expense), highlight: true },
+              { label: "ผลต่าง", value: `${expenseDiff >= 0 ? "+" : ""}${fmt(expenseDiff)}`, highlight: true, color: expenseDiff > 0 ? "red" : "green" },
             ]}
           />
           <ChangeIndicator
@@ -166,7 +166,7 @@ export function MonthComparison({ data }: Props) {
             rows={[
               { label: "เดือนนี้", value: fmt(currentNet), highlight: true },
               { label: "เดือนก่อน", value: fmt(prevNet) },
-              { label: "ผลต่าง", value: fmt(currentNet - prevNet), highlight: true },
+              { label: "ผลต่าง", value: `${netDiff >= 0 ? "+" : ""}${fmt(netDiff)}`, highlight: true, color: netDiff >= 0 ? "green" : "red" },
               { label: "หมายเหตุ", value: "ไม่รวมรายการโอน" },
             ]}
           />
