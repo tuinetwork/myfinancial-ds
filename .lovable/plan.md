@@ -1,60 +1,53 @@
 
 
-## แผน: ซิงค์ข้อมูลรายการซ้ำจากเดือนต้นทาง
+## Plan: สร้างหน้าตั้งค่าแบบ Modal + สวิตช์ยอดยกมา + คำอธิบายตัวเลข
 
-### ปัญหา
-เมื่อตั้งค่ารายการซ้ำ (เช่น "ออมแชร์") ในเดือนหนึ่ง แต่เปลี่ยนไปดูเดือนอื่น ข้อมูลจะไม่ตรงกัน เพราะแต่ละเดือนเก็บสำเนาข้อมูลแยกกัน ทำให้:
-- วันกำหนดชำระ, วันสิ้นสุด, จำนวนงวด ต่างกันระหว่างเดือน
-- แก้ไขข้อมูลในเดือนหนึ่งไม่กระทบเดือนอื่น
+### สรุปสิ่งที่จะทำ
 
-### แนวทางแก้ไข
-กำหนดให้ **เดือนที่ start_date ตกอยู่** เป็น "เดือนต้นทาง" (Source Month) ที่เป็นแหล่งข้อมูลหลัก:
+1. **เปลี่ยนหน้าตั้งค่าเป็น Dialog/Modal แบบลอย** พร้อมพื้นหลังเบลอ แทนที่จะเป็นหน้าเต็ม
+2. **เพิ่มสวิตช์เปิด-ปิด "รวมยอดยกมา"** ที่บันทึกการตั้งค่าลง Firestore และส่งผลต่อการแสดงผลทั้งมุมมองรายเดือนและรายปี
+3. **เพิ่มคำอธิบายตัวเลข (Tooltip/ข้อความ)** บน Summary Cards และ MonthComparison เพื่ออธิบายว่าตัวเลขแต่ละจุดคิดมาจากอะไร
+4. **แก้ build error** ใน ThemeContext.tsx
 
-1. **แก้ไขได้เฉพาะเดือนต้นทาง** — รายการซ้ำที่มี start_date จะแก้ไขได้เฉพาะในเดือนที่ start_date ตกอยู่เท่านั้น
-2. **เดือนอื่นดึงข้อมูลจากเดือนต้นทาง** — เมื่อโหลดงบเดือนอื่น ระบบจะตรวจสอบรายการซ้ำที่มี start_date ต่างเดือน แล้วดึงข้อมูล (amount, due_date, recurrence, start_date, end_date) จากเอกสารงบของเดือนต้นทาง
-3. **บันทึกแบบกระจาย** — เมื่อแก้ไขและบันทึกในเดือนต้นทาง ระบบจะอัปเดตเอกสารงบของเดือนอื่น ๆ ที่อยู่ในช่วง start_date → end_date ด้วย
+---
 
 ### รายละเอียดทางเทคนิค
 
-**ไฟล์: `src/pages/Settings.tsx`**
+#### 1. แก้ Build Error — `ThemeContext.tsx`
+- บรรทัด 43: `if (theme === "system")` อยู่ภายใน block ที่ `if (theme === "system") return;` ทำให้ TypeScript เห็นว่า theme ไม่มีทางเป็น "system" — แก้โดยลบ early return ที่บรรทัด 39 แล้วใช้เงื่อนไขใน handler แทน หรือเปลี่ยน early return เป็น `if (theme !== "system") return;`
 
-#### 1. ฟังก์ชัน `getSourcePeriod(startDate)` (ใหม่)
-- คำนวณ period (YYYY-MM) จาก start_date เพื่อระบุเดือนต้นทาง
+#### 2. เปลี่ยน Settings เป็น Modal
+- **`UserProfilePopover.tsx`**: เปลี่ยนปุ่ม "ตั้งค่า" จาก `navigate("/settings")` เป็นเปิด Dialog state
+- **สร้าง `src/components/SettingsDialog.tsx`**: คอมโพเนนต์ใหม่ที่ใช้ `Dialog` จาก shadcn/ui พร้อม `backdrop-blur-md` overlay ข้างในจัดเป็นแท็บย่อย (เหมือนเดิม) แต่ย่อลงให้เหมาะกับ modal
+- **ลบ route `/settings`** จาก App.tsx (หรือ redirect ไปหน้าหลัก)
+- ย้ายเฉพาะ logic ที่จำเป็นจาก Settings.tsx เข้า SettingsDialog (สวิตช์ตั้งค่าทั่วไป + หน้าตั้งค่าหลักยังเปิดได้ถ้าต้องการ)
 
-#### 2. แก้ไข `useEffect` สำหรับโหลดข้อมูลงบ
-- หลังโหลดข้อมูลงบของเดือนที่เลือก
-- สำหรับแต่ละรายการซ้ำที่มี start_date:
-  - คำนวณ sourcePeriod = `YYYY-MM` ของ start_date
-  - ถ้า sourcePeriod ≠ เดือนที่เลือก → ดึงเอกสารงบจาก sourcePeriod
-  - แทนที่ข้อมูล (amount, due_date, recurrence, start_date, end_date) ด้วยค่าจากเดือนต้นทาง
+#### 3. สวิตช์ "รวมยอดยกมา" (Include Carry-Over)
+- เก็บค่าตั้งค่าใน Firestore: `users/{uid}/settings/preferences` → `{ include_carry_over: boolean }`
+- สร้าง **Context** ใหม่ `src/contexts/SettingsContext.tsx` เพื่อ provide ค่า `includeCarryOver` ทั่วทั้งแอป
+- **`SummaryCards.tsx`**: ถ้า `includeCarryOver === false` → การ์ดรายรับแสดงแค่ `actualIncome` (ไม่รวม carryOver), คงเหลือสุทธิ = `actualIncome - actualNonIncome`
+- **`YearlyView`**: ใช้ค่าเดียวกันจาก context
 
-#### 3. แก้ไขเงื่อนไข `isLocked`
-- เพิ่มเงื่อนไข: ล็อคแก้ไขเมื่อ sourcePeriod ≠ เดือนที่กำลังดู
-- เดือนต้นทาง → ใช้ปุ่มล็อค/ปลดล็อคปกติ
-- เดือนอื่น → ล็อคถาวร (ไม่มีปุ่มปลดล็อค)
+#### 4. คำอธิบายตัวเลข
+เพิ่ม Tooltip หรือข้อความอธิบายที่ตัวเลขสำคัญ:
 
-#### 4. แก้ไข `handleSave`
-- เมื่อบันทึกในเดือนต้นทาง:
-  - สำหรับแต่ละรายการซ้ำที่มี start_date + end_date
-  - คำนวณเดือนทั้งหมดในช่วง (start → end)
-  - อัปเดตเอกสารงบของแต่ละเดือนด้วยข้อมูลล่าสุด
+- **การ์ดรายรับ**: "↓ 92.8% รวมยกยอด ฿1,357.62" → เพิ่ม tooltip: *"เปอร์เซ็นต์คำนวณจาก ((รายรับจริง + ยอดยกมา) - งบประมาณรายรับ) / งบประมาณรายรับ × 100"*
+- **การ์ดรายจ่าย**: "↓ 94.1% งบประมาณ ฿18,754.57" → tooltip: *"เปอร์เซ็นต์คำนวณจาก (รายจ่ายจริง - งบประมาณรายจ่าย) / งบประมาณรายจ่าย × 100"*
+- **การ์ดคงเหลือสุทธิ**: tooltip: *"คงเหลือสุทธิ = รายรับจริง + ยอดยกมา - รายจ่ายจริง (ไม่รวมรายการโอน)"*
+- **เปรียบเทียบเดือนก่อน**: แต่ละช่อง (รายรับ, รายจ่าย, คงเหลือ) → tooltip: *"เปอร์เซ็นต์เปลี่ยนแปลง = (เดือนนี้ - เดือนก่อน) / เดือนก่อน × 100"*
 
-### ลำดับการทำงาน
-```
-โหลดงบเดือน X:
-  สำหรับแต่ละรายการย่อย:
-    ถ้ามี start_date:
-      sourcePeriod = YYYY-MM ของ start_date
-      ถ้า sourcePeriod ≠ X:
-        ดึงข้อมูลจากเอกสาร budgets/sourcePeriod
-        แทนที่ค่า amount, due_date, recurrence, start_date, end_date
+---
 
-บันทึกงบเดือน X:
-  สำหรับแต่ละรายการซ้ำ:
-    ถ้า X = sourcePeriod:
-      อัปเดตเอกสารงบทุกเดือนในช่วง start → end
-```
+### ไฟล์ที่ต้องแก้ไข/สร้าง
 
-### ขอบเขตการแก้ไข
-- 1 ไฟล์: `src/pages/Settings.tsx`
-- เพิ่ม ~50 บรรทัด (ฟังก์ชัน sync + แก้ไข useEffect + แก้ไข handleSave)
+| ไฟล์ | การเปลี่ยนแปลง |
+|---|---|
+| `src/contexts/ThemeContext.tsx` | แก้ build error บรรทัด 39-43 |
+| `src/contexts/SettingsContext.tsx` | **สร้างใหม่** — provide `includeCarryOver` + toggle |
+| `src/components/SettingsDialog.tsx` | **สร้างใหม่** — Modal ตั้งค่าพร้อมสวิตช์ |
+| `src/components/UserProfilePopover.tsx` | เปลี่ยนปุ่มตั้งค่าเปิด Dialog แทน navigate |
+| `src/components/SummaryCards.tsx` | ใช้ `includeCarryOver` + เพิ่ม Tooltip คำอธิบาย |
+| `src/components/MonthComparison.tsx` | เพิ่ม Tooltip คำอธิบายสูตรคำนวณ |
+| `src/App.tsx` | ห่อด้วย `SettingsProvider` |
+| `src/pages/Index.tsx` | ส่ง `includeCarryOver` ไปยัง SummaryCards |
+
