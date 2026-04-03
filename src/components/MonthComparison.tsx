@@ -23,7 +23,7 @@ function getPrevPeriod(period: string): string {
   return `${py}-${String(pm).padStart(2, "0")}`;
 }
 
-type TooltipRow = { label: string; value: string; highlight?: boolean };
+type TooltipRow = { label: string; value: string; highlight?: boolean; color?: "green" | "red" };
 
 function ChangeIndicator({ current, previous, label, invertColor = false, rows, tooltipTitle }: {
   current: number;
