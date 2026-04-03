@@ -39,37 +39,35 @@ function ChangeIndicator({ current, previous, label, invertColor = false, toolti
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-1">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Info className="h-3 w-3 text-muted-foreground/50 cursor-help hover:text-muted-foreground transition-colors" />
-          </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-xs">
-            <p className="text-xs">{tooltip}</p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
+      <p className="text-xs text-muted-foreground">{label}</p>
       <p className="text-lg font-bold font-display">{formatCurrency(current)}</p>
-      <div className="flex items-center gap-1 text-xs">
-        {isZero ? (
-          <>
-            <Minus className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">ไม่เปลี่ยนแปลง</span>
-          </>
-        ) : (
-          <>
-            {isUp ? (
-              <ArrowUpRight className={cn("h-3 w-3", isPositive ? "text-accent" : "text-destructive")} />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-1 text-xs cursor-help">
+            {isZero ? (
+              <>
+                <Minus className="h-3 w-3 text-muted-foreground" />
+                <span className="text-muted-foreground">ไม่เปลี่ยนแปลง</span>
+              </>
             ) : (
-              <ArrowDownRight className={cn("h-3 w-3", isPositive ? "text-accent" : "text-destructive")} />
+              <>
+                {isUp ? (
+                  <ArrowUpRight className={cn("h-3 w-3", isPositive ? "text-accent" : "text-destructive")} />
+                ) : (
+                  <ArrowDownRight className={cn("h-3 w-3", isPositive ? "text-accent" : "text-destructive")} />
+                )}
+                <span className={cn(isPositive ? "text-accent" : "text-destructive")}>
+                  {isUp ? "+" : ""}{pct}% ({isUp ? "+" : ""}{formatCurrency(diff)})
+                </span>
+              </>
             )}
-            <span className={cn(isPositive ? "text-accent" : "text-destructive")}>
-              {isUp ? "+" : ""}{pct}% ({isUp ? "+" : ""}{formatCurrency(diff)})
-            </span>
-          </>
-        )}
-      </div>
+            <Info className="h-3 w-3 text-muted-foreground/40" />
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          <p className="text-xs">{tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 }

@@ -170,31 +170,29 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
           <CardContent className="p-4 sm:p-5 relative z-10">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium opacity-90">{card.title}</span>
-              <div className="flex items-center gap-1">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 opacity-60 cursor-help hover:opacity-100 transition-opacity" />
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs whitespace-pre-line">
-                    <p className="text-xs">{card.tooltip}</p>
-                  </TooltipContent>
-                </Tooltip>
-                <card.icon className="h-4 w-4 sm:h-5 sm:w-5 opacity-70" />
-              </div>
+              <card.icon className="h-4 w-4 sm:h-5 sm:w-5 opacity-70" />
             </div>
             <p className="text-2xl sm:text-3xl font-bold font-display tracking-tight">
               {formatCurrency(Math.abs(card.primary))}
             </p>
-            <div className="flex items-center gap-1.5 mt-2">
-              {card.pct !== 0 && (
-                <span className={`text-xs font-semibold ${card.pct > 0 ? "text-white/90" : "text-white/90"}`}>
-                  {card.pct > 0 ? "↑" : "↓"} {Math.abs(card.pct).toFixed(1)}%
-                </span>
-              )}
-              <span className="text-xs opacity-75">
-                {card.pctLabel}
-              </span>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1.5 mt-2 cursor-help">
+                  {card.pct !== 0 && (
+                    <span className={`text-xs font-semibold text-white/90`}>
+                      {card.pct > 0 ? "↑" : "↓"} {Math.abs(card.pct).toFixed(1)}%
+                    </span>
+                  )}
+                  <span className="text-xs opacity-75">
+                    {card.pctLabel}
+                  </span>
+                  <Info className="h-3 w-3 opacity-50" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs whitespace-pre-line">
+                <p className="text-xs">{card.tooltip}</p>
+              </TooltipContent>
+            </Tooltip>
           </CardContent>
           <MiniSparkline data={card.sparkData} type={card.sparkType} />
           {/* Decorative background shape */}
