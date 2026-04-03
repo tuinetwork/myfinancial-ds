@@ -119,20 +119,20 @@ export function MonthComparison({ data }: Props) {
             current={currentIncome}
             previous={prevData.income}
             label="รายรับ"
-            tooltip="เปอร์เซ็นต์ = (รายรับเดือนนี้ - รายรับเดือนก่อน) / รายรับเดือนก่อน × 100"
+            tooltip={`เดือนนี้: ฿${currentIncome.toLocaleString("th-TH")}\nเดือนก่อน: ฿${prevData.income.toLocaleString("th-TH")}\nผลต่าง: ฿${(currentIncome - prevData.income).toLocaleString("th-TH")}\n\n% = ((${currentIncome.toLocaleString("th-TH")} - ${prevData.income.toLocaleString("th-TH")}) / ${prevData.income.toLocaleString("th-TH")}) × 100`}
           />
           <ChangeIndicator
             current={currentExpense}
             previous={prevData.expense}
             label="รายจ่าย"
             invertColor
-            tooltip="เปอร์เซ็นต์ = (รายจ่ายเดือนนี้ - รายจ่ายเดือนก่อน) / รายจ่ายเดือนก่อน × 100"
+            tooltip={`เดือนนี้: ฿${currentExpense.toLocaleString("th-TH")}\nเดือนก่อน: ฿${prevData.expense.toLocaleString("th-TH")}\nผลต่าง: ฿${(currentExpense - prevData.expense).toLocaleString("th-TH")}\n\n% = ((${currentExpense.toLocaleString("th-TH")} - ${prevData.expense.toLocaleString("th-TH")}) / ${prevData.expense.toLocaleString("th-TH")}) × 100`}
           />
           <ChangeIndicator
             current={currentNet}
             previous={prevNet}
             label="คงเหลือ"
-            tooltip="คงเหลือ = รายรับ - รายจ่าย (ไม่รวมโอน) | เปอร์เซ็นต์ = (เดือนนี้ - เดือนก่อน) / เดือนก่อน × 100"
+            tooltip={`เดือนนี้: ฿${currentNet.toLocaleString("th-TH")} (${currentIncome.toLocaleString("th-TH")} - ${currentExpense.toLocaleString("th-TH")})\nเดือนก่อน: ฿${prevNet.toLocaleString("th-TH")} (${prevData.income.toLocaleString("th-TH")} - ${prevData.expense.toLocaleString("th-TH")})\nผลต่าง: ฿${(currentNet - prevNet).toLocaleString("th-TH")}\n\n* ไม่รวมรายการโอนระหว่างบัญชี`}
           />
         </div>
       </CardContent>
