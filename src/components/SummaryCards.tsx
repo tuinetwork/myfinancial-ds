@@ -120,7 +120,9 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
   const fmtC = (n: number) => formatCurrency(Math.abs(n));
   const fmtN = (n: number) => n.toLocaleString("th-TH");
 
-  type TooltipRow = { label: string; value: string; highlight?: boolean };
+  type TooltipRow = { label: string; value: string; highlight?: boolean; color?: "green" | "red" };
+
+  const pctColor = (v: number): "green" | "red" | undefined => v > 0 ? "green" : v < 0 ? "red" : undefined;
 
   const incomeRows: TooltipRow[] = includeCarryOver
     ? [
@@ -129,13 +131,13 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
         { label: "ยอดรวม", value: fmtC(displayIncome), highlight: true },
         { label: "งบประมาณ", value: fmtC(totalIncome) },
         { label: "สูตร %", value: `((${fmtN(displayIncome)} - ${fmtN(totalIncome)}) / ${fmtN(totalIncome)}) × 100` },
-        { label: "ผลลัพธ์", value: `${incomePct.toFixed(1)}%`, highlight: true },
+        { label: "ผลลัพธ์", value: `${incomePct >= 0 ? "+" : ""}${incomePct.toFixed(1)}%`, highlight: true, color: pctColor(incomePct) },
       ]
     : [
         { label: "รายรับจริง", value: fmtC(actualIncome), highlight: true },
         { label: "งบประมาณ", value: fmtC(totalIncome) },
         { label: "สูตร %", value: `((${fmtN(actualIncome)} - ${fmtN(totalIncome)}) / ${fmtN(totalIncome)}) × 100` },
-        { label: "ผลลัพธ์", value: `${incomePct.toFixed(1)}%`, highlight: true },
+        { label: "ผลลัพธ์", value: `${incomePct >= 0 ? "+" : ""}${incomePct.toFixed(1)}%`, highlight: true, color: pctColor(incomePct) },
       ];
 
   const expenseRows: TooltipRow[] = [
@@ -143,7 +145,7 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
     { label: "หมายเหตุ", value: "ไม่รวมรายการโอน" },
     { label: "งบประมาณ", value: fmtC(totalExpenseBudget) },
     { label: "สูตร %", value: `((${fmtN(actualNonIncome)} - ${fmtN(totalExpenseBudget)}) / ${fmtN(totalExpenseBudget)}) × 100` },
-    { label: "ผลลัพธ์", value: `${expensePct.toFixed(1)}%`, highlight: true },
+    { label: "ผลลัพธ์", value: `${expensePct >= 0 ? "+" : ""}${expensePct.toFixed(1)}%`, highlight: true, color: expensePct > 0 ? "red" : "green" },
   ];
 
   const netRows: TooltipRow[] = includeCarryOver
@@ -151,13 +153,13 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
         { label: "รายรับจริง", value: fmtC(actualIncome) },
         { label: "ยอดยกมา", value: fmtC(carryOver) },
         { label: "รายจ่ายจริง", value: fmtC(actualNonIncome) },
-        { label: "คงเหลือสุทธิ", value: fmtC(netBalance), highlight: true },
+        { label: "คงเหลือสุทธิ", value: `${netBalance >= 0 ? "+" : "-"}${fmtC(netBalance)}`, highlight: true, color: pctColor(netBalance) },
         { label: "หมายเหตุ", value: "ไม่รวมรายการโอนระหว่างบัญชี" },
       ]
     : [
         { label: "รายรับจริง", value: fmtC(actualIncome) },
         { label: "รายจ่ายจริง", value: fmtC(actualNonIncome) },
-        { label: "คงเหลือสุทธิ", value: fmtC(netBalance), highlight: true },
+        { label: "คงเหลือสุทธิ", value: `${netBalance >= 0 ? "+" : "-"}${fmtC(netBalance)}`, highlight: true, color: pctColor(netBalance) },
         { label: "หมายเหตุ", value: "ไม่รวมรายการโอนระหว่างบัญชี" },
       ];
 
@@ -236,7 +238,11 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
                     {card.rows.map((row, ri) => (
                       <tr key={ri} className={row.highlight ? "bg-muted/50" : ""}>
                         <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{row.label}</td>
-                        <td className={`px-3 py-1.5 text-right whitespace-nowrap ${row.highlight ? "font-semibold text-foreground" : "text-foreground"}`}>{row.value}</td>
+                        <td className={`px-3 py-1.5 text-right whitespace-nowrap ${
+                          row.color === "green" ? "font-semibold text-emerald-500" :
+                          row.color === "red" ? "font-semibold text-red-500" :
+                          row.highlight ? "font-semibold text-foreground" : "text-foreground"
+                        }`}>{row.value}</td>
                       </tr>
                     ))}
                   </tbody>
