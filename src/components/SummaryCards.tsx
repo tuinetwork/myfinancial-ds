@@ -118,6 +118,48 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
     : 0;
 
   const fmtC = (n: number) => formatCurrency(Math.abs(n));
+  const fmtN = (n: number) => n.toLocaleString("th-TH");
+
+  type TooltipRow = { label: string; value: string; highlight?: boolean };
+
+  const incomeRows: TooltipRow[] = includeCarryOver
+    ? [
+        { label: "รายรับจริง", value: fmtC(actualIncome) },
+        { label: "ยอดยกมา", value: fmtC(carryOver) },
+        { label: "ยอดรวม", value: fmtC(displayIncome), highlight: true },
+        { label: "งบประมาณ", value: fmtC(totalIncome) },
+        { label: "สูตร %", value: `((${fmtN(displayIncome)} - ${fmtN(totalIncome)}) / ${fmtN(totalIncome)}) × 100` },
+        { label: "ผลลัพธ์", value: `${incomePct.toFixed(1)}%`, highlight: true },
+      ]
+    : [
+        { label: "รายรับจริง", value: fmtC(actualIncome), highlight: true },
+        { label: "งบประมาณ", value: fmtC(totalIncome) },
+        { label: "สูตร %", value: `((${fmtN(actualIncome)} - ${fmtN(totalIncome)}) / ${fmtN(totalIncome)}) × 100` },
+        { label: "ผลลัพธ์", value: `${incomePct.toFixed(1)}%`, highlight: true },
+      ];
+
+  const expenseRows: TooltipRow[] = [
+    { label: "รายจ่ายจริง", value: fmtC(actualNonIncome), highlight: true },
+    { label: "หมายเหตุ", value: "ไม่รวมรายการโอน" },
+    { label: "งบประมาณ", value: fmtC(totalExpenseBudget) },
+    { label: "สูตร %", value: `((${fmtN(actualNonIncome)} - ${fmtN(totalExpenseBudget)}) / ${fmtN(totalExpenseBudget)}) × 100` },
+    { label: "ผลลัพธ์", value: `${expensePct.toFixed(1)}%`, highlight: true },
+  ];
+
+  const netRows: TooltipRow[] = includeCarryOver
+    ? [
+        { label: "รายรับจริง", value: fmtC(actualIncome) },
+        { label: "ยอดยกมา", value: fmtC(carryOver) },
+        { label: "รายจ่ายจริง", value: fmtC(actualNonIncome) },
+        { label: "คงเหลือสุทธิ", value: fmtC(netBalance), highlight: true },
+        { label: "หมายเหตุ", value: "ไม่รวมรายการโอนระหว่างบัญชี" },
+      ]
+    : [
+        { label: "รายรับจริง", value: fmtC(actualIncome) },
+        { label: "รายจ่ายจริง", value: fmtC(actualNonIncome) },
+        { label: "คงเหลือสุทธิ", value: fmtC(netBalance), highlight: true },
+        { label: "หมายเหตุ", value: "ไม่รวมรายการโอนระหว่างบัญชี" },
+      ];
 
   const cards = [
     {
@@ -129,9 +171,7 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
       gradient: "from-[hsl(225,75%,57%)] to-[hsl(225,75%,47%)]",
       sparkData: sparklines.income,
       sparkType: "line" as const,
-      tooltip: includeCarryOver
-        ? `รายรับจริง: ${fmtC(actualIncome)}\nยอดยกมา: ${fmtC(carryOver)}\nยอดรวม: ${fmtC(actualIncome)} + ${fmtC(carryOver)} = ${fmtC(displayIncome)}\n\nงบประมาณรายรับ: ${fmtC(totalIncome)}\n% = ((${fmtC(displayIncome)} - ${fmtC(totalIncome)}) / ${fmtC(totalIncome)}) × 100 = ${incomePct.toFixed(1)}%`
-        : `รายรับจริง: ${fmtC(actualIncome)} (ไม่รวมยอดยกมา)\n\nงบประมาณรายรับ: ${fmtC(totalIncome)}\n% = ((${fmtC(actualIncome)} - ${fmtC(totalIncome)}) / ${fmtC(totalIncome)}) × 100 = ${incomePct.toFixed(1)}%`,
+      rows: incomeRows,
     },
     {
       title: "รายจ่าย",
@@ -142,7 +182,7 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
       gradient: "from-[hsl(180,70%,50%)] to-[hsl(180,70%,42%)]",
       sparkData: sparklines.expense,
       sparkType: "line" as const,
-      tooltip: `รายจ่ายจริง: ${fmtC(actualNonIncome)} (ไม่รวมรายการโอน)\n\nงบประมาณรายจ่าย: ${fmtC(totalExpenseBudget)}\n% = ((${fmtC(actualNonIncome)} - ${fmtC(totalExpenseBudget)}) / ${fmtC(totalExpenseBudget)}) × 100 = ${expensePct.toFixed(1)}%`,
+      rows: expenseRows,
     },
     {
       title: "คงเหลือสุทธิ",
@@ -155,9 +195,7 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
         : "from-[hsl(0,65%,55%)] to-[hsl(0,65%,42%)]",
       sparkData: sparklines.net,
       sparkType: "bar" as const,
-      tooltip: includeCarryOver
-        ? `คงเหลือ = รายรับจริง + ยอดยกมา - รายจ่ายจริง\n= ${fmtC(actualIncome)} + ${fmtC(carryOver)} - ${fmtC(actualNonIncome)}\n= ${fmtC(netBalance)}\n\n* ไม่รวมรายการโอนระหว่างบัญชี`
-        : `คงเหลือ = รายรับจริง - รายจ่ายจริง\n= ${fmtC(actualIncome)} - ${fmtC(actualNonIncome)}\n= ${fmtC(netBalance)}\n\n* ไม่รวมรายการโอนระหว่างบัญชี`,
+      rows: netRows,
     },
   ];
 
@@ -166,7 +204,7 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
       {cards.map((card, i) => (
         <Card
           key={card.title}
-          className={`animate-fade-in border-none shadow-lg bg-gradient-to-br ${card.gradient} text-white overflow-hidden relative`}
+          className={`animate-fade-in border-none shadow-lg bg-gradient-to-br ${card.gradient} text-white relative`}
           style={{ animationDelay: `${i * 80}ms` }}
         >
           <CardContent className="p-4 sm:p-5 relative z-10">
@@ -181,18 +219,28 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-1.5 mt-2 cursor-help">
                   {card.pct !== 0 && (
-                    <span className={`text-xs font-semibold text-white/90`}>
+                    <span className="text-xs font-semibold text-white/90">
                       {card.pct > 0 ? "↑" : "↓"} {Math.abs(card.pct).toFixed(1)}%
                     </span>
                   )}
-                  <span className="text-xs opacity-75">
-                    {card.pctLabel}
-                  </span>
+                  <span className="text-xs opacity-75">{card.pctLabel}</span>
                   <Info className="h-3 w-3 opacity-50" />
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={12} className="max-w-sm whitespace-pre-line z-50">
-                <p className="text-xs leading-relaxed">{card.tooltip}</p>
+              <TooltipContent side="bottom" sideOffset={20} className="z-[100] p-0 border-border bg-popover shadow-xl rounded-lg">
+                <div className="px-3 py-2 border-b border-border">
+                  <p className="text-xs font-semibold text-foreground">{card.title} — คำอธิบาย</p>
+                </div>
+                <table className="text-xs w-full">
+                  <tbody>
+                    {card.rows.map((row, ri) => (
+                      <tr key={ri} className={row.highlight ? "bg-muted/50" : ""}>
+                        <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{row.label}</td>
+                        <td className={`px-3 py-1.5 text-right whitespace-nowrap ${row.highlight ? "font-semibold text-foreground" : "text-foreground"}`}>{row.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </TooltipContent>
             </Tooltip>
           </CardContent>
