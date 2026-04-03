@@ -31,7 +31,7 @@ export function ThemeToggle() {
           )}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent side="bottom">{label}</TooltipContent>
     </Tooltip>
   );
 }
