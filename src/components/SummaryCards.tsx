@@ -1,7 +1,9 @@
 import { useMemo } from "react";
-import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Info } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { BudgetData, Transaction, formatCurrency } from "@/hooks/useBudgetData";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface Props {
   data: BudgetData;
@@ -77,7 +79,8 @@ function buildDailyTotals(transactions: Transaction[], typeFilter: (t: Transacti
 }
 
 export function SummaryCards({ data, carryOver = 0 }: Props) {
-  // ฟังก์ชันช่วยเหลือสำหรับคัดกรองรายการโอน
+  const { includeCarryOver } = useSettings();
+
   const isTransfer = (t: Transaction) => 
     t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
 
@@ -85,7 +88,6 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
     .filter((t) => t.type === "รายรับ")
     .reduce((s, t) => s + t.amount, 0);
     
-  // แก้ไข: เพิ่มเงื่อนไข !isTransfer(t)
   const actualNonIncome = data.transactions
     .filter((t) => t.type !== "รายรับ" && !isTransfer(t))
     .reduce((s, t) => s + t.amount, 0);
@@ -98,18 +100,18 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
   const totalSavings = data.expenses.savings.reduce((s, i) => s + i.budget, 0);
   const totalExpenseBudget = totalGeneral + totalBills + totalSubs + totalDebts + totalSavings;
 
-  const netBalance = (actualIncome + carryOver) - actualNonIncome;
+  const effectiveCarryOver = includeCarryOver ? carryOver : 0;
+  const displayIncome = actualIncome + effectiveCarryOver;
+  const netBalance = displayIncome - actualNonIncome;
 
   const sparklines = useMemo(() => ({
     income: buildDailyTotals(data.transactions, (t) => t.type === "รายรับ"),
-    // แก้ไข: กรองรายการโอนออกจากกราฟเส้นรายจ่าย
     expense: buildDailyTotals(data.transactions, (t) => t.type !== "รายรับ" && !isTransfer(t)),
-    // แก้ไข: กรองรายการโอนออกจากกราฟเส้นคงเหลือสุทธิ (เพื่อความแม่นยำ)
     net: buildDailyTotals(data.transactions, (t) => !isTransfer(t)),
   }), [data.transactions]);
 
   const incomePct = totalIncome > 0
-    ? (((actualIncome + carryOver) - totalIncome) / totalIncome) * 100
+    ? ((displayIncome - totalIncome) / totalIncome) * 100
     : 0;
   const expensePct = totalExpenseBudget > 0
     ? ((actualNonIncome - totalExpenseBudget) / totalExpenseBudget) * 100
@@ -118,13 +120,16 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
   const cards = [
     {
       title: "รายรับ",
-      primary: actualIncome + carryOver,
+      primary: displayIncome,
       pct: incomePct,
-      pctLabel: carryOver > 0 ? `รวมยกยอด ${formatCurrency(carryOver)}` : `ประมาณการ ${formatCurrency(totalIncome)}`,
+      pctLabel: includeCarryOver && carryOver > 0 ? `รวมยกยอด ${formatCurrency(carryOver)}` : `ประมาณการ ${formatCurrency(totalIncome)}`,
       icon: TrendingUp,
       gradient: "from-[hsl(225,75%,57%)] to-[hsl(225,75%,47%)]",
       sparkData: sparklines.income,
       sparkType: "line" as const,
+      tooltip: includeCarryOver
+        ? `ยอดรวม = รายรับจริง (${formatCurrency(actualIncome)}) + ยอดยกมา (${formatCurrency(carryOver)})\n% = ((ยอดรวม - งบประมาณ) / งบประมาณ) × 100`
+        : `ยอดรวม = รายรับจริง (ไม่รวมยอดยกมา)\n% = ((รายรับจริง - งบประมาณ) / งบประมาณ) × 100`,
     },
     {
       title: "รายจ่าย",
@@ -135,6 +140,7 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
       gradient: "from-[hsl(180,70%,50%)] to-[hsl(180,70%,42%)]",
       sparkData: sparklines.expense,
       sparkType: "line" as const,
+      tooltip: `ยอดรวม = รายจ่ายจริง (ไม่รวมรายการโอน)\n% = ((รายจ่ายจริง - งบประมาณ) / งบประมาณ) × 100`,
     },
     {
       title: "คงเหลือสุทธิ",
@@ -147,6 +153,9 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
         : "from-[hsl(0,65%,55%)] to-[hsl(0,65%,42%)]",
       sparkData: sparklines.net,
       sparkType: "bar" as const,
+      tooltip: includeCarryOver
+        ? `คงเหลือ = รายรับจริง + ยอดยกมา - รายจ่ายจริง\n(ไม่รวมรายการโอนระหว่างบัญชี)`
+        : `คงเหลือ = รายรับจริง - รายจ่ายจริง\n(ไม่รวมรายการโอนระหว่างบัญชี)`,
     },
   ];
 
@@ -161,7 +170,17 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
           <CardContent className="p-4 sm:p-5 relative z-10">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium opacity-90">{card.title}</span>
-              <card.icon className="h-4 w-4 sm:h-5 sm:w-5 opacity-70" />
+              <div className="flex items-center gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 opacity-60 cursor-help hover:opacity-100 transition-opacity" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs whitespace-pre-line">
+                    <p className="text-xs">{card.tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+                <card.icon className="h-4 w-4 sm:h-5 sm:w-5 opacity-70" />
+              </div>
             </div>
             <p className="text-2xl sm:text-3xl font-bold font-display tracking-tight">
               {formatCurrency(Math.abs(card.primary))}

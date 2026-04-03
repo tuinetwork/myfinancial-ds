@@ -3,7 +3,8 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BudgetData } from "@/hooks/useBudgetData";
 
@@ -22,23 +23,33 @@ function getPrevPeriod(period: string): string {
   return `${py}-${String(pm).padStart(2, "0")}`;
 }
 
-function ChangeIndicator({ current, previous, label, invertColor = false }: {
+function ChangeIndicator({ current, previous, label, invertColor = false, tooltip }: {
   current: number;
   previous: number;
   label: string;
   invertColor?: boolean;
+  tooltip: string;
 }) {
   const diff = current - previous;
   const pct = previous > 0 ? Math.round((diff / previous) * 100) : current > 0 ? 100 : 0;
   const isUp = diff > 0;
   const isZero = diff === 0;
 
-  // For expenses: up = bad (red), down = good (green). For income: up = good, down = bad
   const isPositive = invertColor ? !isUp : isUp;
 
   return (
     <div className="space-y-1">
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="flex items-center gap-1">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Info className="h-3 w-3 text-muted-foreground/50 cursor-help hover:text-muted-foreground transition-colors" />
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs">
+            <p className="text-xs">{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
       <p className="text-lg font-bold font-display">{formatCurrency(current)}</p>
       <div className="flex items-center gap-1 text-xs">
         {isZero ? (
@@ -106,9 +117,25 @@ export function MonthComparison({ data }: Props) {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-3 gap-4">
-          <ChangeIndicator current={currentIncome} previous={prevData.income} label="รายรับ" />
-          <ChangeIndicator current={currentExpense} previous={prevData.expense} label="รายจ่าย" invertColor />
-          <ChangeIndicator current={currentNet} previous={prevNet} label="คงเหลือ" />
+          <ChangeIndicator
+            current={currentIncome}
+            previous={prevData.income}
+            label="รายรับ"
+            tooltip="เปอร์เซ็นต์ = (รายรับเดือนนี้ - รายรับเดือนก่อน) / รายรับเดือนก่อน × 100"
+          />
+          <ChangeIndicator
+            current={currentExpense}
+            previous={prevData.expense}
+            label="รายจ่าย"
+            invertColor
+            tooltip="เปอร์เซ็นต์ = (รายจ่ายเดือนนี้ - รายจ่ายเดือนก่อน) / รายจ่ายเดือนก่อน × 100"
+          />
+          <ChangeIndicator
+            current={currentNet}
+            previous={prevNet}
+            label="คงเหลือ"
+            tooltip="คงเหลือ = รายรับ - รายจ่าย (ไม่รวมโอน) | เปอร์เซ็นต์ = (เดือนนี้ - เดือนก่อน) / เดือนก่อน × 100"
+          />
         </div>
       </CardContent>
     </Card>
