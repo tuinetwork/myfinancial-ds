@@ -484,8 +484,8 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
                 {showFilters ? <X className="h-4 w-4" /> : <SlidersHorizontal className="h-4 w-4" />}
               </Button>
 
-              {/* Export */}
-              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={exportCSV} title="Export CSV">
+              {/* Export — desktop only in row 1 */}
+              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 hidden sm:flex" onClick={exportCSV} title="Export CSV">
                 <Download className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -570,8 +570,8 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
                 )}
               </div>
 
-              {/* Export label (desktop) */}
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 hidden sm:flex" onClick={exportCSV}>
+              {/* Export — mobile: in panel, desktop: hidden here (shown in row1) */}
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 sm:hidden" onClick={exportCSV}>
                 <Download className="h-3.5 w-3.5" /> Export CSV
               </Button>
             </div>
@@ -588,7 +588,7 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
                   <TableHead className={headerClass} onClick={() => handleSort("type")}>
                     <span className="flex items-center">ประเภท <SortIcon column="type" /></span>
                   </TableHead>
-                  <TableHead className={headerClass} onClick={() => handleSort("category")}>
+                  <TableHead className={`${headerClass} hidden sm:table-cell`} onClick={() => handleSort("category")}>
                     <span className="flex items-center">หมวดหมู่ <SortIcon column="category" /></span>
                   </TableHead>
                   <TableHead className={`${headerClass} hidden md:table-cell`} onClick={() => handleSort("subcategory")}>
@@ -610,11 +610,11 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
                       {formatDate(t.date)}
                     </TableCell>
                     <TableCell className="py-2 sm:py-2.5">
-                      <Badge variant="secondary" className={`text-xs sm:text-sm ${getTypeBadgeClass(t.type)}`}>
+                      <Badge variant="secondary" className={`text-xs whitespace-nowrap ${getTypeBadgeClass(t.type)}`}>
                         {t.type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs sm:text-sm py-2 sm:py-2.5 max-w-[100px] sm:max-w-none truncate">{t.main_category || t.category}</TableCell>
+                    <TableCell className="text-xs sm:text-sm py-2 sm:py-2.5 max-w-[100px] sm:max-w-none truncate hidden sm:table-cell">{t.main_category || t.category}</TableCell>
                     <TableCell className="text-xs sm:text-sm py-2 sm:py-2.5 max-w-[100px] sm:max-w-none truncate hidden md:table-cell">{t.category}</TableCell>
                     <TableCell className="text-xs sm:text-sm text-muted-foreground py-2 sm:py-2.5 hidden sm:table-cell">
                       {t.description || "-"}
@@ -634,7 +634,7 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="h-7 w-7 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                             >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
@@ -659,10 +659,10 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
               {filter !== "all" && (
                 <tfoot>
                   <tr className="border-t border-border bg-muted/50">
-                    <TableCell colSpan={canEdit ? 6 : 5} className="text-sm font-semibold py-2.5 hidden sm:table-cell">
+                    <TableCell colSpan={canEdit ? 5 : 4} className="text-sm font-semibold py-2.5 hidden sm:table-cell">
                       รวม {filter}
                     </TableCell>
-                    <TableCell colSpan={canEdit ? 5 : 4} className="text-sm font-semibold py-2.5 sm:hidden">
+                    <TableCell colSpan={canEdit ? 2 : 1} className="text-sm font-semibold py-2.5 sm:hidden">
                       รวม {filter}
                     </TableCell>
                     <TableCell className="text-sm text-right font-bold font-display py-2.5">
