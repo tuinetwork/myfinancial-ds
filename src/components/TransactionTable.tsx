@@ -50,6 +50,7 @@ interface Props {
   userId?: string | null;
   onMutate?: () => void;
   excludeTransfers?: boolean;
+  allTransactions?: Transaction[]; // ทุก transaction ข้ามเดือน สำหรับ date range filter
 }
 
 function getTypeBadgeClass(type: string) {
@@ -133,7 +134,7 @@ function getBalanceDeltas(tx: Transaction): { accountId: string; delta: number }
   return deltas;
 }
 
-export function TransactionTable({ data, userId, onMutate, excludeTransfers = false }: Props) {
+export function TransactionTable({ data, userId, onMutate, excludeTransfers = false, allTransactions }: Props) {
   const [pageSize, setPageSize] = useState(50);
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -175,11 +176,13 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
   }, [userId]);
 
   const baseTransactions = useMemo(() => {
+    // ถ้ามี dateFrom/dateTo และมี allTransactions → ใช้ข้อมูลทั้งหมดข้ามเดือน
+    const source = (dateFrom || dateTo) && allTransactions ? allTransactions : data.transactions;
     if (excludeTransfers) {
-      return data.transactions.filter((t) => t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี");
+      return source.filter((t) => t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี");
     }
-    return data.transactions;
-  }, [data.transactions, excludeTransfers]);
+    return source;
+  }, [data.transactions, allTransactions, excludeTransfers, dateFrom, dateTo]);
 
   const types = useMemo(() => {
     const available = Array.from(new Set(baseTransactions.map((t) => t.type)));

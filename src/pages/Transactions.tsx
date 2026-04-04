@@ -63,32 +63,49 @@ const Transactions = () => {
 
   const { data, isLoading } = useBudgetData(selectedPeriod);
 
-  // Load ALL transfer transactions (for cross-month date range filtering)
+  // Load ALL transactions (for cross-month date range filtering)
   const [allTransfers, setAllTransfers] = useState<Transaction[]>([]);
+  const [allNonTransfers, setAllNonTransfers] = useState<Transaction[]>([]);
+
   useEffect(() => {
     if (!userId) return;
-    const MAIN_CATEGORY_TYPE_MAP: Record<string, string> = {
+
+    const TYPE_MAP: Record<string, string> = {
+      income: "รายรับ", expense: "ค่าใช้จ่าย", transfer: "โอน",
+    };
+    const MAIN_CAT_MAP: Record<string, string> = {
       "ค่าใช้จ่ายทั่วไป": "ค่าใช้จ่าย", "บิลและสาธารณูปโภค": "บิล/สาธารณูปโภค",
       "หนี้สิน": "หนี้สิน", "ค่าสมาชิกรายเดือน": "ค่าสมาชิกรายเดือน", "เงินออมและการลงทุน": "เงินออม/การลงทุน",
     };
-    getDocs(query(collection(firestore, "users", userId, "transactions"), where("type", "==", "transfer"))).then((snap) => {
-      const txs: Transaction[] = snap.docs.map((d) => {
+
+    getDocs(collection(firestore, "users", userId, "transactions")).then((snap) => {
+      const transfers: Transaction[] = [];
+      const nonTransfers: Transaction[] = [];
+
+      snap.docs.forEach((d) => {
         const t = d.data();
+        if (t.is_deleted) return;
+        const rawType = (t.type as string) ?? "";
+        const isTransfer = rawType === "transfer";
         const mainCategory = (t.main_category as string) ?? "";
-        return {
+        const tx: Transaction = {
           id: d.id,
           date: (t.date as string) ?? "",
           amount: (t.amount as number) ?? 0,
-          type: "โอน",
+          type: isTransfer ? "โอน" : (TYPE_MAP[rawType] ?? MAIN_CAT_MAP[mainCategory] ?? rawType),
           main_category: mainCategory || undefined,
-          category: (t.sub_category as string) ?? "โอนระหว่างบัญชี",
+          category: (t.sub_category as string) ?? (isTransfer ? "โอนระหว่างบัญชี" : ""),
           description: (t.note as string) ?? "",
           from_account_id: (t.from_account_id as string) || undefined,
           to_account_id: (t.to_account_id as string) || undefined,
           tags: (t.tags as string[]) || undefined,
         };
+        if (isTransfer) transfers.push(tx);
+        else nonTransfers.push(tx);
       });
-      setAllTransfers(txs);
+
+      setAllTransfers(transfers);
+      setAllNonTransfers(nonTransfers);
     });
   }, [userId]);
 
@@ -196,6 +213,7 @@ const Transactions = () => {
                     userId={userId}
                     onMutate={handleMutate}
                     excludeTransfers
+                    allTransactions={allNonTransfers}
                   />
                 </TabsContent>
 
