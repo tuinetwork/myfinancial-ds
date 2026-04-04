@@ -3,7 +3,9 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AppFooter } from "@/components/AppFooter";
-import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
+import { useBudgetData, useAvailableMonths, Transaction } from "@/hooks/useBudgetData";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { firestore } from "@/lib/firebase";
 import { TransactionTable } from "@/components/TransactionTable";
 import { TransferTable } from "@/components/TransferTable";
 import { useAuth } from "@/contexts/AuthContext";
@@ -60,6 +62,35 @@ const Transactions = () => {
   }, [selectedYear, selectedMonthKey]);
 
   const { data, isLoading } = useBudgetData(selectedPeriod);
+
+  // Load ALL transfer transactions (for cross-month date range filtering)
+  const [allTransfers, setAllTransfers] = useState<Transaction[]>([]);
+  useEffect(() => {
+    if (!userId) return;
+    const MAIN_CATEGORY_TYPE_MAP: Record<string, string> = {
+      "ค่าใช้จ่ายทั่วไป": "ค่าใช้จ่าย", "บิลและสาธารณูปโภค": "บิล/สาธารณูปโภค",
+      "หนี้สิน": "หนี้สิน", "ค่าสมาชิกรายเดือน": "ค่าสมาชิกรายเดือน", "เงินออมและการลงทุน": "เงินออม/การลงทุน",
+    };
+    getDocs(query(collection(firestore, "users", userId, "transactions"), where("type", "==", "transfer"))).then((snap) => {
+      const txs: Transaction[] = snap.docs.map((d) => {
+        const t = d.data();
+        const mainCategory = (t.main_category as string) ?? "";
+        return {
+          id: d.id,
+          date: (t.date as string) ?? "",
+          amount: (t.amount as number) ?? 0,
+          type: "โอน",
+          main_category: mainCategory || undefined,
+          category: (t.sub_category as string) ?? "โอนระหว่างบัญชี",
+          description: (t.note as string) ?? "",
+          from_account_id: (t.from_account_id as string) || undefined,
+          to_account_id: (t.to_account_id as string) || undefined,
+          tags: (t.tags as string[]) || undefined,
+        };
+      });
+      setAllTransfers(txs);
+    });
+  }, [userId]);
 
   const isPageLoading = isLoading || monthsLoading || !selectedPeriod;
 
@@ -173,6 +204,7 @@ const Transactions = () => {
                     data={data}
                     userId={userId}
                     onMutate={handleMutate}
+                    allTransactions={allTransfers}
                   />
                 </TabsContent>
               </Tabs>

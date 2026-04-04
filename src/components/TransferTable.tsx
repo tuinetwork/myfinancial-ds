@@ -42,6 +42,7 @@ interface Props {
   data: BudgetData;
   userId?: string | null;
   onMutate?: () => void;
+  allTransactions?: Transaction[];
 }
 
 function formatDate(dateStr: string) {
@@ -72,7 +73,7 @@ function parseDateValue(dateStr: string): number {
 type SortKey = "date" | "amount" | "from" | "to";
 type SortDir = "asc" | "desc" | null;
 
-export function TransferTable({ data, userId, onMutate }: Props) {
+export function TransferTable({ data, userId, onMutate, allTransactions }: Props) {
   const [pageSize, setPageSize] = useState(50);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date");
@@ -113,10 +114,12 @@ export function TransferTable({ data, userId, onMutate }: Props) {
   }, [accounts]);
 
   const transfers = useMemo(() => {
-    return data.transactions.filter(
+    // ถ้ามี dateRange และมี allTransactions ให้ใช้ทั้งหมด มิฉะนั้นใช้เฉพาะเดือนที่เลือก
+    const source = (dateRange?.from && allTransactions) ? allTransactions : data.transactions;
+    return source.filter(
       (t) => t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี"
     );
-  }, [data.transactions]);
+  }, [data.transactions, allTransactions, dateRange]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
