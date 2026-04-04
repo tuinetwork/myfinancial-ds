@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, getDocs, query, where } from "firebase/firestore";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, CartesianGrid, Legend } from "recharts";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -99,6 +99,8 @@ export default function DebtPlannerPage() {
   const [loading, setLoading] = useState(true);
   const [monthlyPayment, setMonthlyPayment] = useState<string>("5000");
   const [strategy, setStrategy] = useState<"avalanche" | "snowball">("snowball");
+  // paidByAccount: { [accountId]: totalPaid } — sum of all transfers TO each liability account
+  const [paidByAccount, setPaidByAccount] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!userId) return;
@@ -111,11 +113,50 @@ export default function DebtPlannerPage() {
   }, [userId]);
 
   const liabilityAccounts = useMemo(
-    () => accounts.filter((a) => a.is_active && ["credit_card", "loan", "payable"].includes(a.type)),
+    () => accounts.filter((a) => a.is_active && !a.is_deleted && ["credit_card", "loan", "payable"].includes(a.type)),
     [accounts]
   );
 
+  // Fetch all transfer transactions TO liability accounts to compute "จ่ายแล้ว"
+  useEffect(() => {
+    if (!userId || liabilityAccounts.length === 0) {
+      setPaidByAccount({});
+      return;
+    }
+    const ids = liabilityAccounts.map((a) => a.id);
+    // Firestore "in" supports up to 30 items; chunk if needed
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += 30) chunks.push(ids.slice(i, i + 30));
+
+    Promise.all(
+      chunks.map((chunk) =>
+        getDocs(
+          query(
+            collection(firestore, "users", userId, "transactions"),
+            where("to_account_id", "in", chunk),
+            where("type", "==", "transfer")
+          )
+        )
+      )
+    ).then((snaps) => {
+      const totals: Record<string, number> = {};
+      snaps.forEach((snap) => {
+        snap.docs.forEach((d) => {
+          const data = d.data();
+          const accId = data.to_account_id as string;
+          const amount = Math.abs(Number(data.amount) || 0);
+          totals[accId] = (totals[accId] ?? 0) + amount;
+        });
+      });
+      setPaidByAccount(totals);
+    });
+  }, [userId, liabilityAccounts]);
+
   const totalDebt = liabilityAccounts.reduce((s, a) => s + Math.abs(Number(a.balance) || 0), 0);
+  // Total paid = sum of all transfers TO liability accounts
+  const totalPaidSoFar = Object.values(paidByAccount).reduce((s, v) => s + v, 0);
+  // Original debt = current debt + what has been paid off
+  const originalDebt = totalDebt + totalPaidSoFar;
   const payment = parseFloat(monthlyPayment) || 0;
 
   const snowballPlan = useMemo(
@@ -129,11 +170,9 @@ export default function DebtPlannerPage() {
 
   const activePlan = strategy === "snowball" ? snowballPlan : avalanchePlan;
 
-  // Progress: total paid so far this month toward debts (estimated from budget)
-  // Since we don't have initial_balance, show proportion of each debt
-  const paidSoFar = totalDebt > 0 && activePlan ? Math.max(0, activePlan.totalDebt - totalDebt) : 0;
-  const progressPct = activePlan && activePlan.totalDebt > 0
-    ? Math.round((paidSoFar / activePlan.totalDebt) * 100)
+  const paidSoFar = totalPaidSoFar;
+  const progressPct = originalDebt > 0
+    ? Math.min(100, Math.round((paidSoFar / originalDebt) * 100))
     : 0;
 
   // Combined timeline for comparison chart
@@ -238,7 +277,9 @@ export default function DebtPlannerPage() {
                           className="h-3 [&>div]:bg-destructive"
                         />
                         <p className="text-center text-xs text-muted-foreground">
-                          {progressPct}% ของหนี้ทั้งหมด
+                          {progressPct > 0
+                            ? `${progressPct}% จากหนี้ตั้งต้น ${fmt(originalDebt)}`
+                            : "ยังไม่มีข้อมูลการชำระ"}
                         </p>
                       </div>
                     </CardContent>
@@ -254,7 +295,7 @@ export default function DebtPlannerPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {liabilityAccounts
-                        .filter((a) => Math.abs(Number(a.balance) || 0) > 0)
+                        .filter((a) => Math.abs(Number(a.balance) || 0) > 0 || (paidByAccount[a.id] ?? 0) > 0)
                         .sort((a, b) =>
                           strategy === "snowball"
                             ? Math.abs(Number(a.balance)) - Math.abs(Number(b.balance))
@@ -262,7 +303,12 @@ export default function DebtPlannerPage() {
                         )
                         .map((acc, i) => {
                           const bal = Math.abs(Number(acc.balance) || 0);
+                          const paid = paidByAccount[acc.id] ?? 0;
+                          const original = bal + paid;
+                          // pct = remaining debt as share of total (for color-coded bar)
                           const pct = totalDebt > 0 ? (bal / totalDebt) * 100 : 0;
+                          // payoff progress for this account
+                          const payoffPct = original > 0 ? Math.min(100, Math.round((paid / original) * 100)) : 0;
                           return (
                             <div key={acc.id} className="space-y-1">
                               <div className="flex items-center justify-between text-sm">
@@ -272,9 +318,27 @@ export default function DebtPlannerPage() {
                                   </span>
                                   <span className="truncate text-muted-foreground">{acc.name}</span>
                                 </span>
-                                <span className="font-medium text-destructive">{fmt(bal)}</span>
+                                <div className="text-right">
+                                  <span className="font-medium text-destructive">{fmt(bal)}</span>
+                                  {paid > 0 && (
+                                    <span className="block text-[10px] text-emerald-500">ชำระแล้ว {fmt(paid)}</span>
+                                  )}
+                                </div>
                               </div>
-                              <Progress value={pct} className="h-1.5 [&>div]:bg-destructive/60" />
+                              <div className="relative h-1.5 rounded-full bg-destructive/20 overflow-hidden">
+                                {/* remaining */}
+                                <div
+                                  className="absolute inset-y-0 left-0 bg-destructive/60 rounded-full"
+                                  style={{ width: `${pct}%` }}
+                                />
+                                {/* paid overlay (green) */}
+                                {payoffPct > 0 && (
+                                  <div
+                                    className="absolute inset-y-0 right-0 bg-emerald-500/70 rounded-full"
+                                    style={{ width: `${payoffPct}%` }}
+                                  />
+                                )}
+                              </div>
                             </div>
                           );
                         })}
