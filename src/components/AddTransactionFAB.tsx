@@ -50,10 +50,21 @@ const subCategoryLabelMap: Record<string, string> = {
   "เงินปันผล": "Dividend", "ดอกเบี้ย": "Interest", "ขายของ": "Sales", "ฟรีแลนซ์": "Freelance",
 };
 
-const AddTransactionFAB = () => {
+interface FABProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) => {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const controlled = externalOpen !== undefined;
+  const open = controlled ? externalOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (controlled) onOpenChange?.(v);
+    else setInternalOpen(v);
+  };
   const [closing, setClosing] = useState(false);
   const [type, setType] = useState<"expense" | "income" | "transfer">("expense");
   const [amount, setAmount] = useState("");
@@ -310,7 +321,7 @@ const AddTransactionFAB = () => {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-transform duration-200"
+        className="hidden md:flex fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg items-center justify-center hover:scale-110 active:scale-95 transition-transform duration-200"
       >
         <Plus className="h-7 w-7" />
       </button>

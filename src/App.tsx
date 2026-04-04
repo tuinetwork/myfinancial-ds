@@ -13,6 +13,7 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import GoogleLogin from "./components/GoogleLogin";
 import AddTransactionFAB from "./components/AddTransactionFAB";
+import { BottomNavbar } from "./components/BottomNavbar";
 import { Loader2, AlertTriangle, X, Megaphone } from "lucide-react";
 
 // Lazy load all page components for code splitting
@@ -135,6 +136,7 @@ function SystemOverlays() {
 
 const AppContent = () => {
   const { user, loading, pendingApproval } = useAuth();
+  const [fabOpen, setFabOpen] = useState(false);
 
   if (loading) {
     return (
@@ -169,7 +171,8 @@ const AppContent = () => {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
-          <AddTransactionFAB />
+          <AddTransactionFAB open={fabOpen} onOpenChange={setFabOpen} />
+          <BottomNavbar onAddClick={() => setFabOpen(true)} />
         </div>
       </SidebarProvider>
     </BrowserRouter>
