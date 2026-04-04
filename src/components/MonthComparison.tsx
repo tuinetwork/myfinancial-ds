@@ -127,6 +127,7 @@ export function MonthComparison({ data }: Props) {
   const expenseDiff = currentExpense - prevData.expense;
   const netDiff = currentNet - prevNet;
   const fmt = (n: number) => `฿${Math.abs(n).toLocaleString("th-TH")}`;
+  const fmtSigned = (n: number) => `${n < 0 ? "-" : ""}฿${Math.abs(n).toLocaleString("th-TH")}`;
 
   return (
     <Card className="border-none shadow-sm h-full">
@@ -167,8 +168,8 @@ export function MonthComparison({ data }: Props) {
             label="คงเหลือ"
             tooltipTitle="คงเหลือ — เปรียบเทียบ"
             rows={[
-              { label: "เดือนนี้", value: fmt(currentNet), highlight: true },
-              { label: "เดือนก่อน", value: fmt(prevNet) },
+              { label: "เดือนนี้", value: fmtSigned(currentNet), highlight: true },
+              { label: "เดือนก่อน", value: fmtSigned(prevNet) },
               { label: "ผลต่าง", value: `${netDiff >= 0 ? "+" : ""}${fmt(netDiff)}`, highlight: true, color: netDiff >= 0 ? "green" : "red" },
               { label: "หมายเหตุ", value: "ไม่รวมรายการโอน" },
             ]}
