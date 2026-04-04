@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Plus, X, CalendarIcon, ChevronLeft, CircleDot, ArrowRightLeft, Hash } from "lucide-react";
 import { collection, doc, getDocs, query, where, orderBy, limit as fbLimit } from "firebase/firestore";
 import { getDefaultAccount, getAccounts, createTransactionAtomic } from "@/lib/firestore-services";
@@ -58,6 +59,7 @@ interface FABProps {
 const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) => {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [internalOpen, setInternalOpen] = useState(false);
   const controlled = externalOpen !== undefined;
   const open = controlled ? externalOpen : internalOpen;
@@ -327,28 +329,33 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 sm:flex sm:items-center sm:justify-center" onClick={handleClose}>
+        <div
+          className={cn("fixed inset-0 z-50 flex", isMobile ? "flex-col" : "items-center justify-center")}
+          onClick={handleClose}
+        >
           {/* Backdrop — desktop */}
-          <div className={cn(
-            "absolute inset-0 bg-background/5 backdrop-blur-xl hidden sm:block",
-            closing ? "animate-modal-backdrop-out" : "animate-modal-backdrop-in"
-          )} />
+          {!isMobile && (
+            <div className={cn(
+              "absolute inset-0 bg-black/50",
+              closing ? "animate-modal-backdrop-out" : "animate-modal-backdrop-in"
+            )} />
+          )}
 
           <div
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              // Mobile: fill screen from top down to above bottom navbar
-              "fixed top-0 left-0 right-0 bottom-16 bg-card flex flex-col",
-              // Desktop: centered modal card
-              "sm:relative sm:inset-auto sm:w-full sm:max-w-md sm:mx-4 sm:rounded-2xl sm:shadow-2xl sm:max-h-[90vh] sm:flex-none",
-              "sm:bg-card/95 sm:backdrop-blur-xl sm:border sm:border-border",
+              isMobile
+                ? "fixed top-0 left-0 right-0 bottom-16 bg-card flex flex-col"
+                : "relative z-10 w-full max-w-md mx-4 rounded-2xl shadow-2xl p-5 space-y-3 max-h-[90vh] overflow-y-auto bg-card border border-border",
               closing ? "animate-modal-slide-down" : "animate-modal-slide-up"
             )}
           >
-            {/* Header — sticky on mobile */}
+            {/* Header */}
             <div className={cn(
-              "flex items-center justify-between px-5 py-4 border-b border-border bg-card",
-              "sticky top-0 z-10 sm:static sm:border-0 sm:bg-transparent sm:pb-0"
+              "flex items-center justify-between",
+              isMobile
+                ? "px-5 py-4 border-b border-border bg-card sticky top-0 z-10"
+                : "mb-1"
             )}>
               <h2 className="text-lg font-semibold text-foreground">เพิ่มรายการใหม่</h2>
               <button
@@ -359,8 +366,8 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
               </button>
             </div>
 
-            {/* Scrollable content */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4 sm:overflow-visible sm:flex-none sm:p-0 sm:pt-3 sm:space-y-3">
+            {/* Scrollable content (mobile) / inline (desktop) */}
+            <div className={cn(isMobile ? "flex-1 overflow-y-auto p-5 space-y-4" : "space-y-3 mt-2")}>
 
             {/* Type toggle */}
             <div className="flex gap-2">
