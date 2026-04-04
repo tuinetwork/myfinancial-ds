@@ -509,8 +509,8 @@ export default function AccountsPage() {
       <AppSidebar />
       <div className="flex-1 flex flex-col min-h-screen">
         <header className="h-14 flex items-center border-b border-border px-4 gap-3">
-          <SidebarTrigger />
-          <h1 className="text-lg font-semibold text-foreground">บัญชี / กระเป๋าเงิน</h1>
+          <SidebarTrigger className="hidden md:flex" />
+          <h1 className="text-lg font-semibold text-foreground">กระเป๋าเงิน</h1>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => {
@@ -535,7 +535,7 @@ export default function AccountsPage() {
               a2.click();
               URL.revokeObjectURL(url);
             }}>
-              <Download className="h-3.5 w-3.5" /> Export
+              <Download className="h-3.5 w-3.5" /><span className="hidden sm:inline">Export</span>
             </Button>
             <Button variant="ghost" size="icon" onClick={togglePrivacy}>
               {privacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
