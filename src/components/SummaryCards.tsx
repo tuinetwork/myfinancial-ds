@@ -9,6 +9,7 @@ interface Props {
   data: BudgetData;
   carryOver?: number;
   hideNetBalance?: boolean;
+  mainWalletBalance?: number | null;
 }
 
 function MiniSparkline({ data, type }: { data: number[]; type: "line" | "bar" }) {
@@ -78,7 +79,7 @@ function buildDailyTotals(transactions: Transaction[], typeFilter: (t: Transacti
   });
 }
 
-export function SummaryCards({ data, carryOver = 0 }: Props) {
+export function SummaryCards({ data, carryOver = 0, mainWalletBalance }: Props) {
   const { includeCarryOver } = useSettings();
 
   const isTransfer = (t: Transaction) => 
@@ -148,22 +149,31 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
     { label: "ผลลัพธ์", value: `${expensePct >= 0 ? "+" : ""}${expensePct.toFixed(1)}%`, highlight: true, color: expensePct > 0 ? "red" : "green" },
   ];
 
-  const netRows: TooltipRow[] = includeCarryOver
-    ? [
-        { label: "รายรับจริง", value: fmtC(actualIncome) },
-        { label: "ยอดยกมา", value: fmtC(carryOver) },
-        { label: "รายจ่ายจริง", value: fmtC(actualNonIncome) },
-        { label: "คงเหลือสุทธิ", value: `${netBalance >= 0 ? "+" : "-"}${fmtC(netBalance)}`, highlight: true, color: pctColor(netBalance) },
-        { label: "หมายเหตุ", value: "ไม่รวมรายการโอนระหว่างบัญชี" },
-      ]
-    : [
-        { label: "รายรับจริง", value: fmtC(actualIncome) },
-        { label: "รายจ่ายจริง", value: fmtC(actualNonIncome) },
-        { label: "คงเหลือสุทธิ", value: `${netBalance >= 0 ? "+" : "-"}${fmtC(netBalance)}`, highlight: true, color: pctColor(netBalance) },
-        { label: "หมายเหตุ", value: "ไม่รวมรายการโอนระหว่างบัญชี" },
-      ];
+  const netRows: TooltipRow[] = [
+    ...(includeCarryOver
+      ? [
+          { label: "รายรับจริง", value: fmtC(actualIncome) },
+          { label: "ยอดยกมา", value: fmtC(carryOver) },
+          { label: "รายจ่ายจริง", value: fmtC(actualNonIncome) },
+          { label: "ฐานะการเงิน", value: `${netBalance >= 0 ? "+" : "-"}${fmtC(netBalance)}`, highlight: true, color: pctColor(netBalance) },
+          { label: "หมายเหตุ", value: "ไม่รวมรายการโอนระหว่างบัญชี" },
+        ]
+      : [
+          { label: "รายรับจริง", value: fmtC(actualIncome) },
+          { label: "รายจ่ายจริง", value: fmtC(actualNonIncome) },
+          { label: "ฐานะการเงิน", value: `${netBalance >= 0 ? "+" : "-"}${fmtC(netBalance)}`, highlight: true, color: pctColor(netBalance) },
+          { label: "หมายเหตุ", value: "ไม่รวมรายการโอนระหว่างบัญชี" },
+        ]),
+    ...(mainWalletBalance != null
+      ? [{ label: "เงินสดในมือ", value: fmtC(mainWalletBalance), highlight: true, color: "green" as const }]
+      : []),
+  ];
 
-  const cards = [
+  const cards: {
+    title: string; primary: number; pct: number; pctLabel: string; pctLabelExtra?: string | null;
+    icon: typeof TrendingUp; gradient: string; sparkData: number[]; sparkType: "line" | "bar";
+    rows: TooltipRow[];
+  }[] = [
     {
       title: "รายรับ",
       primary: displayIncome,
@@ -187,10 +197,11 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
       rows: expenseRows,
     },
     {
-      title: "คงเหลือสุทธิ",
+      title: "ฐานะการเงิน",
       primary: netBalance,
       pct: 0,
       pctLabel: netBalance >= 0 ? "สถานะดี" : "ขาดดุล",
+      pctLabelExtra: mainWalletBalance != null ? `เงินสดในมือ ${formatCurrency(mainWalletBalance)}` : null,
       icon: Wallet,
       gradient: netBalance >= 0
         ? "from-[hsl(140,55%,48%)] to-[hsl(140,55%,38%)]"
@@ -219,14 +230,21 @@ export function SummaryCards({ data, carryOver = 0 }: Props) {
             </p>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1.5 mt-2 cursor-help">
-                  {card.pct !== 0 && (
-                    <span className="text-xs font-semibold text-white/90">
-                      {card.pct > 0 ? "↑" : "↓"} {Math.abs(card.pct).toFixed(1)}%
-                    </span>
+                <div className="mt-2 cursor-help space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    {card.pct !== 0 && (
+                      <span className="text-xs font-semibold text-white/90">
+                        {card.pct > 0 ? "↑" : "↓"} {Math.abs(card.pct).toFixed(1)}%
+                      </span>
+                    )}
+                    <span className="text-xs opacity-75">{card.pctLabel}</span>
+                    <Info className="h-3 w-3 opacity-50" />
+                  </div>
+                  {card.pctLabelExtra && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs opacity-90 font-medium">{card.pctLabelExtra}</span>
+                    </div>
                   )}
-                  <span className="text-xs opacity-75">{card.pctLabel}</span>
-                  <Info className="h-3 w-3 opacity-50" />
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={20} collisionPadding={20} className="p-0 border-border bg-popover shadow-xl rounded-lg">

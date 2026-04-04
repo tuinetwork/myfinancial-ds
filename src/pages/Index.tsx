@@ -4,6 +4,8 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { AppFooter } from "@/components/AppFooter";
 import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
+import { getAccounts } from "@/lib/firestore-services";
+import { useAuth } from "@/contexts/AuthContext";
 import { useYearlyData } from "@/hooks/useYearlyData";
 import { SummaryCards } from "@/components/SummaryCards";
 import { ExpenseChart } from "@/components/ExpenseChart";
@@ -99,6 +101,16 @@ const Index = () => {
 
   const carryOver = data?.carryOver ?? 0;
   const insights = useSpendingInsights(data, carryOver);
+
+  const { userId } = useAuth();
+  const [mainWalletBalance, setMainWalletBalance] = useState<number | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    getAccounts(userId).then((accs) => {
+      const main = accs.find((a) => a.name === "กระเป๋าเงินสดหลัก" && a.is_active) ?? accs.find((a) => a.type === "cash" && a.is_active);
+      setMainWalletBalance(main ? (main.balance ?? 0) : null);
+    });
+  }, [userId]);
 
   const isPageLoading = viewMode === "monthly"
     ? isLoading || monthsLoading || !selectedPeriod
@@ -246,7 +258,7 @@ const Index = () => {
             ) : viewMode === "monthly" && data ? (
               <>
                 {/* 1. สรุปยอด */}
-                <SummaryCards data={data} carryOver={carryOver} />
+                <SummaryCards data={data} carryOver={carryOver} mainWalletBalance={mainWalletBalance} />
 
                 {/* 2. เปรียบเทียบเดือน */}
                 <MonthComparison data={data} />
