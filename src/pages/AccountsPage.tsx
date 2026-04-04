@@ -543,7 +543,7 @@ export default function AccountsPage() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-6 space-y-6 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-6 space-y-6 overflow-y-auto pb-20 md:pb-6">
           {/* Net Worth Summary Card */}
           <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
             <CardContent className="p-6">

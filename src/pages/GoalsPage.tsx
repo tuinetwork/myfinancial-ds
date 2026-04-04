@@ -556,7 +556,7 @@ export default function GoalsPage() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-6 space-y-6 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-6 space-y-6 overflow-y-auto pb-20 md:pb-6">
           {/* Summary Card */}
           {!loading && resolvedGoals.length > 0 && (
             <Card className="border-primary/20 bg-gradient-to-br from-card to-primary/5">
