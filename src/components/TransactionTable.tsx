@@ -176,8 +176,8 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
   }, [userId]);
 
   const baseTransactions = useMemo(() => {
-    // ถ้ามี dateFrom/dateTo และมี allTransactions → ใช้ข้อมูลทั้งหมดข้ามเดือน
-    const source = (dateFrom || dateTo) && allTransactions ? allTransactions : data.transactions;
+    // ถ้ามี dateFrom/dateTo หรือ search และมี allTransactions → ใช้ข้อมูลทั้งหมดข้ามเดือน
+    const source = (dateFrom || dateTo || search.trim()) && allTransactions ? allTransactions : data.transactions;
     if (excludeTransfers) {
       return source.filter((t) => t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี");
     }
