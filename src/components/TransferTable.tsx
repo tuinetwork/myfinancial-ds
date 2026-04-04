@@ -22,11 +22,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Download,
-  MoreHorizontal, Pencil, Trash2, Loader2, ArrowRightLeft,
+  MoreHorizontal, Pencil, Trash2, Loader2, ArrowRightLeft, Filter, X,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
+import { format, isWithinInterval, parseISO } from "date-fns";
+import { th } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
 import { BudgetData, Transaction, formatCurrency } from "@/hooks/useBudgetData";
 import { deleteTransactionAtomic, updateTransactionAtomic } from "@/lib/firestore-services";
 import { toast } from "sonner";
@@ -73,6 +79,11 @@ export function TransferTable({ data, userId, onMutate }: Props) {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(0);
   const [accounts, setAccounts] = useState<Account[]>([]);
+
+  // Filters
+  const [filterFrom, setFilterFrom] = useState<string>("all");
+  const [filterTo, setFilterTo] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   // Edit state
   const [editTx, setEditTx] = useState<Transaction | null>(null);
@@ -138,6 +149,25 @@ export function TransferTable({ data, userId, onMutate }: Props) {
       );
     }
 
+    if (filterFrom !== "all") {
+      items = items.filter((t) => t.from_account_id === filterFrom);
+    }
+
+    if (filterTo !== "all") {
+      items = items.filter((t) => t.to_account_id === filterTo);
+    }
+
+    if (dateRange?.from) {
+      items = items.filter((t) => {
+        try {
+          const d = parseISO(t.date);
+          const from = dateRange.from!;
+          const to = dateRange.to ?? dateRange.from!;
+          return isWithinInterval(d, { start: from, end: to });
+        } catch { return true; }
+      });
+    }
+
     const indexed = items.map((t, i) => ({ ...t, _idx: i }));
 
     if (sortDir === null) return indexed;
@@ -163,13 +193,13 @@ export function TransferTable({ data, userId, onMutate }: Props) {
     });
 
     return indexed;
-  }, [transfers, search, sortKey, sortDir, accountMap]);
+  }, [transfers, search, filterFrom, filterTo, dateRange, sortKey, sortDir, accountMap]);
 
   const totalAmount = useMemo(() => filtered.reduce((sum, t) => sum + t.amount, 0), [filtered]);
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
-  useMemo(() => { setPage(0); }, [search, pageSize]);
+  useMemo(() => { setPage(0); }, [search, pageSize, filterFrom, filterTo, dateRange]);
 
   const exportCSV = () => {
     const BOM = "\uFEFF";
@@ -260,7 +290,8 @@ export function TransferTable({ data, userId, onMutate }: Props) {
             รายการโอนระหว่างบัญชี
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
+          {/* Row 1: Page size + search + export */}
           <div className="flex flex-wrap items-center gap-2">
             <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
               <SelectTrigger className="w-[65px] h-8 text-xs">
@@ -286,6 +317,72 @@ export function TransferTable({ data, userId, onMutate }: Props) {
                 <span className="hidden sm:inline">Export CSV</span>
               </Button>
             </div>
+          </div>
+
+          {/* Row 2: Filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+
+            {/* From account */}
+            <Select value={filterFrom} onValueChange={setFilterFrom}>
+              <SelectTrigger className="h-8 text-xs w-40">
+                <SelectValue placeholder="บัญชีต้นทาง" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">บัญชีต้นทาง ทั้งหมด</SelectItem>
+                {accounts.filter(a => !a.is_deleted).map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* To account */}
+            <Select value={filterTo} onValueChange={setFilterTo}>
+              <SelectTrigger className="h-8 text-xs w-40">
+                <SelectValue placeholder="บัญชีปลายทาง" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">บัญชีปลายทาง ทั้งหมด</SelectItem>
+                {accounts.filter(a => !a.is_deleted).map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Date range */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 font-normal">
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  {dateRange?.from ? (
+                    dateRange.to && dateRange.to.getTime() !== dateRange.from.getTime()
+                      ? `${format(dateRange.from, "d MMM", { locale: th })} – ${format(dateRange.to, "d MMM yy", { locale: th })}`
+                      : format(dateRange.from, "d MMM yy", { locale: th })
+                  ) : "ช่วงเวลา"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
+                  locale={th}
+                />
+              </PopoverContent>
+            </Popover>
+
+            {/* Clear filters */}
+            {(filterFrom !== "all" || filterTo !== "all" || dateRange) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs text-muted-foreground gap-1"
+                onClick={() => { setFilterFrom("all"); setFilterTo("all"); setDateRange(undefined); }}
+              >
+                <X className="h-3 w-3" /> ล้างตัวกรอง
+              </Button>
+            )}
           </div>
 
           {filtered.length === 0 ? (
