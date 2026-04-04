@@ -25,11 +25,12 @@ function getPrevPeriod(period: string): string {
 
 type TooltipRow = { label: string; value: string; highlight?: boolean; color?: "green" | "red" };
 
-function ChangeIndicator({ current, previous, label, invertColor = false, rows, tooltipTitle }: {
+function ChangeIndicator({ current, previous, label, invertColor = false, signed = false, rows, tooltipTitle }: {
   current: number;
   previous: number;
   label: string;
   invertColor?: boolean;
+  signed?: boolean;
   rows: TooltipRow[];
   tooltipTitle: string;
 }) {
@@ -43,7 +44,7 @@ function ChangeIndicator({ current, previous, label, invertColor = false, rows, 
   return (
     <div className="space-y-1">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-lg font-bold font-display">{formatCurrency(current)}</p>
+      <p className="text-lg font-bold font-display">{signed && current < 0 ? "-" : ""}{formatCurrency(current)}</p>
       <Tooltip>
         <TooltipTrigger asChild>
           <div className="flex items-center gap-1 text-xs cursor-help">
@@ -166,6 +167,7 @@ export function MonthComparison({ data }: Props) {
             current={currentNet}
             previous={prevNet}
             label="คงเหลือ"
+            signed
             tooltipTitle="คงเหลือ — เปรียบเทียบ"
             rows={[
               { label: "เดือนนี้", value: fmtSigned(currentNet), highlight: true },

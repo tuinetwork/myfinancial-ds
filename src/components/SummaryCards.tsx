@@ -226,7 +226,7 @@ export function SummaryCards({ data, carryOver = 0, mainWalletBalance }: Props) 
               <card.icon className="h-4 w-4 sm:h-5 sm:w-5 opacity-70" />
             </div>
             <p className="text-2xl sm:text-3xl font-bold font-display tracking-tight">
-              {formatCurrency(Math.abs(card.primary))}
+              {card.primary < 0 ? "-" : ""}{formatCurrency(Math.abs(card.primary))}
             </p>
             <Tooltip>
               <TooltipTrigger asChild>
