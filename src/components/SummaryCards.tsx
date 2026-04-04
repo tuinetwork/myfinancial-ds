@@ -165,7 +165,7 @@ export function SummaryCards({ data, carryOver = 0, mainWalletBalance }: Props) 
           { label: "หมายเหตุ", value: "ไม่รวมรายการโอนระหว่างบัญชี" },
         ]),
     ...(mainWalletBalance != null
-      ? [{ label: "เงินสดในมือ", value: fmtC(mainWalletBalance), highlight: true, color: "green" as const }]
+      ? [{ label: "เงินสดในมือ", value: formatCurrency(mainWalletBalance), highlight: true, color: mainWalletBalance >= 0 ? "green" as const : "red" as const }]
       : []),
   ];
 
