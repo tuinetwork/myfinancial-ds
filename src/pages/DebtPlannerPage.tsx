@@ -153,10 +153,21 @@ export default function DebtPlannerPage() {
   }, [userId, liabilityAccounts]);
 
   const totalDebt = liabilityAccounts.reduce((s, a) => s + Math.abs(Number(a.balance) || 0), 0);
-  // Total paid = sum of all transfers TO liability accounts
-  const totalPaidSoFar = Object.values(paidByAccount).reduce((s, v) => s + v, 0);
-  // Original debt = current debt + what has been paid off
-  const originalDebt = totalDebt + totalPaidSoFar;
+
+  // Per-account: ถ้ามี initial_balance ใช้มัน, ไม่งั้น fallback จาก transactions
+  const getAccountOriginal = (a: Account) => {
+    const bal = Math.abs(Number(a.balance) || 0);
+    if (a.initial_balance != null && a.initial_balance > 0) return a.initial_balance;
+    return bal + (paidByAccount[a.id] ?? 0);
+  };
+  const getAccountPaid = (a: Account) => {
+    const bal = Math.abs(Number(a.balance) || 0);
+    if (a.initial_balance != null && a.initial_balance > 0) return Math.max(0, a.initial_balance - bal);
+    return paidByAccount[a.id] ?? 0;
+  };
+
+  const originalDebt = liabilityAccounts.reduce((s, a) => s + getAccountOriginal(a), 0);
+  const totalPaidSoFar = liabilityAccounts.reduce((s, a) => s + getAccountPaid(a), 0);
   const payment = parseFloat(monthlyPayment) || 0;
 
   const snowballPlan = useMemo(
@@ -295,7 +306,7 @@ export default function DebtPlannerPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {liabilityAccounts
-                        .filter((a) => Math.abs(Number(a.balance) || 0) > 0 || (paidByAccount[a.id] ?? 0) > 0)
+                        .filter((a) => Math.abs(Number(a.balance) || 0) > 0 || getAccountPaid(a) > 0)
                         .sort((a, b) =>
                           strategy === "snowball"
                             ? Math.abs(Number(a.balance)) - Math.abs(Number(b.balance))
@@ -303,8 +314,8 @@ export default function DebtPlannerPage() {
                         )
                         .map((acc, i) => {
                           const bal = Math.abs(Number(acc.balance) || 0);
-                          const paid = paidByAccount[acc.id] ?? 0;
-                          const original = bal + paid;
+                          const paid = getAccountPaid(acc);
+                          const original = getAccountOriginal(acc);
                           // pct = remaining debt as share of total (for color-coded bar)
                           const pct = totalDebt > 0 ? (bal / totalDebt) * 100 : 0;
                           // payoff progress for this account

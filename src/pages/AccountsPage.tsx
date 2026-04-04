@@ -276,6 +276,8 @@ export default function AccountsPage() {
   const [editType, setEditType] = useState<AccountType>("cash");
   const [editSaving, setEditSaving] = useState(false);
   const [newTargetAmount, setNewTargetAmount] = useState("");
+  const [newInitialBalance, setNewInitialBalance] = useState("");
+  const [editInitialBalance, setEditInitialBalance] = useState("");
 
   // State เก็บความมั่งคั่งสุทธิที่แท้จริงจาก Transactions
   const [trueNetWorth, setTrueNetWorth] = useState<number>(0);
@@ -317,15 +319,19 @@ export default function AccountsPage() {
     setEditTarget(acc);
     setEditName(acc.name);
     setEditType(acc.type);
+    setEditInitialBalance(acc.initial_balance != null ? String(acc.initial_balance) : "");
   };
 
   const handleEdit = async () => {
     if (!userId || !editTarget || !editName.trim()) return;
     setEditSaving(true);
     try {
+      const isLiability = liabilityTypes.includes(editType);
+      const initialBal = parseFloat(editInitialBalance);
       await updateAccount(userId, editTarget.id, {
         name: editName.trim(),
         type: editType,
+        ...(isLiability && !isNaN(initialBal) && initialBal > 0 ? { initial_balance: initialBal } : {}),
       });
       toast.success("แก้ไขบัญชีสำเร็จ");
       setEditTarget(null);
@@ -397,10 +403,13 @@ export default function AccountsPage() {
     if (!userId || !newName.trim()) return;
     setSaving(true);
     try {
+      const isLiabilityNew = liabilityTypes.includes(newType);
+      const initialBalNew = parseFloat(newInitialBalance);
       const accountId = await createAccount(userId, {
         name: newName.trim(),
         type: newType,
         balance: parseFloat(newBalance) || 0,
+        ...(isLiabilityNew && !isNaN(initialBalNew) && initialBalNew > 0 ? { initial_balance: initialBalNew } : {}),
         currency: "THB",
         is_active: true,
         is_deleted: false,
@@ -590,9 +599,24 @@ export default function AccountsPage() {
                         </Select>
                       </div>
                       <div>
-                        <Label>ยอดเงินเริ่มต้น (฿)</Label>
+                        <Label>{liabilityTypes.includes(newType) ? "ยอดหนี้คงเหลือปัจจุบัน (฿)" : "ยอดเงินเริ่มต้น (฿)"}</Label>
                         <Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} placeholder="0.00" className="mt-1" />
                       </div>
+                      {liabilityTypes.includes(newType) && (
+                        <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-2">
+                          <p className="text-xs text-destructive font-medium">ยอดหนี้ตั้งต้น</p>
+                          <Input
+                            type="number"
+                            value={newInitialBalance}
+                            onChange={(e) => setNewInitialBalance(e.target.value)}
+                            placeholder="ยอดหนี้เดิมทั้งหมดก่อนผ่อน เช่น 100,000"
+                            className="mt-1"
+                          />
+                          <p className="text-[11px] text-muted-foreground">
+                            ใช้คำนวณ % ความคืบหน้าในหน้าแผนปลดหนี้
+                          </p>
+                        </div>
+                      )}
                       {newType === "savings" && (
                         <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
                           <p className="text-xs text-primary font-medium flex items-center gap-1.5">
@@ -709,6 +733,21 @@ export default function AccountsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                {liabilityTypes.includes(editType) && (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-2">
+                    <p className="text-xs text-destructive font-medium">ยอดหนี้ตั้งต้น (฿)</p>
+                    <Input
+                      type="number"
+                      value={editInitialBalance}
+                      onChange={(e) => setEditInitialBalance(e.target.value)}
+                      placeholder="ยอดหนี้เดิมทั้งหมดก่อนผ่อน เช่น 100,000"
+                      className="mt-1"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      ใช้คำนวณ % ความคืบหน้าในหน้าแผนปลดหนี้
+                    </p>
+                  </div>
+                )}
                 <Button onClick={handleEdit} disabled={editSaving || !editName.trim()} className="w-full">
                   {editSaving ? "กำลังบันทึก..." : "บันทึก"}
                 </Button>

@@ -6,6 +6,7 @@ export interface Account {
   name: string;
   type: AccountType;
   balance: number;
+  initial_balance?: number; // ยอดหนี้ตั้งต้น (สำหรับบัญชีหนี้สิน)
   currency: string;
   is_active: boolean;
   is_deleted: boolean;
