@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Download,
-  MoreHorizontal, Pencil, Trash2, Loader2, CalendarIcon,
+  MoreHorizontal, Pencil, Trash2, Loader2, CalendarIcon, SlidersHorizontal, X,
 } from "lucide-react";
 import { format, startOfWeek, startOfMonth, subDays, endOfDay, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -144,6 +144,7 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(0);
   const [minAmount, setMinAmount] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const [maxAmount, setMaxAmount] = useState("");
 
   // Edit state
@@ -448,24 +449,14 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
           <CardTitle className="text-base font-semibold">รายการธุรกรรม</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Top controls */}
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
-                <SelectTrigger className="w-[65px] h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[10, 25, 50, 100].map((n) => (
-                    <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-xs text-muted-foreground hidden sm:inline">รายการต่อหน้า</span>
-
+          {/* ── Controls ── */}
+          <div className="space-y-2">
+            {/* Row 1: always visible */}
+            <div className="flex items-center gap-2">
+              {/* ประเภท */}
               <Select value={filter} onValueChange={setFilter}>
-                <SelectTrigger className="w-[130px] sm:w-[160px] h-8 text-xs">
-                  <SelectValue placeholder="ประเภท" />
+                <SelectTrigger className="flex-1 h-9 text-xs min-w-0">
+                  <SelectValue placeholder="ทั้งหมด" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">ทั้งหมด</SelectItem>
@@ -475,36 +466,59 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
                 </SelectContent>
               </Select>
 
-              {/* Quick date presets */}
+              {/* ค้นหา */}
+              <Input
+                placeholder="ค้นหา..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="flex-1 h-9 text-xs min-w-0"
+              />
+
+              {/* ตัวกรองเพิ่มเติม toggle (mobile) / always show (desktop) */}
+              <Button
+                variant={showFilters || dateFrom || dateTo || minAmount || maxAmount ? "default" : "outline"}
+                size="icon"
+                className="h-9 w-9 shrink-0 sm:hidden"
+                onClick={() => setShowFilters((v) => !v)}
+              >
+                {showFilters ? <X className="h-4 w-4" /> : <SlidersHorizontal className="h-4 w-4" />}
+              </Button>
+
+              {/* Export */}
+              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={exportCSV} title="Export CSV">
+                <Download className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+
+            {/* Row 2: desktop always / mobile collapsible */}
+            <div className={cn("gap-2 flex-wrap", showFilters ? "flex" : "hidden sm:flex")}>
+              {/* pageSize */}
+              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                <SelectTrigger className="w-[72px] h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 25, 50, 100].map((n) => (
+                    <SelectItem key={n} value={String(n)}>{n} แถว</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Quick date preset */}
               <Select
                 value="custom"
                 onValueChange={(val) => {
                   const today = new Date();
                   switch (val) {
-                    case "7days":
-                      setDateFrom(subDays(today, 6));
-                      setDateTo(today);
-                      break;
-                    case "this_week":
-                      setDateFrom(startOfWeek(today, { weekStartsOn: 1 }));
-                      setDateTo(today);
-                      break;
-                    case "this_month":
-                      setDateFrom(startOfMonth(today));
-                      setDateTo(today);
-                      break;
-                    case "30days":
-                      setDateFrom(subDays(today, 29));
-                      setDateTo(today);
-                      break;
-                    case "clear":
-                      setDateFrom(undefined);
-                      setDateTo(undefined);
-                      break;
+                    case "7days": setDateFrom(subDays(today, 6)); setDateTo(today); break;
+                    case "this_week": setDateFrom(startOfWeek(today, { weekStartsOn: 1 })); setDateTo(today); break;
+                    case "this_month": setDateFrom(startOfMonth(today)); setDateTo(today); break;
+                    case "30days": setDateFrom(subDays(today, 29)); setDateTo(today); break;
+                    case "clear": setDateFrom(undefined); setDateTo(undefined); break;
                   }
                 }}
               >
-                <SelectTrigger className="w-[120px] sm:w-[140px] h-8 text-xs">
+                <SelectTrigger className="w-[130px] h-8 text-xs">
                   <SelectValue placeholder="ช่วงเวลา" />
                 </SelectTrigger>
                 <SelectContent>
@@ -513,88 +527,53 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
                   <SelectItem value="this_month">เดือนนี้</SelectItem>
                   <SelectItem value="30days">30 วันล่าสุด</SelectItem>
                   <SelectItem value="custom" disabled className="hidden">กำหนดเอง</SelectItem>
-                  {(dateFrom || dateTo) && (
-                    <SelectItem value="clear">ล้างตัวกรอง</SelectItem>
-                  )}
+                  {(dateFrom || dateTo) && <SelectItem value="clear">ล้างตัวกรอง</SelectItem>}
                 </SelectContent>
               </Select>
 
-              {/* Date range filter */}
+              {/* Date from */}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0">
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1 shrink-0">
                     <CalendarIcon className="h-3.5 w-3.5" />
                     {dateFrom ? format(dateFrom, "dd/MM/yy") : "เริ่ม"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateFrom}
-                    onSelect={setDateFrom}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
+                  <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
                 </PopoverContent>
               </Popover>
-              <span className="text-xs text-muted-foreground">ถึง</span>
+              <span className="text-xs text-muted-foreground self-center">–</span>
+              {/* Date to */}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0">
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1 shrink-0">
                     <CalendarIcon className="h-3.5 w-3.5" />
                     {dateTo ? format(dateTo, "dd/MM/yy") : "สิ้นสุด"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateTo}
-                    onSelect={setDateTo}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
+                  <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
                 </PopoverContent>
               </Popover>
               {(dateFrom || dateTo) && (
-                <Button variant="ghost" size="sm" className="h-8 text-xs px-2" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
-                  ✕
-                </Button>
+                <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>✕</Button>
               )}
 
-              <div className="flex items-center gap-2 ml-auto flex-wrap">
-                <Input
-                  placeholder="ค้นหา..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="h-8 w-28 sm:w-48 text-xs"
-                />
-                <div className="flex items-center gap-1">
-                  <Input
-                    type="number"
-                    placeholder="ขั้นต่ำ"
-                    value={minAmount}
-                    onChange={(e) => setMinAmount(e.target.value)}
-                    className="h-8 w-20 text-xs"
-                  />
-                  <span className="text-xs text-muted-foreground">-</span>
-                  <Input
-                    type="number"
-                    placeholder="สูงสุด"
-                    value={maxAmount}
-                    onChange={(e) => setMaxAmount(e.target.value)}
-                    className="h-8 w-20 text-xs"
-                  />
-                  {(minAmount || maxAmount) && (
-                    <Button variant="ghost" size="sm" className="h-8 text-xs px-1.5" onClick={() => { setMinAmount(""); setMaxAmount(""); }}>
-                      ✕
-                    </Button>
-                  )}
-                </div>
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0" onClick={exportCSV}>
-                  <Download className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Export CSV</span>
-                </Button>
+              {/* Amount range */}
+              <div className="flex items-center gap-1">
+                <Input type="number" placeholder="ขั้นต่ำ" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} className="h-8 w-20 text-xs" />
+                <span className="text-xs text-muted-foreground">–</span>
+                <Input type="number" placeholder="สูงสุด" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} className="h-8 w-20 text-xs" />
+                {(minAmount || maxAmount) && (
+                  <Button variant="ghost" size="sm" className="h-8 px-1.5 text-xs" onClick={() => { setMinAmount(""); setMaxAmount(""); }}>✕</Button>
+                )}
               </div>
+
+              {/* Export label (desktop) */}
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 hidden sm:flex" onClick={exportCSV}>
+                <Download className="h-3.5 w-3.5" /> Export CSV
+              </Button>
             </div>
           </div>
 
