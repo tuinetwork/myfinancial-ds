@@ -327,22 +327,29 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={handleClose}>
+        <div className="fixed inset-0 z-50 sm:flex sm:items-center sm:justify-center" onClick={handleClose}>
+          {/* Backdrop — desktop */}
           <div className={cn(
-            "absolute inset-0 bg-background/5 backdrop-blur-xl",
+            "absolute inset-0 bg-background/5 backdrop-blur-xl hidden sm:block",
             closing ? "animate-modal-backdrop-out" : "animate-modal-backdrop-in"
           )} />
 
           <div
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "relative z-10 w-full max-w-md mx-4 mb-4 sm:mb-0 rounded-2xl shadow-2xl p-5 space-y-3 max-h-[90vh] overflow-y-auto",
-              "bg-card/95 backdrop-blur-xl border border-border",
+              // Mobile: fill screen from top down to above bottom navbar
+              "fixed top-0 left-0 right-0 bottom-16 bg-card flex flex-col",
+              // Desktop: centered modal card
+              "sm:relative sm:inset-auto sm:w-full sm:max-w-md sm:mx-4 sm:rounded-2xl sm:shadow-2xl sm:max-h-[90vh] sm:flex-none",
+              "sm:bg-card/95 sm:backdrop-blur-xl sm:border sm:border-border",
               closing ? "animate-modal-slide-down" : "animate-modal-slide-up"
             )}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between">
+            {/* Header — sticky on mobile */}
+            <div className={cn(
+              "flex items-center justify-between px-5 py-4 border-b border-border bg-card",
+              "sticky top-0 z-10 sm:static sm:border-0 sm:bg-transparent sm:pb-0"
+            )}>
               <h2 className="text-lg font-semibold text-foreground">เพิ่มรายการใหม่</h2>
               <button
                 onClick={handleClose}
@@ -352,12 +359,15 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
               </button>
             </div>
 
-            {/* Type toggle - 3 buttons */}
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 sm:overflow-visible sm:flex-none sm:p-0 sm:pt-3 sm:space-y-3">
+
+            {/* Type toggle */}
             <div className="flex gap-2">
               <button
                 onClick={() => handleTypeChange("expense")}
                 className={cn(
-                  "flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                  "flex-1 py-3 sm:py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                   type === "expense"
                     ? "bg-destructive text-destructive-foreground shadow-md"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -368,7 +378,7 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
               <button
                 onClick={() => handleTypeChange("income")}
                 className={cn(
-                  "flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                  "flex-1 py-3 sm:py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                   type === "income"
                     ? "bg-accent text-accent-foreground shadow-md"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -379,7 +389,7 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
               <button
                 onClick={() => handleTypeChange("transfer")}
                 className={cn(
-                  "flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                  "flex-1 py-3 sm:py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                   type === "transfer"
                     ? "bg-primary text-primary-foreground shadow-md"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -390,9 +400,9 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
               </button>
             </div>
 
-            {/* Amount */}
+            {/* Amount — larger on mobile */}
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-semibold text-muted-foreground">฿</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl sm:text-lg font-semibold text-muted-foreground">฿</span>
               <Input
                 type="number"
                 inputMode="decimal"
@@ -400,7 +410,7 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className={cn(
-                  "pl-8 text-lg font-semibold h-12 bg-muted/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1",
+                  "pl-10 text-2xl sm:text-lg font-semibold h-16 sm:h-12 bg-muted/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1",
                   type === "expense" ? "focus-visible:ring-destructive" : type === "income" ? "focus-visible:ring-accent" : "focus-visible:ring-primary"
                 )}
               />
@@ -616,11 +626,13 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
             >
               {saving ? "Saving..." : "Save"}
             </Button>
+            </div> {/* end scrollable content */}
           </div>
         </div>
       )}
     </>
   );
+
 };
 
 export default AddTransactionFAB;
