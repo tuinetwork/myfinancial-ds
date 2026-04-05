@@ -186,8 +186,8 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
   };
 
   const addTag = (tag: string) => {
-    const t = tag.trim().replace(/^#/, "");
-    if (t && !tags.includes(t)) setTags([...tags, t]);
+    const t = tag.trim().replace(/^#/, "").slice(0, MAX_TAG_LENGTH);
+    if (t && !tags.includes(t) && tags.length < MAX_TAGS) setTags([...tags, t]);
     setTagInput("");
   };
 
@@ -211,19 +211,21 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
 
   const MAX_AMOUNT = 9_999_999.99;
   const MAX_NOTE_LENGTH = 500;
+  const MAX_TAG_LENGTH = 30;
+  const MAX_TAGS = 5;
 
   const handleSave = async () => {
     if (!userId) return;
     const numAmount = parseFloat(amount);
-    if (!numAmount || numAmount <= 0) { toast.error("กรุณากรอกจำนวนเงิน"); return; }
+    if (isNaN(numAmount) || numAmount <= 0) { toast.error("กรุณากรอกจำนวนเงินที่ถูกต้อง"); return; }
     if (numAmount > MAX_AMOUNT) { toast.error(`จำนวนเงินต้องไม่เกิน ${MAX_AMOUNT.toLocaleString()} บาท`); return; }
 
     if (isTransfer) {
       if (!fromAccountId || !toAccountId) { toast.error("กรุณาเลือกบัญชีต้นทางและปลายทาง"); return; }
       if (fromAccountId === toAccountId) { toast.error("บัญชีต้นทางและปลายทางต้องไม่เหมือนกัน"); return; }
     } else {
-      if (!subCategory) { toast.error("กรุณาเลือกหมวดหมู่"); return; }
-      if (!mainCategory) { toast.error("กรุณาเลือกกลุ่มหมวดหมู่"); return; }
+      if (!mainCategory || !currentCat?.main_categories?.[mainCategory]) { toast.error("กรุณาเลือกกลุ่มหมวดหมู่"); return; }
+      if (!subCategory || !currentCat.main_categories[mainCategory].includes(subCategory)) { toast.error("กรุณาเลือกหมวดหมู่"); return; }
     }
 
     const trimmedNote = note.trim();

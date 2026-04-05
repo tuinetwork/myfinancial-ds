@@ -324,6 +324,7 @@ export default function AccountsPage() {
 
   const handleEdit = async () => {
     if (!userId || !editTarget || !editName.trim()) return;
+    if (editName.trim().length > 50) { toast.error("ชื่อบัญชีต้องไม่เกิน 50 ตัวอักษร"); return; }
     setEditSaving(true);
     try {
       const isLiability = liabilityTypes.includes(editType);
@@ -401,6 +402,7 @@ export default function AccountsPage() {
 
   const handleCreate = async () => {
     if (!userId || !newName.trim()) return;
+    if (newName.trim().length > 50) { toast.error("ชื่อบัญชีต้องไม่เกิน 50 ตัวอักษร"); return; }
     setSaving(true);
     try {
       const isLiabilityNew = liabilityTypes.includes(newType);
