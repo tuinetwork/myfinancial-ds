@@ -1,4 +1,4 @@
-import { Bell, UserPlus } from "lucide-react";
+import { Bell, UserPlus, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -8,6 +8,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useTransactionNotifications, TransactionNotification } from "@/hooks/useTransactionNotifications";
 import { useRequesterNotifications } from "@/hooks/useRequesterNotifications";
+import { useBudgetAlerts } from "@/hooks/useBudgetAlerts";
+import { useBudgetData } from "@/hooks/useBudgetData";
 import { formatCurrency } from "@/hooks/useBudgetData";
 import { Link } from "react-router-dom";
 
@@ -73,11 +75,15 @@ function NotificationItem({ tx }: { tx: TransactionNotification }) {
 export function NotificationBell() {
   const { notifications, unreadCount, markAllRead } = useTransactionNotifications();
   const { requesters, pendingCount, isAdmin } = useRequesterNotifications();
+  const now = new Date();
+  const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const { data: budgetData } = useBudgetData(currentPeriod);
+  const { alerts: budgetAlerts, unreadCount: budgetUnread, markRead: markBudgetRead } = useBudgetAlerts(budgetData);
   const recent = notifications.slice(0, 5);
-  const totalBadge = unreadCount + (isAdmin ? pendingCount : 0);
+  const totalBadge = unreadCount + (isAdmin ? pendingCount : 0) + budgetUnread;
 
   return (
-    <Popover onOpenChange={(open) => { if (open) markAllRead(); }}>
+    <Popover onOpenChange={(open) => { if (open) { markAllRead(); markBudgetRead(); } }}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative h-9 w-9">
           <Bell className="h-4 w-4 text-muted-foreground" />
@@ -88,7 +94,36 @@ export function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end" sideOffset={8}>
+      <PopoverContent className="w-80 p-0" align="end" sideOffset={8} onOpenAutoFocus={() => { markAllRead(); markBudgetRead(); }}>
+        {/* Budget alerts section */}
+        {budgetAlerts.length > 0 && (
+          <>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className={`h-3.5 w-3.5 ${budgetAlerts.some((a) => a.over) ? "text-destructive" : "text-amber-500"}`} />
+                <h4 className="text-sm font-semibold">แจ้งเตือนงบประมาณ</h4>
+              </div>
+              <Badge variant={budgetAlerts.some((a) => a.over) ? "destructive" : "outline"} className="text-[10px] h-5 px-1.5">
+                {budgetAlerts.length}
+              </Badge>
+            </div>
+            <div className="p-1">
+              {budgetAlerts.slice(0, 4).map((a) => (
+                <div key={a.label} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-muted/50 rounded-lg transition-colors">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <AlertTriangle className={`h-3 w-3 shrink-0 ${a.over ? "text-destructive" : "text-amber-500"}`} />
+                    <span className="text-xs truncate">{a.label}</span>
+                  </div>
+                  <span className={`text-xs font-semibold tabular-nums shrink-0 ${a.over ? "text-destructive" : "text-amber-500"}`}>
+                    {a.pct}%
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="border-b border-border" />
+          </>
+        )}
+
         {/* Pending requesters section for admin/dev */}
         {isAdmin && pendingCount > 0 && (
           <>

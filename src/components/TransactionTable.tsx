@@ -28,7 +28,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Download,
+  ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Download, Upload,
   MoreHorizontal, Pencil, Trash2, Loader2, CalendarIcon, SlidersHorizontal, X,
 } from "lucide-react";
 import { format, startOfWeek, startOfMonth, subDays, endOfDay, startOfDay } from "date-fns";
@@ -38,6 +38,7 @@ import {
   deleteTransactionAtomic, updateTransactionAtomic,
 } from "@/lib/firestore-services";
 import { toast } from "sonner";
+import { CSVImportDialog } from "./CSVImportDialog";
 
 interface CategoryData {
   label: string;
@@ -145,6 +146,7 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
   const [page, setPage] = useState(0);
   const [minAmount, setMinAmount] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [maxAmount, setMaxAmount] = useState("");
 
   // Edit state
@@ -484,7 +486,10 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
                 {showFilters ? <X className="h-4 w-4" /> : <SlidersHorizontal className="h-4 w-4" />}
               </Button>
 
-              {/* Export — desktop only in row 1 */}
+              {/* Import/Export — desktop only in row 1 */}
+              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 hidden sm:flex" onClick={() => setShowImport(true)} title="Import CSV">
+                <Upload className="h-3.5 w-3.5" />
+              </Button>
               <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 hidden sm:flex" onClick={exportCSV} title="Export CSV">
                 <Download className="h-3.5 w-3.5" />
               </Button>
@@ -570,7 +575,10 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
                 )}
               </div>
 
-              {/* Export — mobile: in panel, desktop: hidden here (shown in row1) */}
+              {/* Import/Export — mobile: in panel, desktop: hidden here (shown in row1) */}
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 sm:hidden" onClick={() => setShowImport(true)}>
+                <Upload className="h-3.5 w-3.5" /> Import CSV
+              </Button>
               <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 sm:hidden" onClick={exportCSV}>
                 <Download className="h-3.5 w-3.5" /> Export CSV
               </Button>
@@ -881,6 +889,8 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CSVImportDialog open={showImport} onOpenChange={setShowImport} />
     </>
   );
 }

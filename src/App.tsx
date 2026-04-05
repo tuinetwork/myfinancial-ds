@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { doc, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
+import { applyRecurringRules } from "@/lib/recurring-service";
 import GoogleLogin from "./components/GoogleLogin";
 import AddTransactionFAB from "./components/AddTransactionFAB";
 import { BottomNavbar } from "./components/BottomNavbar";
@@ -141,9 +142,20 @@ function AdminRoute({ element }: { element: React.ReactNode }) {
   return <>{element}</>;
 }
 
+function useApplyRecurring() {
+  const { userId } = useAuth();
+  useEffect(() => {
+    if (!userId) return;
+    const now = new Date();
+    const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    applyRecurringRules(userId, period).catch(() => {/* silent */});
+  }, [userId]);
+}
+
 const AppContent = () => {
   const { user, loading, pendingApproval } = useAuth();
   const [fabOpen, setFabOpen] = useState(false);
+  useApplyRecurring();
 
   if (loading) {
     return (

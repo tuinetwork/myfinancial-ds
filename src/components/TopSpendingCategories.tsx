@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface Props {
   data: BudgetData;
+  previousData?: BudgetData;
 }
 
 const BAR_COLORS = [
@@ -13,24 +14,32 @@ const BAR_COLORS = [
   "bg-[hsl(280,60%,55%)]",
   "bg-[hsl(35,85%,55%)]",
   "bg-[hsl(340,65%,55%)]",
-  "bg-[hsl(160,60%,45%)]",
 ];
 
-export function TopSpendingCategories({ data }: Props) {
+function buildCatMap(data: BudgetData): Record<string, number> {
+  const catMap: Record<string, number> = {};
+  data.transactions
+    .filter((t) => t.type !== "รายรับ" && t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี")
+    .forEach((t) => {
+      catMap[t.category] = (catMap[t.category] || 0) + t.amount;
+    });
+  return catMap;
+}
+
+export function TopSpendingCategories({ data, previousData }: Props) {
   const topCategories = useMemo(() => {
-    const catMap: Record<string, number> = {};
-    data.transactions
-      // เพิ่มเงื่อนไขกรอง "โอนระหว่างบัญชี" ออกไป ทั้งจาก type และ category
-      .filter((t) => t.type !== "รายรับ" && t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี")
-      .forEach((t) => {
-        catMap[t.category] = (catMap[t.category] || 0) + t.amount;
-      });
+    const catMap = buildCatMap(data);
+    const prevMap = previousData ? buildCatMap(previousData) : {};
 
     return Object.entries(catMap)
-      .map(([name, amount]) => ({ name, amount }))
+      .map(([name, amount]) => ({
+        name,
+        amount,
+        prevAmount: prevMap[name] ?? 0,
+      }))
       .sort((a, b) => b.amount - a.amount)
-      .slice(0, 6);
-  }, [data.transactions]);
+      .slice(0, 5);
+  }, [data.transactions, previousData?.transactions]);
 
   const maxAmount = topCategories[0]?.amount || 1;
 
@@ -39,7 +48,7 @@ export function TopSpendingCategories({ data }: Props) {
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-base font-semibold">รายจ่ายสูงสุด</CardTitle>
+          <CardTitle className="text-base font-semibold">Top 5 รายจ่าย</CardTitle>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -48,11 +57,23 @@ export function TopSpendingCategories({ data }: Props) {
         ) : (
           topCategories.map((cat, i) => {
             const pct = (cat.amount / maxAmount) * 100;
+            const hasPrev = previousData && cat.prevAmount > 0;
+            const diff = cat.amount - cat.prevAmount;
+            const diffPct = cat.prevAmount > 0 ? Math.round((diff / cat.prevAmount) * 100) : null;
+
             return (
               <div key={cat.name}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm truncate mr-2">{cat.name}</span>
-                  <span className="text-xs font-semibold font-display text-muted-foreground tabular-nums">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-sm truncate">{cat.name}</span>
+                    {hasPrev && diffPct !== null && (
+                      <span className={`flex items-center gap-0.5 text-[10px] font-medium shrink-0 ${diff > 0 ? "text-destructive" : diff < 0 ? "text-accent" : "text-muted-foreground"}`}>
+                        {diff > 0 ? <TrendingUp className="h-3 w-3" /> : diff < 0 ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+                        {diff > 0 ? "+" : ""}{diffPct}%
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs font-semibold font-display text-muted-foreground tabular-nums ml-2 shrink-0">
                     {formatCurrency(cat.amount)}
                   </span>
                 </div>

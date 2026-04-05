@@ -53,9 +53,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "@/hooks/use-toast";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { IconPicker, getIconByName } from "@/components/IconPicker";
+import { RecurringRulesManager } from "@/components/RecurringRulesManager";
 
 // ─── Sub-menu tabs ───
-type SettingsTab = "budget" | "categories" | "savings" | "user";
+type SettingsTab = "budget" | "categories" | "savings" | "user" | "recurring";
 
 // ─── Budget tree types ───
 // Budget value can be a number (general) or {amount, due_date} (bills, debts, savings, subscriptions)
@@ -2162,6 +2163,7 @@ const Settings = () => {
     categories: "ตั้งค่าหมวดหมู่",
     savings: "เป้าหมายการออม",
     user: "ตั้งค่าผู้ใช้",
+    recurring: "รายการซ้ำรายเดือน",
   };
 
   return (
@@ -2215,6 +2217,7 @@ const Settings = () => {
             {tab === "categories" && <CategorySettings />}
             {tab === "savings" && <SavingsGoalSettings />}
             {tab === "user" && <UserSettings />}
+            {tab === "recurring" && <RecurringRulesManager />}
           </div>
         </main>
         <AppFooter />

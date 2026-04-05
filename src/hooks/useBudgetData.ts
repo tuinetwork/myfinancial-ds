@@ -204,7 +204,7 @@ function enrichTransferCategories(
   });
 }
 
-function getPreviousPeriod(period: string): string {
+export function getPreviousPeriod(period: string): string {
   const [yearStr, monthStr] = period.split("-");
   let year = parseInt(yearStr, 10);
   let month = parseInt(monthStr, 10) - 1; // go back one month

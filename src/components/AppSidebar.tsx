@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Receipt, ChevronDown, ChevronRight,
   CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart, ShieldCheck, Wallet,
-  TrendingUp, Landmark, Terminal, Calculator,
+  TrendingUp, Landmark, Terminal, Calculator, Repeat,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,6 +51,7 @@ const planningItems: MenuItem[] = [
 const settingsItems: MenuItem[] = [
   { title: "งบประมาณ", url: "/settings?tab=budget", icon: DollarSign },
   { title: "หมวดหมู่", url: "/settings?tab=categories", icon: Tags },
+  { title: "รายการซ้ำ", url: "/settings?tab=recurring", icon: Repeat },
 ];
 
 /* ── Floating Popout for Mini Mode ── */

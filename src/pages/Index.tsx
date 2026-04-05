@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { AppFooter } from "@/components/AppFooter";
-import { useBudgetData, useAvailableMonths } from "@/hooks/useBudgetData";
+import { useBudgetData, useAvailableMonths, getPreviousPeriod } from "@/hooks/useBudgetData";
 import { getAccounts } from "@/lib/firestore-services";
 import { useAuth } from "@/contexts/AuthContext";
 import { useYearlyData } from "@/hooks/useYearlyData";
@@ -19,6 +19,9 @@ import { FinancialHealthCard } from "@/components/FinancialHealthCard";
 import { SavingsGoalCard } from "@/components/SavingsGoalCard";
 import { UpcomingBills } from "@/components/UpcomingBills";
 import { MonthComparison } from "@/components/MonthComparison";
+import { CategoryTrendCard } from "@/components/CategoryTrendCard";
+import { ForecastCard } from "@/components/ForecastCard";
+import { useEndOfMonthForecast } from "@/hooks/useEndOfMonthForecast";
 import { SpendingInsightsButton } from "@/components/SpendingInsights";
 import { useSpendingInsights } from "@/hooks/useSpendingInsights";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -95,12 +98,15 @@ const Index = () => {
   }, [selectedYear, selectedMonthKey]);
 
   const { data, isLoading, error } = useBudgetData(selectedPeriod);
+  const prevPeriod = selectedPeriod ? getPreviousPeriod(selectedPeriod) : undefined;
+  const { data: prevData } = useBudgetData(prevPeriod);
   const { data: yearlyData, isLoading: yearlyLoading } = useYearlyData(
     viewMode === "yearly" ? selectedYear : undefined
   );
 
   const carryOver = data?.carryOver ?? 0;
   const insights = useSpendingInsights(data, carryOver);
+  const forecast = useEndOfMonthForecast(data, carryOver);
 
   const { userId } = useAuth();
   const [accounts, setAccounts] = useState<import("@/types/finance").Account[]>([]);
@@ -313,7 +319,13 @@ const Index = () => {
                   <div className="xl:col-span-2 min-h-0">
                     <ExpenseChart data={data} />
                   </div>
-                  <TopSpendingCategories data={data} />
+                  <TopSpendingCategories data={data} previousData={prevData} />
+                </div>
+
+                {/* Forecast + Trend */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {forecast?.isCurrentMonth && <ForecastCard forecast={forecast} />}
+                  {prevData && <CategoryTrendCard data={data} previousData={prevData} />}
                 </div>
 
                 {/* 6. กราฟแยกหมวด + ติดตามงบ */}
