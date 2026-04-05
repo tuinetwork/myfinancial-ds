@@ -11,21 +11,22 @@ import { Label } from "@/components/ui/label";
 import { ShieldCheck, Loader2, KeyRound, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 
-const MFA_SESSION_KEY = "mfa_verified_at";
+// In-memory MFA session — ไม่เก็บใน storage เพื่อป้องกัน XSS
+// session จะถูก clear อัตโนมัติเมื่อ refresh หน้า
 const MFA_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+let _mfaVerifiedAt: number | null = null;
 
 export function isMfaSessionValid(): boolean {
-  const ts = sessionStorage.getItem(MFA_SESSION_KEY);
-  if (!ts) return false;
-  return Date.now() - parseInt(ts, 10) < MFA_TIMEOUT_MS;
+  if (_mfaVerifiedAt === null) return false;
+  return Date.now() - _mfaVerifiedAt < MFA_TIMEOUT_MS;
 }
 
 export function setMfaSession() {
-  sessionStorage.setItem(MFA_SESSION_KEY, String(Date.now()));
+  _mfaVerifiedAt = Date.now();
 }
 
 export function clearMfaSession() {
-  sessionStorage.removeItem(MFA_SESSION_KEY);
+  _mfaVerifiedAt = null;
 }
 
 interface TwoFactorAuthProps {
