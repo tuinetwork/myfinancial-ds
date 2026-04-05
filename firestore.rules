@@ -97,10 +97,23 @@ service cloud.firestore {
                      && isOneOf(request.resource.data.status, ['active', 'completed', 'cancelled']);
       }
 
-      // --- FUTURE BIG MIGRATION AREA ---
+      // 5. Budgets
+      match /budgets/{budgetId} {
+        allow read: if isOwner(userId) || isDev();
+        allow write: if isOwner(userId) || isDev();
+      }
+
+      // 6. Categories
+      match /categories/{categoryId} {
+        allow read: if isOwner(userId) || isDev();
+        allow write: if isOwner(userId) || isDev();
+      }
+
+      // catch-all: read-only — ป้องกันไม่ให้ bypass validation rules ด้านบน
+      // หากต้องการทำ Big Migration ให้ปลดคอมเมนต์ write ของ isDev() ชั่วคราว
       match /{document=**} {
-        // allow write: if isDev(); // <--- ปลดคอมเมนต์บรรทัดนี้เมื่อจะทำ Big Migration
-        allow read, write: if isOwner(userId) || isDev();
+        allow read: if isOwner(userId) || isDev();
+        // allow write: if isDev(); // <--- ปลดคอมเมนต์เมื่อจะทำ Big Migration เท่านั้น
       }
     }
 
