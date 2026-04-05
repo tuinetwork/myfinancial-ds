@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAccounts } from "@/lib/firestore-services";
+import { getRecurringRules, type RecurringRule } from "@/lib/recurring-service";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -197,6 +198,7 @@ const CalendarPage = () => {
   // Store all transactions across all months for installment tx matching
   const [allTxBySubDate, setAllTxBySubDate] = useState<Record<string, TxEntry[]>>({});
   const [spendByDate, setSpendByDate] = useState<Record<string, number>>({});
+  const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -349,6 +351,12 @@ const CalendarPage = () => {
     });
   }, [userId, period]);
 
+  // Fetch recurring rules once (re-fetch when userId changes)
+  useEffect(() => {
+    if (!userId) return;
+    getRecurringRules(userId).then(setRecurringRules);
+  }, [userId]);
+
   // Merge current period budgets with cross-month recurring items (deduplicate by subCategory)
   const mergedBudgets = useMemo(() => {
     const result = { ...expenseBudgets };
@@ -382,14 +390,45 @@ const CalendarPage = () => {
 
   const dueDateItems = useMemo(() => extractDueDateItems(mergedBudgets, txBySubDate, period), [mergedBudgets, txBySubDate, period]);
 
+  // Build calendar items from recurring_rules (only expense, active, not already in budget)
+  const recurringDueDateItems = useMemo((): DueDateItem[] => {
+    if (!recurringRules.length || !period) return [];
+    const [y, m] = period.split("-").map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    // Sub-categories already covered by budget due_date items → skip to avoid duplicates
+    const covered = new Set(dueDateItems.map((i) => i.subCategory));
+    return recurringRules
+      .filter((r) => r.is_active && r.type === "expense" && !covered.has(r.sub_category))
+      .map((r) => {
+        const day = Math.min(r.day_of_month, daysInMonth);
+        const dueDate = `${period}-${String(day).padStart(2, "0")}`;
+        const txList = txBySubDate[r.sub_category] ?? [];
+        const paidAmount = txList.reduce((s, t) => s + t.amount, 0);
+        return {
+          mainCategory: r.main_category,
+          subCategory: r.sub_category,
+          amount: r.amount,
+          dueDate,
+          paidAmount,
+          isPaid: paidAmount >= r.amount * 0.9, // 90% threshold same as budget matching
+          isRecurring: true,
+        };
+      });
+  }, [recurringRules, period, dueDateItems, txBySubDate]);
+
+  const allDueDateItems = useMemo(
+    () => [...dueDateItems, ...recurringDueDateItems],
+    [dueDateItems, recurringDueDateItems]
+  );
+
   const itemsByDate = useMemo(() => {
     const map: Record<string, DueDateItem[]> = {};
-    for (const item of dueDateItems) {
+    for (const item of allDueDateItems) {
       if (!map[item.dueDate]) map[item.dueDate] = [];
       map[item.dueDate].push(item);
     }
     return map;
-  }, [dueDateItems]);
+  }, [allDueDateItems]);
 
   const totalByDate = useMemo(() => {
     const map: Record<string, number> = {};
@@ -399,9 +438,9 @@ const CalendarPage = () => {
     return map;
   }, [itemsByDate]);
 
-  const monthTotal = useMemo(() => dueDateItems.reduce((s, i) => s + i.amount, 0), [dueDateItems]);
-  const paidCount = useMemo(() => dueDateItems.filter(i => i.isPaid).length, [dueDateItems]);
-  const recurringCount = useMemo(() => dueDateItems.filter(i => i.isRecurring).length, [dueDateItems]);
+  const monthTotal = useMemo(() => allDueDateItems.reduce((s, i) => s + i.amount, 0), [allDueDateItems]);
+  const paidCount = useMemo(() => allDueDateItems.filter(i => i.isPaid).length, [allDueDateItems]);
+  const recurringCount = useMemo(() => allDueDateItems.filter(i => i.isRecurring).length, [allDueDateItems]);
 
   // Installment data: recurring items with start_date + end_date
   interface InstallmentRow {
@@ -695,7 +734,7 @@ const CalendarPage = () => {
                     </div>
                     <div>
                       <p className="text-[11px] text-muted-foreground font-medium">ชำระแล้ว</p>
-                      <p className="text-lg font-bold text-foreground">{paidCount} <span className="text-sm font-normal text-muted-foreground">/ {dueDateItems.length}</span></p>
+                      <p className="text-lg font-bold text-foreground">{paidCount} <span className="text-sm font-normal text-muted-foreground">/ {allDueDateItems.length}</span></p>
                     </div>
                   </CardContent>
                 </Card>
@@ -706,7 +745,7 @@ const CalendarPage = () => {
                     </div>
                     <div>
                       <p className="text-[11px] text-muted-foreground font-medium">รอชำระ</p>
-                      <p className="text-lg font-bold text-foreground">{dueDateItems.length - paidCount} <span className="text-sm font-normal text-muted-foreground">รายการ</span></p>
+                      <p className="text-lg font-bold text-foreground">{allDueDateItems.length - paidCount} <span className="text-sm font-normal text-muted-foreground">รายการ</span></p>
                     </div>
                   </CardContent>
                 </Card>
@@ -718,7 +757,7 @@ const CalendarPage = () => {
                     <div>
                       <p className="text-[11px] text-muted-foreground font-medium">เลยกำหนด</p>
                       <p className="text-lg font-bold text-foreground">
-                        {dueDateItems.filter(i => getDaysUntil(i.dueDate) < 0 && !i.isPaid).length}
+                        {allDueDateItems.filter(i => getDaysUntil(i.dueDate) < 0 && !i.isPaid).length}
                         <span className="text-sm font-normal text-muted-foreground"> รายการ</span>
                       </p>
                     </div>
@@ -1199,23 +1238,23 @@ const CalendarPage = () => {
                     <CardTitle className="text-sm flex items-center gap-2">
                       <Clock className="h-4 w-4 text-primary" />
                       รายการทั้งหมดในเดือนนี้
-                      {dueDateItems.length > 0 && (
+                      {allDueDateItems.length > 0 && (
                         <Badge variant="secondary" className="text-[10px] ml-1">
-                          {dueDateItems.length}
+                          {allDueDateItems.length}
                         </Badge>
                       )}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {dueDateItems.length === 0 ? (
+                    {allDueDateItems.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                         <CalendarDays className="h-10 w-10 mb-3 opacity-30" />
                         <p className="text-sm font-medium">ไม่มีรายการที่ต้องชำระในเดือนนี้</p>
-                        <p className="text-xs mt-1">กำหนดวันชำระได้ที่หน้าตั้งค่างบประมาณ</p>
+                        <p className="text-xs mt-1">กำหนดวันชำระได้ที่หน้าตั้งค่างบประมาณ หรือเพิ่มรายการซ้ำ</p>
                       </div>
                     ) : (
                       <div className="space-y-1">
-                        {dueDateItems.map((item, idx) => {
+                        {allDueDateItems.map((item, idx) => {
                           const daysUntil = getDaysUntil(item.dueDate);
                           const isOverdue = daysUntil < 0;
                           const isUrgent = daysUntil >= 0 && daysUntil <= 3;
