@@ -713,11 +713,35 @@ export default function GoalsPage() {
                         </div>
                       </div>
 
-                      {/* Progress Bar */}
+                      {/* Progress Bar with installment markers */}
                       <div className="space-y-1.5">
-                        <div className="relative h-2 rounded-full bg-muted overflow-hidden">
+                        <div className="relative h-3 rounded-full bg-muted overflow-hidden">
                           <div className={cn("h-full rounded-full transition-all duration-500", getProgressColor(pct))} style={{ width: `${pct}%` }} />
+                          {/* Installment divider lines */}
+                          {matchedBudget && matchedBudget.totalInstallments > 1 && matchedBudget.totalInstallments <= 48 && (
+                            Array.from({ length: matchedBudget.totalInstallments - 1 }, (_, i) => (
+                              <div
+                                key={i}
+                                className="absolute top-0 bottom-0 w-px bg-background/50"
+                                style={{ left: `${((i + 1) / matchedBudget.totalInstallments) * 100}%` }}
+                              />
+                            ))
+                          )}
                         </div>
+                        {/* Installment dot strip */}
+                        {matchedBudget && matchedBudget.totalInstallments > 1 && matchedBudget.totalInstallments <= 48 && (
+                          <div className="flex gap-0.5 overflow-hidden">
+                            {Array.from({ length: matchedBudget.totalInstallments }, (_, i) => (
+                              <div
+                                key={i}
+                                className={cn(
+                                  "flex-1 h-1 rounded-full min-w-[2px]",
+                                  i < paidInstallments ? "bg-primary" : "bg-muted"
+                                )}
+                              />
+                            ))}
+                          </div>
+                        )}
                         <div className="flex justify-between text-xs">
                           <span className="text-muted-foreground">{fmt(goal.current_amount)}</span>
                           <span className="text-foreground font-medium">{fmt(goal.target_amount)}</span>

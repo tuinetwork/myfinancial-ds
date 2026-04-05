@@ -31,6 +31,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { formatCurrency } from "@/hooks/useBudgetData";
+import { cn } from "@/lib/utils";
 
 interface DueDateItem {
   mainCategory: string;
@@ -195,6 +196,7 @@ const CalendarPage = () => {
   const [allPaidDatesMap, setAllPaidDatesMap] = useState<Record<string, string[]>>({});
   // Store all transactions across all months for installment tx matching
   const [allTxBySubDate, setAllTxBySubDate] = useState<Record<string, TxEntry[]>>({});
+  const [spendByDate, setSpendByDate] = useState<Record<string, number>>({});
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -323,6 +325,7 @@ const CalendarPage = () => {
     Promise.all([getDocs(txQ), getAccounts(userId)]).then(([txSnap, accs]) => {
       const investMap = new Map(accs.filter(a => a.type === "investment" || a.type === "savings").map(a => [a.id, a.name]));
       const map: Record<string, TxEntry[]> = {};
+      const spendMap: Record<string, number> = {};
       txSnap.forEach((d) => {
         const data = d.data();
         let subCat = (data.sub_category as string) ?? "";
@@ -336,8 +339,13 @@ const CalendarPage = () => {
           if (!map[subCat]) map[subCat] = [];
           map[subCat].push({ date, amount });
         }
+        // Build daily spending heatmap data
+        if (date && (data.type === "expense" || data.type === "transfer")) {
+          spendMap[date] = (spendMap[date] ?? 0) + amount;
+        }
       });
       setTxBySubDate(map);
+      setSpendByDate(spendMap);
     });
   }, [userId, period]);
 
@@ -493,6 +501,7 @@ const CalendarPage = () => {
 
   const days = getDaysInMonth(year, month);
   const startPadding = getStartPadding(year, month);
+  const maxDailySpend = useMemo(() => Math.max(...Object.values(spendByDate), 1), [spendByDate]);
 
   const goToPrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const goToNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
@@ -747,6 +756,45 @@ const CalendarPage = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="p-2 sm:p-4">
+                    {/* Spending Heatmap */}
+                    {Object.keys(spendByDate).length > 0 && (
+                      <div className="mb-3 pb-3 border-b border-border/50">
+                        <p className="text-[11px] text-muted-foreground mb-1.5 font-medium">ความเข้มรายจ่ายรายวัน</p>
+                        <div className="grid grid-cols-7 gap-1">
+                          {[...Array(startPadding)].map((_, i) => (
+                            <div key={`hpad-${i}`} className="h-4" />
+                          ))}
+                          {days.map((d) => {
+                            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                            const amount = spendByDate[dateStr] ?? 0;
+                            const intensity = amount === 0 ? 0 : Math.ceil((amount / maxDailySpend) * 4);
+                            return (
+                              <div
+                                key={dateStr}
+                                title={amount > 0 ? `${d.getDate()}: ${formatCurrency(amount)}` : `${d.getDate()}`}
+                                className={cn(
+                                  "h-4 rounded-sm transition-colors",
+                                  intensity === 0 ? "bg-muted/40" :
+                                  intensity === 1 ? "bg-primary/20" :
+                                  intensity === 2 ? "bg-primary/45" :
+                                  intensity === 3 ? "bg-primary/70" :
+                                  "bg-primary"
+                                )}
+                              />
+                            );
+                          })}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1.5 justify-end">
+                          <span className="text-[10px] text-muted-foreground">น้อย</span>
+                          {[0, 1, 2, 3, 4].map((lvl) => (
+                            <div key={lvl} className={cn("w-3 h-3 rounded-sm",
+                              lvl === 0 ? "bg-muted/40" : lvl === 1 ? "bg-primary/20" : lvl === 2 ? "bg-primary/45" : lvl === 3 ? "bg-primary/70" : "bg-primary"
+                            )} />
+                          ))}
+                          <span className="text-[10px] text-muted-foreground">มาก</span>
+                        </div>
+                      </div>
+                    )}
                     {loading ? (
                       <div className="grid grid-cols-7 gap-1.5">
                         {[...Array(35)].map((_, i) => (
