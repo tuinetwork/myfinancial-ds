@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
@@ -134,6 +134,13 @@ function SystemOverlays() {
   );
 }
 
+function AdminRoute({ element }: { element: React.ReactNode }) {
+  const { userRole, loading } = useAuth();
+  if (loading) return <PageLoader />;
+  if (userRole !== "dev" && userRole !== "admin") return <Navigate to="/" replace />;
+  return <>{element}</>;
+}
+
 const AppContent = () => {
   const { user, loading, pendingApproval } = useAuth();
   const [fabOpen, setFabOpen] = useState(false);
@@ -162,7 +169,7 @@ const AppContent = () => {
               <Route path="/analysis" element={<Analysis />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/admin" element={<AdminRoute element={<AdminPanel />} />} />
               <Route path="/accounts" element={<AccountsPage />} />
               <Route path="/investments" element={<InvestmentsPage />} />
               <Route path="/goals" element={<GoalsPage />} />
