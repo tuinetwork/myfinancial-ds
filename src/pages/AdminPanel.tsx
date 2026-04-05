@@ -35,18 +35,27 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 
-const SOURCE_USER_UID = "xgkdmyxxeJVlNiqoahNJWBekqmh2";
-
 async function initializeNewUser(userId: string) {
   try {
+    const configDoc = await getDoc(doc(firestore, "system_config", "template"));
+    if (!configDoc.exists()) {
+      console.warn("system_config/template not found, skipping initialization");
+      return;
+    }
+    const sourceUid = configDoc.data().source_user_uid as string;
+    if (!sourceUid) {
+      console.warn("source_user_uid not set in system_config/template");
+      return;
+    }
+
     for (const catType of ["expense", "income"]) {
-      const sourceDoc = await getDoc(doc(firestore, "users", SOURCE_USER_UID, "categories", catType));
+      const sourceDoc = await getDoc(doc(firestore, "users", sourceUid, "categories", catType));
       if (sourceDoc.exists()) {
         await setDoc(doc(firestore, "users", userId, "categories", catType), sourceDoc.data());
       }
     }
     const currentPeriod = format(new Date(), "yyyy-MM");
-    const budgetDoc = await getDoc(doc(firestore, "users", SOURCE_USER_UID, "budgets", currentPeriod));
+    const budgetDoc = await getDoc(doc(firestore, "users", sourceUid, "budgets", currentPeriod));
     if (budgetDoc.exists()) {
       const sourceData = budgetDoc.data();
       const newBudgetData: Record<string, any> = { carry_over: 0, period: currentPeriod };
