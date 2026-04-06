@@ -795,45 +795,6 @@ const CalendarPage = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="p-2 sm:p-4">
-                    {/* Spending Heatmap */}
-                    {Object.keys(spendByDate).length > 0 && (
-                      <div className="mb-3 pb-3 border-b border-border/50">
-                        <p className="text-[11px] text-muted-foreground mb-1.5 font-medium">ความเข้มรายจ่ายรายวัน</p>
-                        <div className="grid grid-cols-7 gap-1">
-                          {[...Array(startPadding)].map((_, i) => (
-                            <div key={`hpad-${i}`} className="h-4" />
-                          ))}
-                          {days.map((d) => {
-                            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-                            const amount = spendByDate[dateStr] ?? 0;
-                            const intensity = amount === 0 ? 0 : Math.ceil((amount / maxDailySpend) * 4);
-                            return (
-                              <div
-                                key={dateStr}
-                                title={amount > 0 ? `${d.getDate()}: ${formatCurrency(amount)}` : `${d.getDate()}`}
-                                className={cn(
-                                  "h-4 rounded-sm transition-colors",
-                                  intensity === 0 ? "bg-muted/40" :
-                                  intensity === 1 ? "bg-primary/20" :
-                                  intensity === 2 ? "bg-primary/45" :
-                                  intensity === 3 ? "bg-primary/70" :
-                                  "bg-primary"
-                                )}
-                              />
-                            );
-                          })}
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-1.5 justify-end">
-                          <span className="text-[10px] text-muted-foreground">น้อย</span>
-                          {[0, 1, 2, 3, 4].map((lvl) => (
-                            <div key={lvl} className={cn("w-3 h-3 rounded-sm",
-                              lvl === 0 ? "bg-muted/40" : lvl === 1 ? "bg-primary/20" : lvl === 2 ? "bg-primary/45" : lvl === 3 ? "bg-primary/70" : "bg-primary"
-                            )} />
-                          ))}
-                          <span className="text-[10px] text-muted-foreground">มาก</span>
-                        </div>
-                      </div>
-                    )}
                     {loading ? (
                       <div className="grid grid-cols-7 gap-1.5">
                         {[...Array(35)].map((_, i) => (
@@ -962,6 +923,25 @@ const CalendarPage = () => {
                                       <Move className="h-4 w-4 text-primary/40" />
                                     </div>
                                   )}
+
+                                  {/* Spending heatmap bar at bottom of cell */}
+                                  {(() => {
+                                    const spend = spendByDate[dateStr] ?? 0;
+                                    if (spend === 0) return null;
+                                    const intensity = Math.ceil((spend / maxDailySpend) * 4);
+                                    return (
+                                      <div
+                                        className={cn(
+                                          "absolute bottom-0 left-0 right-0 h-1 rounded-b-lg transition-all",
+                                          intensity === 1 ? "bg-orange-400/30" :
+                                          intensity === 2 ? "bg-orange-400/55" :
+                                          intensity === 3 ? "bg-orange-500/75" :
+                                          "bg-orange-500"
+                                        )}
+                                        title={`ใช้จ่ายจริง ${formatCurrency(spend)}`}
+                                      />
+                                    );
+                                  })()}
 
                                   {provided.placeholder}
                                 </div>
