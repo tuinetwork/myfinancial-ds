@@ -199,6 +199,7 @@ const CalendarPage = () => {
   // Store all transactions across all months for installment tx matching
   const [allTxBySubDate, setAllTxBySubDate] = useState<Record<string, TxEntry[]>>({});
   const [spendByDate, setSpendByDate] = useState<Record<string, number>>({});
+  const [txDetailsByDate, setTxDetailsByDate] = useState<Record<string, { type: string; mainCategory: string; subCategory: string; amount: number; note?: string }[]>>({});
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
 
   const year = currentDate.getFullYear();
@@ -329,6 +330,7 @@ const CalendarPage = () => {
       const investMap = new Map(accs.filter(a => a.type === "investment" || a.type === "savings").map(a => [a.id, a.name]));
       const map: Record<string, TxEntry[]> = {};
       const spendMap: Record<string, number> = {};
+      const detailMap: Record<string, { type: string; mainCategory: string; subCategory: string; amount: number; note?: string }[]> = {};
       txSnap.forEach((d) => {
         const data = d.data();
         let subCat = (data.sub_category as string) ?? "";
@@ -346,9 +348,21 @@ const CalendarPage = () => {
         if (date && (data.type === "expense" || data.type === "transfer")) {
           spendMap[date] = (spendMap[date] ?? 0) + amount;
         }
+        // Build per-date transaction detail list (all types)
+        if (date) {
+          if (!detailMap[date]) detailMap[date] = [];
+          detailMap[date].push({
+            type: (data.type as string) ?? "expense",
+            mainCategory: (data.main_category as string) ?? "",
+            subCategory: subCat,
+            amount,
+            note: (data.note as string) || undefined,
+          });
+        }
       });
       setTxBySubDate(map);
       setSpendByDate(spendMap);
+      setTxDetailsByDate(detailMap);
     });
   }, [userId, period]);
 
@@ -959,42 +973,92 @@ const CalendarPage = () => {
                                       side="right"
                                       align="start"
                                       sideOffset={6}
-                                      className="w-72 p-0 overflow-hidden z-[100]"
+                                      className="w-80 p-0 overflow-hidden z-[100]"
                                     >
                                       {/* Header */}
                                       <div className="px-3 py-2 bg-primary/10 border-b border-border">
                                         <p className="text-xs font-semibold text-foreground">
                                           {formatThaiDate(dateStr)}
                                         </p>
-                                        {spend > 0 && (
-                                          <p className="text-[11px] text-orange-500 font-medium mt-0.5">
-                                            ใช้จ่ายจริง {formatCurrency(spend)}
-                                          </p>
-                                        )}
                                       </div>
 
-                                      {/* Bill items table */}
+                                      {/* Actual transactions */}
+                                      {(() => {
+                                        const txList = txDetailsByDate[dateStr] ?? [];
+                                        if (txList.length === 0) return null;
+                                        const txIncome = txList.filter(t => t.type === "income");
+                                        const txExpense = txList.filter(t => t.type === "expense" || t.type === "transfer");
+                                        const totalIncome = txIncome.reduce((s, t) => s + t.amount, 0);
+                                        const totalExpense = txExpense.reduce((s, t) => s + t.amount, 0);
+                                        return (
+                                          <div className="p-2 border-b border-border/50">
+                                            <p className="text-[10px] text-muted-foreground font-semibold mb-1.5 px-1 uppercase tracking-wide">ธุรกรรมวันนี้</p>
+                                            <table className="w-full text-[11px]">
+                                              <thead>
+                                                <tr className="text-muted-foreground border-b border-border/40">
+                                                  <th className="text-left pb-1 pl-1 font-medium w-[45%]">รายการ</th>
+                                                  <th className="text-left pb-1 font-medium w-[30%]">หมวด</th>
+                                                  <th className="text-right pb-1 pr-1 font-medium">จำนวน</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {txList.map((tx, idx) => (
+                                                  <tr key={idx} className="border-b border-border/20 last:border-0">
+                                                    <td className="py-0.5 pl-1 max-w-[100px]">
+                                                      <span className="truncate block text-foreground">
+                                                        {tx.note || tx.subCategory}
+                                                      </span>
+                                                    </td>
+                                                    <td className="py-0.5 text-muted-foreground truncate max-w-[80px]">
+                                                      {tx.subCategory}
+                                                    </td>
+                                                    <td className={cn(
+                                                      "py-0.5 pr-1 text-right font-medium",
+                                                      tx.type === "income" ? "text-accent" : "text-destructive"
+                                                    )}>
+                                                      {tx.type === "income" ? "+" : "-"}{formatCurrency(tx.amount)}
+                                                    </td>
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                              {txList.length > 1 && (
+                                                <tfoot>
+                                                  <tr className="border-t border-border/50">
+                                                    <td colSpan={2} className="pt-1 pl-1 text-muted-foreground">รวม</td>
+                                                    <td className="pt-1 pr-1 text-right">
+                                                      {totalIncome > 0 && <span className="text-accent font-semibold">+{formatCurrency(totalIncome)} </span>}
+                                                      {totalExpense > 0 && <span className="text-destructive font-semibold">-{formatCurrency(totalExpense)}</span>}
+                                                    </td>
+                                                  </tr>
+                                                </tfoot>
+                                              )}
+                                            </table>
+                                          </div>
+                                        );
+                                      })()}
+
+                                      {/* Bill items (due-date) */}
                                       {dayItems.length > 0 && (
                                         <div className="p-2">
-                                          <p className="text-[10px] text-muted-foreground font-medium mb-1.5 px-1">รายการที่ต้องชำระ</p>
+                                          <p className="text-[10px] text-muted-foreground font-semibold mb-1.5 px-1 uppercase tracking-wide">บิลที่ต้องชำระ</p>
                                           <table className="w-full text-[11px]">
                                             <thead>
-                                              <tr className="text-muted-foreground border-b border-border/50">
-                                                <th className="text-left pb-1 pl-1 font-medium">รายการ</th>
+                                              <tr className="text-muted-foreground border-b border-border/40">
+                                                <th className="text-left pb-1 pl-1 font-medium w-[50%]">รายการ</th>
                                                 <th className="text-right pb-1 font-medium">จำนวน</th>
                                                 <th className="text-right pb-1 pr-1 font-medium">สถานะ</th>
                                               </tr>
                                             </thead>
                                             <tbody>
                                               {dayItems.map((item, idx) => (
-                                                <tr key={idx} className="border-b border-border/30 last:border-0">
-                                                  <td className="py-1 pl-1 text-foreground max-w-[100px] truncate">
+                                                <tr key={idx} className="border-b border-border/20 last:border-0">
+                                                  <td className="py-0.5 pl-1 text-foreground truncate max-w-[110px]">
                                                     {item.subCategory}
                                                   </td>
-                                                  <td className="py-1 text-right font-medium text-foreground">
+                                                  <td className="py-0.5 text-right font-medium text-foreground">
                                                     {formatCurrency(item.amount)}
                                                   </td>
-                                                  <td className="py-1 pr-1 text-right">
+                                                  <td className="py-0.5 pr-1 text-right whitespace-nowrap">
                                                     {item.isPaid ? (
                                                       <span className="text-accent font-medium">✓ จ่ายแล้ว</span>
                                                     ) : getDaysUntil(item.dueDate) < 0 ? (
@@ -1009,22 +1073,13 @@ const CalendarPage = () => {
                                             {dayItems.length > 1 && (
                                               <tfoot>
                                                 <tr className="border-t border-border/50">
-                                                  <td className="pt-1.5 pl-1 text-muted-foreground">รวม</td>
-                                                  <td className="pt-1.5 text-right font-semibold text-foreground">
-                                                    {formatCurrency(total)}
-                                                  </td>
+                                                  <td className="pt-1 pl-1 text-muted-foreground">รวม</td>
+                                                  <td className="pt-1 text-right font-semibold text-foreground">{formatCurrency(total)}</td>
                                                   <td />
                                                 </tr>
                                               </tfoot>
                                             )}
                                           </table>
-                                        </div>
-                                      )}
-
-                                      {/* No bills but has spending */}
-                                      {dayItems.length === 0 && spend > 0 && (
-                                        <div className="px-3 py-2 text-[11px] text-muted-foreground">
-                                          ไม่มีรายการบิลวันนี้
                                         </div>
                                       )}
                                     </HoverCardContent>
