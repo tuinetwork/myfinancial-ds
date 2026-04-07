@@ -344,8 +344,8 @@ const CalendarPage = () => {
           if (!map[subCat]) map[subCat] = [];
           map[subCat].push({ date, amount });
         }
-        // Build daily spending heatmap data
-        if (date && (data.type === "expense" || data.type === "transfer")) {
+        // Build daily spending heatmap data (expense only — transfer is not real spending)
+        if (date && data.type === "expense") {
           spendMap[date] = (spendMap[date] ?? 0) + amount;
         }
         // Build per-date transaction detail list (all types)
@@ -986,9 +986,10 @@ const CalendarPage = () => {
                                       {(() => {
                                         const txList = txDetailsByDate[dateStr] ?? [];
                                         if (txList.length === 0) return null;
-                                        const txIncome = txList.filter(t => t.type === "income");
-                                        const txExpense = txList.filter(t => t.type === "expense" || t.type === "transfer");
-                                        const totalIncome = txIncome.reduce((s, t) => s + t.amount, 0);
+                                        const txIncome  = txList.filter(t => t.type === "income");
+                                        const txExpense = txList.filter(t => t.type === "expense");
+                                        const txTransfer = txList.filter(t => t.type === "transfer");
+                                        const totalIncome  = txIncome.reduce((s, t) => s + t.amount, 0);
                                         const totalExpense = txExpense.reduce((s, t) => s + t.amount, 0);
                                         return (
                                           <div className="p-2 border-b border-border/50">
@@ -1014,9 +1015,11 @@ const CalendarPage = () => {
                                                     </td>
                                                     <td className={cn(
                                                       "py-0.5 pr-1 text-right font-medium",
-                                                      tx.type === "income" ? "text-accent" : "text-destructive"
+                                                      tx.type === "income"   ? "text-accent" :
+                                                      tx.type === "transfer" ? "text-muted-foreground" :
+                                                      "text-destructive"
                                                     )}>
-                                                      {tx.type === "income" ? "+" : "-"}{formatCurrency(tx.amount)}
+                                                      {tx.type === "income" ? "+" : tx.type === "transfer" ? "↔" : "-"}{formatCurrency(tx.amount)}
                                                     </td>
                                                   </tr>
                                                 ))}
@@ -1024,7 +1027,12 @@ const CalendarPage = () => {
                                               {txList.length > 1 && (
                                                 <tfoot>
                                                   <tr className="border-t border-border/50">
-                                                    <td colSpan={2} className="pt-1 pl-1 text-muted-foreground">รวม</td>
+                                                    <td colSpan={2} className="pt-1 pl-1 text-muted-foreground">
+                                                      รวม
+                                                      {txTransfer.length > 0 && (
+                                                        <span className="ml-1 text-[10px] text-muted-foreground/60">(ไม่รวมโอน)</span>
+                                                      )}
+                                                    </td>
                                                     <td className="pt-1 pr-1 text-right">
                                                       {totalIncome > 0 && <span className="text-accent font-semibold">+{formatCurrency(totalIncome)} </span>}
                                                       {totalExpense > 0 && <span className="text-destructive font-semibold">-{formatCurrency(totalExpense)}</span>}
