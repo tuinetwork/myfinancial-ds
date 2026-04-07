@@ -1025,19 +1025,22 @@ const CalendarPage = () => {
                                                 ))}
                                               </tbody>
                                               {txList.length > 1 && (
-                                                <tfoot>
-                                                  <tr className="border-t border-border/50">
-                                                    <td colSpan={2} className="pt-1 pl-1 text-muted-foreground">
-                                                      รวม
-                                                      {txTransfer.length > 0 && (
-                                                        <span className="ml-1 text-[10px] text-muted-foreground/60">(ไม่รวมโอน)</span>
-                                                      )}
-                                                    </td>
-                                                    <td className="pt-1 pr-1 text-right">
-                                                      {totalIncome > 0 && <span className="text-accent font-semibold">+{formatCurrency(totalIncome)} </span>}
-                                                      {totalExpense > 0 && <span className="text-destructive font-semibold">-{formatCurrency(totalExpense)}</span>}
-                                                    </td>
-                                                  </tr>
+                                                <tfoot className="border-t border-border/50">
+                                                  {totalIncome > 0 && (
+                                                    <tr>
+                                                      <td colSpan={2} className="pt-1.5 pl-1 text-muted-foreground text-[10px]">รับรวม</td>
+                                                      <td className="pt-1.5 pr-1 text-right font-semibold text-accent">+{formatCurrency(totalIncome)}</td>
+                                                    </tr>
+                                                  )}
+                                                  {totalExpense > 0 && (
+                                                    <tr>
+                                                      <td colSpan={2} className="pt-0.5 pl-1 text-muted-foreground text-[10px]">
+                                                        จ่ายรวม
+                                                        {txTransfer.length > 0 && <span className="ml-1 opacity-60">(ไม่รวมโอน)</span>}
+                                                      </td>
+                                                      <td className="pt-0.5 pr-1 text-right font-semibold text-destructive">-{formatCurrency(totalExpense)}</td>
+                                                    </tr>
+                                                  )}
                                                 </tfoot>
                                               )}
                                             </table>
