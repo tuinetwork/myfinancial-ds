@@ -88,6 +88,9 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
   const [tagInput, setTagInput] = useState("");
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
 
+  // Note autocomplete
+  const [notesBySubCat, setNotesBySubCat] = useState<Record<string, string[]>>({});
+
   const [categories, setCategories] = useState<Record<string, CategoryData>>({});
 
   // Fetch accounts (one-time, refresh when dialog opens)
@@ -96,29 +99,42 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
     getAccounts(userId).then(setAccounts);
   }, [userId, open]);
 
-  // Fetch suggested tags from recent transactions (limited to 100 latest)
+  // Fetch suggested tags + note history from recent transactions
   useEffect(() => {
     if (!userId || !open) return;
     const txQ = query(
       collection(firestore, "users", userId, "transactions"),
       orderBy("date", "desc"),
-      fbLimit(100)
+      fbLimit(200)
     );
     getDocs(txQ).then((snap) => {
       const tagCounts: Record<string, number> = {};
+      const noteCounts: Record<string, Map<string, number>> = {};
       snap.docs.forEach((d) => {
         const data = d.data();
+        // Tags
         if (data.tags && Array.isArray(data.tags)) {
-          data.tags.forEach((t: string) => {
-            tagCounts[t] = (tagCounts[t] || 0) + 1;
-          });
+          data.tags.forEach((t: string) => { tagCounts[t] = (tagCounts[t] || 0) + 1; });
+        }
+        // Notes by sub_category
+        const note = (data.note as string)?.trim();
+        const subCat = (data.sub_category as string) ?? "";
+        if (note && subCat) {
+          if (!noteCounts[subCat]) noteCounts[subCat] = new Map();
+          noteCounts[subCat].set(note, (noteCounts[subCat].get(note) ?? 0) + 1);
         }
       });
-      const sorted = Object.entries(tagCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([t]) => t);
-      setSuggestedTags(sorted);
+      setSuggestedTags(
+        Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([t]) => t)
+      );
+      const bySubCat: Record<string, string[]> = {};
+      Object.entries(noteCounts).forEach(([cat, counts]) => {
+        bySubCat[cat] = Array.from(counts.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 20)
+          .map(([n]) => n);
+      });
+      setNotesBySubCat(bySubCat);
     });
   }, [userId, open]);
 
@@ -306,6 +322,15 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
   };
 
   const canSubmit = !!amount && (isTransfer ? (!!fromAccountId && !!toAccountId) : !!subCategory) && !saving;
+
+  const filteredNoteSuggestions = useMemo(() => {
+    const pool = subCategory
+      ? (notesBySubCat[subCategory] ?? [])
+      : Object.values(notesBySubCat).flat().filter((n, i, a) => a.indexOf(n) === i);
+    const q = note.trim().toLowerCase();
+    if (!q) return pool.slice(0, 5);
+    return pool.filter((n) => n.toLowerCase().includes(q) && n.toLowerCase() !== q).slice(0, 5);
+  }, [notesBySubCat, subCategory, note]);
 
   const thaiDate = (() => {
     const d = date;
@@ -606,17 +631,33 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
             </div>
 
             {/* Note */}
-            <div className="relative">
-              <Textarea
-                placeholder="Note..."
-                value={note}
-                onChange={(e) => setNote(e.target.value.slice(0, MAX_NOTE_LENGTH))}
-                className="resize-none bg-muted/50 border-border text-foreground placeholder:text-muted-foreground min-h-[56px] text-sm"
-                maxLength={MAX_NOTE_LENGTH}
-              />
-              <span className="absolute bottom-1 right-2 text-[10px] text-muted-foreground">
-                {note.length}/{MAX_NOTE_LENGTH}
-              </span>
+            <div className="space-y-1.5">
+              <div className="relative">
+                <Textarea
+                  placeholder="บันทึกเพิ่มเติม..."
+                  value={note}
+                  onChange={(e) => setNote(e.target.value.slice(0, MAX_NOTE_LENGTH))}
+                  className="resize-none bg-muted/50 border-border text-foreground placeholder:text-muted-foreground min-h-[56px] text-sm"
+                  maxLength={MAX_NOTE_LENGTH}
+                />
+                <span className="absolute bottom-1 right-2 text-[10px] text-muted-foreground">
+                  {note.length}/{MAX_NOTE_LENGTH}
+                </span>
+              </div>
+              {filteredNoteSuggestions.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {filteredNoteSuggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setNote(s)}
+                      className="px-2 py-0.5 rounded-full text-[10px] bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors truncate max-w-[180px]"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Submit */}
