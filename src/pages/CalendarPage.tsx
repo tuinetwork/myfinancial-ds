@@ -33,6 +33,7 @@ import { toast } from "@/hooks/use-toast";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { formatCurrency } from "@/hooks/useBudgetData";
 import { cn } from "@/lib/utils";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 
 interface DueDateItem {
   mainCategory: string;
@@ -834,9 +835,14 @@ const CalendarPage = () => {
                           const isSaturday = d.getDay() === 6;
                           const isSelected = dateStr === selectedDate;
 
+                          const spend = spendByDate[dateStr] ?? 0;
+                          const hasPopup = hasItems || spend > 0;
+
                           return (
                             <Droppable droppableId={dateStr} key={dateStr}>
                               {(provided, snapshot) => (
+                                <HoverCard openDelay={300} closeDelay={100}>
+                                  <HoverCardTrigger asChild>
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.droppableProps}
@@ -945,6 +951,85 @@ const CalendarPage = () => {
 
                                   {provided.placeholder}
                                 </div>
+                                  </HoverCardTrigger>
+
+                                  {/* Hover popup — only when there's data */}
+                                  {hasPopup && (
+                                    <HoverCardContent
+                                      side="right"
+                                      align="start"
+                                      sideOffset={6}
+                                      className="w-72 p-0 overflow-hidden z-[100]"
+                                    >
+                                      {/* Header */}
+                                      <div className="px-3 py-2 bg-primary/10 border-b border-border">
+                                        <p className="text-xs font-semibold text-foreground">
+                                          {formatThaiDate(dateStr)}
+                                        </p>
+                                        {spend > 0 && (
+                                          <p className="text-[11px] text-orange-500 font-medium mt-0.5">
+                                            ใช้จ่ายจริง {formatCurrency(spend)}
+                                          </p>
+                                        )}
+                                      </div>
+
+                                      {/* Bill items table */}
+                                      {dayItems.length > 0 && (
+                                        <div className="p-2">
+                                          <p className="text-[10px] text-muted-foreground font-medium mb-1.5 px-1">รายการที่ต้องชำระ</p>
+                                          <table className="w-full text-[11px]">
+                                            <thead>
+                                              <tr className="text-muted-foreground border-b border-border/50">
+                                                <th className="text-left pb-1 pl-1 font-medium">รายการ</th>
+                                                <th className="text-right pb-1 font-medium">จำนวน</th>
+                                                <th className="text-right pb-1 pr-1 font-medium">สถานะ</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {dayItems.map((item, idx) => (
+                                                <tr key={idx} className="border-b border-border/30 last:border-0">
+                                                  <td className="py-1 pl-1 text-foreground max-w-[100px] truncate">
+                                                    {item.subCategory}
+                                                  </td>
+                                                  <td className="py-1 text-right font-medium text-foreground">
+                                                    {formatCurrency(item.amount)}
+                                                  </td>
+                                                  <td className="py-1 pr-1 text-right">
+                                                    {item.isPaid ? (
+                                                      <span className="text-accent font-medium">✓ จ่ายแล้ว</span>
+                                                    ) : getDaysUntil(item.dueDate) < 0 ? (
+                                                      <span className="text-destructive font-medium">เลยกำหนด</span>
+                                                    ) : (
+                                                      <span className="text-muted-foreground">รอชำระ</span>
+                                                    )}
+                                                  </td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                            {dayItems.length > 1 && (
+                                              <tfoot>
+                                                <tr className="border-t border-border/50">
+                                                  <td className="pt-1.5 pl-1 text-muted-foreground">รวม</td>
+                                                  <td className="pt-1.5 text-right font-semibold text-foreground">
+                                                    {formatCurrency(total)}
+                                                  </td>
+                                                  <td />
+                                                </tr>
+                                              </tfoot>
+                                            )}
+                                          </table>
+                                        </div>
+                                      )}
+
+                                      {/* No bills but has spending */}
+                                      {dayItems.length === 0 && spend > 0 && (
+                                        <div className="px-3 py-2 text-[11px] text-muted-foreground">
+                                          ไม่มีรายการบิลวันนี้
+                                        </div>
+                                      )}
+                                    </HoverCardContent>
+                                  )}
+                                </HoverCard>
                               )}
                             </Droppable>
                           );
