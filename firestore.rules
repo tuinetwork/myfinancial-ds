@@ -63,16 +63,18 @@ service cloud.firestore {
       // 1. Accounts
       match /accounts/{accountId} {
         allow read: if isOwner(userId) || isDev();
+        allow delete: if isOwner(userId) || isDev();
         allow write: if (isOwner(userId) || isDev())
                      && isValidNumber(request.resource.data.balance)
                      && isValidString(request.resource.data.name, 1, 50)
-                     && isOneOf(request.resource.data.type, ['cash', 'bank', 'investment', 'credit_card', 'loan', 'inventory'])
+                     && isOneOf(request.resource.data.type, ['cash', 'bank', 'savings', 'investment', 'credit_card', 'loan', 'receivable', 'payable', 'inventory'])
                      && (request.method == 'create' || isUnchanged('created_at'));
       }
 
       // 2. Transactions
       match /transactions/{transactionId} {
         allow read: if isOwner(userId) || isDev();
+        allow delete: if isOwner(userId) || isDev();
         allow write: if (isOwner(userId) || isDev())
                      && isValidNumber(request.resource.data.amount)
                      && request.resource.data.amount >= 0
