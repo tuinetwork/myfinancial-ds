@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAccounts } from "@/lib/firestore-services";
-import { getRecurringRules, type RecurringRule } from "@/lib/recurring-service";
+import { subscribeRecurringRules, type RecurringRule } from "@/lib/recurring-service";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -366,10 +366,10 @@ const CalendarPage = () => {
     });
   }, [userId, period]);
 
-  // Fetch recurring rules once (re-fetch when userId changes)
+  // Subscribe to recurring rules (real-time)
   useEffect(() => {
     if (!userId) return;
-    getRecurringRules(userId).then(setRecurringRules);
+    return subscribeRecurringRules(userId, setRecurringRules);
   }, [userId]);
 
   // Merge current period budgets with cross-month recurring items (deduplicate by subCategory)

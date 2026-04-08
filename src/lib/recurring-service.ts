@@ -1,5 +1,5 @@
 import {
-  collection, doc, getDocs, addDoc, updateDoc, deleteDoc, getDoc, query, where,
+  collection, doc, getDocs, addDoc, updateDoc, deleteDoc, getDoc, query, where, onSnapshot, writeBatch,
 } from "firebase/firestore";
 import { firestore } from "./firebase";
 import { createTransactionAtomic } from "./firestore-services";
@@ -26,6 +26,12 @@ export async function getRecurringRules(userId: string): Promise<RecurringRule[]
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecurringRule));
 }
 
+export function subscribeRecurringRules(userId: string, onChange: (rules: RecurringRule[]) => void): () => void {
+  return onSnapshot(collection(firestore, "users", userId, "recurring_rules"), (snap) => {
+    onChange(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecurringRule)));
+  });
+}
+
 export async function createRecurringRule(userId: string, data: Omit<RecurringRule, "id" | "created_at" | "last_applied">): Promise<string> {
   const ref = await addDoc(collection(firestore, "users", userId, "recurring_rules"), {
     ...data,
@@ -40,7 +46,28 @@ export async function updateRecurringRule(userId: string, ruleId: string, data: 
 }
 
 export async function deleteRecurringRule(userId: string, ruleId: string): Promise<void> {
+  // Read the rule first to get sub_category for cascade delete
+  const ruleSnap = await getDoc(doc(firestore, "users", userId, "recurring_rules", ruleId));
+  const rule = ruleSnap.exists() ? (ruleSnap.data() as RecurringRule) : null;
+
+  // Delete rule
   await deleteDoc(doc(firestore, "users", userId, "recurring_rules", ruleId));
+
+  // Cascade: delete auto-applied transactions ([จัดโนมัติ] prefix) that match this rule's sub_category
+  if (rule?.sub_category) {
+    const txCol = collection(firestore, "users", userId, "transactions");
+    const q = query(txCol, where("sub_category", "==", rule.sub_category));
+    const snap = await getDocs(q);
+    const autoTxs = snap.docs.filter((d) => {
+      const desc: string = d.data().description ?? "";
+      return desc.startsWith("[จัดโนมัติ]");
+    });
+    if (autoTxs.length > 0) {
+      const batch = writeBatch(firestore);
+      autoTxs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  }
 }
 
 async function getNextTxId(userId: string, monthYear: string): Promise<string> {
