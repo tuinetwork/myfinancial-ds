@@ -606,6 +606,13 @@ const BudgetTable = ({
                 const hasRecurrence = recurrence !== null && recurrence !== undefined;
                 const isForeign = foreignSourceItems?.has(`${selectedCategory}::${sub}`) ?? false;
                 const isLocked = isForeign || (hasRecurrence && !!startDt && !!endDt && !unlockedItems.has(sub));
+                // For recurring items, calculate effective due date for the currently viewed period
+                let displayDueDate = dueDate;
+                if (hasRecurrence && dueDate && selectedPeriod) {
+                  const [py, pm] = selectedPeriod.split("-").map(Number);
+                  const occ = expandRecurrence(dueDate, recurrence, py, pm, startDt, endDt);
+                  displayDueDate = occ.length > 0 ? occ[0] : null;
+                }
                 const canLock = !isForeign && hasRecurrence && !!startDt && !!endDt;
                 return (
                   <tr key={sub} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
@@ -659,7 +666,7 @@ const BudgetTable = ({
                     {showDueDate && (
                       <td className="px-3 py-2.5 text-center">
                         {isLocked ? (
-                          <span className="text-xs text-muted-foreground">{formatThaiDate(dueDate)}</span>
+                          <span className="text-xs text-muted-foreground">{formatThaiDate(displayDueDate)}</span>
                         ) : (
                           <DueDatePicker
                             value={dueDate}
