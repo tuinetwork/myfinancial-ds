@@ -13,9 +13,10 @@ const confidenceLabel = { high: "ความแม่นยำสูง", mediu
 const confidenceColor = { high: "text-accent", medium: "text-amber-500", low: "text-muted-foreground" };
 
 export function ForecastCard({ forecast }: Props) {
-  const { projectedBalance, dailyBurnRate, remainingDays, elapsedDays, totalDays, confidence } = forecast;
+  const { projectedBalance, dailyBurnRate, remainingDays, elapsedDays, totalDays, confidence, actualIncome, budgetedIncome, projectedIncome } = forecast;
   const elapsedPct = Math.round((elapsedDays / totalDays) * 100);
   const isNegative = projectedBalance < 0;
+  const usingBudgetedIncome = projectedIncome > actualIncome;
 
   return (
     <Card className="border-none shadow-sm animate-fade-in">
@@ -28,7 +29,7 @@ export function ForecastCard({ forecast }: Props) {
               <Info className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help" />
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-56 text-xs">
-              คำนวณจากอัตราการใช้จ่ายเฉลี่ยต่อวัน × วันที่เหลือในเดือน
+              คำนวณจากรายรับที่ตั้งงบไว้ หักด้วยรายจ่ายจริง + ประมาณการรายจ่ายที่เหลือ (อัตราเฉลี่ย/วัน × วันที่เหลือ)
             </TooltipContent>
           </Tooltip>
         </CardTitle>
@@ -61,6 +62,23 @@ export function ForecastCard({ forecast }: Props) {
               className="h-full rounded-full bg-primary transition-all duration-500"
               style={{ width: `${elapsedPct}%` }}
             />
+          </div>
+        </div>
+
+        {/* Income row */}
+        <div className="grid grid-cols-2 gap-2 text-xs border-t pt-2">
+          <div>
+            <p className="text-muted-foreground">รายรับจริงถึงตอนนี้</p>
+            <p className="font-semibold text-accent">{formatCurrency(actualIncome)}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-muted-foreground">
+              ประมาณการรายรับทั้งเดือน
+              {usingBudgetedIncome && (
+                <span className="ml-1 text-[10px] text-primary">(จากงบ)</span>
+              )}
+            </p>
+            <p className="font-semibold text-primary">{formatCurrency(projectedIncome)}</p>
           </div>
         </div>
 

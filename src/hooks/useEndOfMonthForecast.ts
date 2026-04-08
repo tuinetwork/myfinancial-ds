@@ -9,6 +9,8 @@ export interface ForecastResult {
   totalDays: number;
   actualExpense: number;
   actualIncome: number;
+  budgetedIncome: number;
+  projectedIncome: number;
   confidence: "high" | "medium" | "low";
   isCurrentMonth: boolean;
 }
@@ -42,9 +44,14 @@ export function useEndOfMonthForecast(data: BudgetData | undefined, carryOver: n
       .filter((t) => t.type !== "รายรับ")
       .reduce((s, t) => s + t.amount, 0);
 
+    // รายรับที่ตั้งงบไว้ทั้งเดือน (ประมาณการรายรับสิ้นเดือน)
+    const budgetedIncome = data.income.reduce((s, i) => s + i.budget, 0) + carryOver;
+    // ใช้ค่าที่มากกว่าระหว่างรับจริงกับงบที่ตั้ง (กรณีรับจริงเกินงบ)
+    const projectedIncome = Math.max(actualIncome, budgetedIncome);
+
     const dailyBurnRate = elapsedDays > 0 ? actualExpense / elapsedDays : 0;
     const projectedAdditionalExpense = remainingDays * dailyBurnRate;
-    const projectedBalance = actualIncome - (actualExpense + projectedAdditionalExpense);
+    const projectedBalance = projectedIncome - (actualExpense + projectedAdditionalExpense);
 
     const confidence: "high" | "medium" | "low" =
       elapsedDays >= 15 ? "high" : elapsedDays >= 7 ? "medium" : "low";
@@ -57,6 +64,8 @@ export function useEndOfMonthForecast(data: BudgetData | undefined, carryOver: n
       totalDays,
       actualExpense,
       actualIncome,
+      budgetedIncome,
+      projectedIncome,
       confidence,
       isCurrentMonth,
     };
