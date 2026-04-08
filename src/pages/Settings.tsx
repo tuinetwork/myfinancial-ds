@@ -539,6 +539,12 @@ const BudgetTable = ({
   const remainingColor = (budget: number, actual: number) => {
     const diff = budget - actual;
     if (actual === 0) return "text-muted-foreground";
+    if (!isExpense) {
+      // income: over target = green, under target = normal
+      if (diff < 0) return "text-emerald-500 font-medium";
+      if (diff === 0) return "text-muted-foreground";
+      return "text-foreground";
+    }
     if (diff < 0) return "text-destructive font-medium";
     if (diff < budget * 0.2) return "text-[hsl(var(--debt))] font-medium";
     return "text-accent";
@@ -581,14 +587,14 @@ const BudgetTable = ({
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="text-left px-3 py-2.5 font-medium">หมวดหมู่</th>
-                <th className="text-right px-3 py-2.5 font-medium">งบประมาณ</th>
+                <th className="text-right px-3 py-2.5 font-medium">{isExpense ? "งบประมาณ" : "เป้าหมาย"}</th>
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันกำหนดชำระ</th>}
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">ความถี่</th>}
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันเริ่ม</th>}
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">วันสิ้นสุด</th>}
                 {showDueDate && <th className="text-center px-3 py-2.5 font-medium">งวด</th>}
-                <th className="text-right px-3 py-2.5 font-medium">จ่ายแล้ว</th>
-                <th className="text-right px-3 py-2.5 font-medium">คงเหลือ</th>
+                <th className="text-right px-3 py-2.5 font-medium">{isExpense ? "จ่ายแล้ว" : "รับแล้ว"}</th>
+                <th className="text-right px-3 py-2.5 font-medium">{isExpense ? "คงเหลือ" : "ขาดอีก / (เกิน)"}</th>
               </tr>
             </thead>
             <tbody>
@@ -735,7 +741,11 @@ const BudgetTable = ({
                       {actual > 0 ? fmt(actual) : "-"}
                     </td>
                     <td className={`px-3 py-2.5 text-right tabular-nums ${remainingColor(totalForSub, actual)}`}>
-                      {(isLocked || actual > 0) ? fmt(remaining) : "-"}
+                      {(isLocked || actual > 0)
+                        ? (!isExpense && remaining < 0)
+                          ? `(${fmt(Math.abs(remaining))})`
+                          : remaining === 0 ? "-" : fmt(remaining)
+                        : "-"}
                     </td>
                   </tr>
                 );
@@ -756,7 +766,9 @@ const BudgetTable = ({
                 {showDueDate && <td />}
                 {showDueDate && <td />}
                 <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totalActual)}</td>
-                <td className={`px-3 py-2.5 text-right tabular-nums ${remainingColor(totalBudget, totalActual)}`}>{fmt(totalRemaining)}</td>
+                <td className={`px-3 py-2.5 text-right tabular-nums ${remainingColor(totalBudget, totalActual)}`}>
+                  {(!isExpense && totalRemaining < 0) ? `(${fmt(Math.abs(totalRemaining))})` : fmt(totalRemaining)}
+                </td>
               </tr>
             </tfoot>
           </table>
