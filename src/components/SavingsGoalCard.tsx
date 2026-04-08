@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
+import { BudgetData, BudgetItem, formatCurrency } from "@/hooks/useBudgetData";
+import { expandRecurrence } from "@/lib/recurrence";
 import { Target, CheckCircle2, AlertTriangle } from "lucide-react";
 
 interface Props {
@@ -27,6 +28,16 @@ function AnimatedBar({ pct, colorClass, height = "h-3", delay = 0 }: { pct: numb
   );
 }
 
+/** Calculate effective monthly budget: per-installment × occurrences in this period */
+function monthlyTarget(item: BudgetItem, period: string): number {
+  if (!item.recurrence) return item.budget;
+  const [yearStr, monthStr] = period.split("-");
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+  const occurrences = expandRecurrence(item.dueDate, item.recurrence, year, month, item.startDate, item.endDate);
+  return occurrences.length > 0 ? item.budget * occurrences.length : item.budget;
+}
+
 export function SavingsGoalCard({ data }: Props) {
   const { goals, totalTarget, totalActual, overallPct } = useMemo(() => {
     const savingsBudgets = data.expenses.savings;
@@ -44,13 +55,14 @@ export function SavingsGoalCard({ data }: Props) {
 
     const goals = savingsBudgets.map((item) => {
       const actual = actualByCategory[item.label] || 0;
-      const pct = item.budget > 0 ? Math.min((actual / item.budget) * 100, 100) : 0;
+      const target = monthlyTarget(item, data.period);
+      const pct = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
       return {
         label: item.label,
-        target: item.budget,
+        target,
         actual,
         pct,
-        completed: actual >= item.budget && item.budget > 0,
+        completed: actual >= target && target > 0,
       };
     }).filter((g) => g.target > 0);
 
