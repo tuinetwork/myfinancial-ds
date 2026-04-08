@@ -34,9 +34,10 @@ import {
   BreadcrumbItem,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { Home, LayoutDashboard, FileDown } from "lucide-react";
+import { Home, LayoutDashboard, FileDown, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ShareReportDialog } from "@/components/ShareReportDialog";
 import {
   Select,
   SelectContent,
@@ -52,6 +53,7 @@ const Index = () => {
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | undefined>(undefined);
   const [exporting, setExporting] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const APPS_SCRIPT_URL = import.meta.env.VITE_APPS_SCRIPT_URL || "";
 
@@ -209,16 +211,27 @@ const Index = () => {
           <div className="flex items-center gap-1">
             <div className="hidden md:flex items-center gap-1">
               {viewMode === "monthly" && data && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleExportPDF}
-                  disabled={exporting}
-                  title="ส่งออก PDF"
-                  className="h-8 w-8"
-                >
-                  <FileDown className={cn("h-4 w-4", exporting && "animate-pulse")} />
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShareOpen(true)}
+                    title="แชร์รายงาน"
+                    className="h-8 w-8"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleExportPDF}
+                    disabled={exporting}
+                    title="ส่งออก PDF"
+                    className="h-8 w-8"
+                  >
+                    <FileDown className={cn("h-4 w-4", exporting && "animate-pulse")} />
+                  </Button>
+                </>
               )}
               {viewMode === "monthly" && <SpendingInsightsButton insights={insights} />}
             </div>
@@ -344,6 +357,15 @@ const Index = () => {
         </main>
         <AppFooter />
       </div>
+
+      {data && (
+        <ShareReportDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          data={data}
+          carryOver={carryOver}
+        />
+      )}
     </>
   );
 };

@@ -18,6 +18,7 @@ import { BottomNavbar } from "./components/BottomNavbar";
 import { Loader2, AlertTriangle, X, Megaphone } from "lucide-react";
 
 // Lazy load all page components for code splitting
+const SharedReportPage = lazy(() => import("./pages/SharedReportPage"));
 const Index = lazy(() => import("./pages/Index"));
 const Transactions = lazy(() => import("./pages/Transactions"));
 const Analysis = lazy(() => import("./pages/Analysis"));
@@ -152,7 +153,7 @@ function useApplyRecurring() {
   }, [userId]);
 }
 
-const AppContent = () => {
+function AuthenticatedApp() {
   const { user, loading, pendingApproval } = useAuth();
   const [fabOpen, setFabOpen] = useState(false);
   useApplyRecurring();
@@ -170,30 +171,43 @@ const AppContent = () => {
   }
 
   return (
+    <SidebarProvider>
+      <SystemOverlays />
+      <div className="min-h-screen flex w-full">
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/analysis" element={<Analysis />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/admin" element={<AdminRoute element={<AdminPanel />} />} />
+            <Route path="/accounts" element={<AccountsPage />} />
+            <Route path="/investments" element={<InvestmentsPage />} />
+            <Route path="/goals" element={<GoalsPage />} />
+            <Route path="/debt-planner" element={<DebtPlannerPage />} />
+            <Route path="/command-center" element={<CommandCenter />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+        <AddTransactionFAB open={fabOpen} onOpenChange={setFabOpen} />
+        <BottomNavbar onAddClick={() => setFabOpen(true)} />
+      </div>
+    </SidebarProvider>
+  );
+}
+
+const AppContent = () => {
+  return (
     <BrowserRouter>
-      <SidebarProvider>
-        <SystemOverlays />
-        <div className="min-h-screen flex w-full">
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/transactions" element={<Transactions />} />
-              <Route path="/analysis" element={<Analysis />} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/admin" element={<AdminRoute element={<AdminPanel />} />} />
-              <Route path="/accounts" element={<AccountsPage />} />
-              <Route path="/investments" element={<InvestmentsPage />} />
-              <Route path="/goals" element={<GoalsPage />} />
-              <Route path="/debt-planner" element={<DebtPlannerPage />} />
-              <Route path="/command-center" element={<CommandCenter />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-          <AddTransactionFAB open={fabOpen} onOpenChange={setFabOpen} />
-          <BottomNavbar onAddClick={() => setFabOpen(true)} />
-        </div>
-      </SidebarProvider>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Public routes — no auth required */}
+          <Route path="/report/:token" element={<SharedReportPage />} />
+          {/* Auth-gated app */}
+          <Route path="/*" element={<AuthenticatedApp />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 };
