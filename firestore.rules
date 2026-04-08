@@ -111,6 +111,13 @@ service cloud.firestore {
         allow write: if isOwner(userId) || isDev();
       }
 
+      // 7. Recurring Rules
+      match /recurring_rules/{ruleId} {
+        allow read: if isOwner(userId) || isDev();
+        allow write: if isOwner(userId) || isDev();
+        allow delete: if isOwner(userId) || isDev();
+      }
+
       // catch-all: read-only — ป้องกันไม่ให้ bypass validation rules ด้านบน
       // หากต้องการทำ Big Migration ให้ปลดคอมเมนต์ write ของ isDev() ชั่วคราว
       match /{document=**} {
