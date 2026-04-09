@@ -343,7 +343,7 @@ function UpcomingBillsMini({ data, loading }: { data: BudgetData | undefined; lo
           const today = new Date(now);
           today.setHours(0, 0, 0, 0);
           const daysUntil = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          const isPaid = matchResult[i]?.paid ?? false;
+          const isPaid = matchResult.get(dates[i])?.isPaid ?? false;
           if (!isPaid) {
             items.push({ label: item.label, amount: item.budget, dueDate: dates[i], daysUntil, isPaid });
           }
@@ -351,7 +351,12 @@ function UpcomingBillsMini({ data, loading }: { data: BudgetData | undefined; lo
       }
     }
 
-    return items.sort((a, b) => a.daysUntil - b.daysUntil).slice(0, 5);
+    // Sort: upcoming first (nearest positive), then overdue (most recent first)
+    return items.sort((a, b) => {
+      if (a.daysUntil >= 0 && b.daysUntil >= 0) return a.daysUntil - b.daysUntil;
+      if (a.daysUntil < 0 && b.daysUntil < 0) return a.daysUntil - b.daysUntil; // least overdue first
+      return a.daysUntil >= 0 ? -1 : 1; // upcoming before overdue
+    }).slice(0, 5);
   }, [data]);
 
   if (bills.length === 0) return null;
