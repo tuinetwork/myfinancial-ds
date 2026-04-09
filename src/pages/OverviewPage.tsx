@@ -364,10 +364,14 @@ function MonthCashFlowCard({ data, carryOver, loading }: { data: BudgetData | un
 
   const forecast = useEndOfMonthForecast(data, carryOver);
 
-  const { actualIncome, actualExpense, balance } = useMemo(() => {
-    const inc = data.transactions.filter((t) => t.type === "รายรับ").reduce((s, t) => s + t.amount, 0);
-    const exp = data.transactions.filter((t) => t.type !== "รายรับ" && t.type !== "โอน" && t.category !== "โอนระหว่างบัญชี").reduce((s, t) => s + t.amount, 0);
-    return { actualIncome: inc + carryOver, actualExpense: exp, balance: inc + carryOver - exp };
+  const { actualIncome, actualExpense, balance, avgDailyExpense, expenseDays } = useMemo(() => {
+    const active = data.transactions.filter((t) => t.type !== "โอน" && t.category !== "โอนระหว่างบัญชี");
+    const inc = active.filter((t) => t.type === "รายรับ").reduce((s, t) => s + t.amount, 0);
+    const expTx = active.filter((t) => t.type !== "รายรับ");
+    const exp = expTx.reduce((s, t) => s + t.amount, 0);
+    const uniqueDays = new Set(expTx.map((t) => t.date)).size;
+    const avg = uniqueDays > 0 ? exp / uniqueDays : 0;
+    return { actualIncome: inc + carryOver, actualExpense: exp, balance: inc + carryOver - exp, avgDailyExpense: avg, expenseDays: uniqueDays };
   }, [data, carryOver]);
 
   return (
@@ -405,11 +409,10 @@ function MonthCashFlowCard({ data, carryOver, loading }: { data: BudgetData | un
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">ใช้จ่ายเฉลี่ย/วัน</span>
-              <span className="tabular-nums">{formatCurrency(forecast.dailyBurnRate)}</span>
+              <span className="tabular-nums">{formatCurrency(avgDailyExpense)}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">เหลืออีก</span>
-              <span className="tabular-nums">{forecast.remainingDays} วัน</span>
+              <span className="text-muted-foreground">{expenseDays} วันที่มีรายจ่าย · เหลืออีก {forecast.remainingDays} วัน</span>
             </div>
           </div>
         )}
