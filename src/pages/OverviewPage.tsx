@@ -25,6 +25,15 @@ const THAI_MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.",
 
 const fmt = (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
+/** Format "2026-04-09" → "9 เม.ย. 69" (Thai Buddhist short year) */
+function formatThaiDateShort(dateStr: string): string {
+  if (!dateStr) return "-";
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (!y || !m || !d) return dateStr;
+  const buddhistYear = (y + 543) % 100; // short year e.g. 69
+  return `${d} ${THAI_MONTHS_SHORT[m - 1]} ${buddhistYear}`;
+}
+
 // ===== Net Worth Card =====
 function NetWorthCard({ accounts, trueNetWorth, loading }: { accounts: Account[]; trueNetWorth: number; loading: boolean }) {
   const { totalAssets, totalLiabilities, netWorth, breakdown } = useMemo(() => {
@@ -325,7 +334,7 @@ function RecentTransactionsTable({ transactions, loading }: {
                 const isTransfer = tx.type === "โอน" || tx.category === "โอนระหว่างบัญชี";
                 return (
                   <tr key={i} className="border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">{tx.date}</td>
+                    <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">{formatThaiDateShort(tx.date)}</td>
                     <td className="px-4 py-2 truncate max-w-[200px]">{tx.description || tx.category}</td>
                     <td className="px-4 py-2 text-muted-foreground truncate max-w-[120px]">{tx.category}</td>
                     <td className={cn(
@@ -455,7 +464,7 @@ export default function OverviewPage() {
   useEffect(() => {
     if (!latestData) return;
     const sorted = [...latestData.transactions].sort((a, b) => b.date.localeCompare(a.date));
-    setRecentTx(sorted.slice(0, 15).map((t) => ({
+    setRecentTx(sorted.slice(0, 30).map((t) => ({
       date: t.date,
       description: t.description,
       amount: t.amount,
@@ -490,7 +499,7 @@ export default function OverviewPage() {
 
         {/* Content */}
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">
-          <div className="max-w-6xl mx-auto space-y-6">
+          <div className="space-y-6">
             {/* Row 1: Net Worth + Avg Expense */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <NetWorthCard accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
