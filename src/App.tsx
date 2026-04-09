@@ -15,6 +15,7 @@ import { applyRecurringRules } from "@/lib/recurring-service";
 import GoogleLogin from "./components/GoogleLogin";
 import AddTransactionFAB from "./components/AddTransactionFAB";
 import { BottomNavbar } from "./components/BottomNavbar";
+import { GlobalInsights } from "./components/GlobalInsights";
 import { Loader2, AlertTriangle, X, Megaphone } from "lucide-react";
 
 // Lazy load all page components for code splitting
@@ -192,6 +193,7 @@ function AuthenticatedApp() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
+        <GlobalInsights />
         <AddTransactionFAB open={fabOpen} onOpenChange={setFabOpen} />
         <BottomNavbar onAddClick={() => setFabOpen(true)} />
       </div>

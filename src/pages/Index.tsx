@@ -233,7 +233,6 @@ const Index = () => {
                   </Button>
                 </>
               )}
-              {viewMode === "monthly" && <SpendingInsightsButton insights={insights} />}
             </div>
             <ThemeToggle />
             <span className="hidden md:contents">
