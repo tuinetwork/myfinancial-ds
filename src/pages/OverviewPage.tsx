@@ -8,7 +8,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { GlobalInsights } from "@/components/GlobalInsights";
 import { AppFooter } from "@/components/AppFooter";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAvailableMonths, useBudgetData, formatCurrency, type BudgetData } from "@/hooks/useBudgetData";
+import { useAvailableMonths, useBudgetData, formatCurrency, type BudgetData, type BudgetItem } from "@/hooks/useBudgetData";
+import { expandRecurrence } from "@/lib/recurrence";
 import { getAccounts, getGoals, getInvestments } from "@/lib/firestore-services";
 import type { Account, Goal, Investment } from "@/types/finance";
 import { cn } from "@/lib/utils";
@@ -234,10 +235,60 @@ function AccountsSummary({ accounts, trueNetWorth, loading }: { accounts: Accoun
 }
 
 // ===== Goals Progress =====
-function GoalsMini({ goals, loading }: { goals: Goal[]; loading: boolean }) {
+function countTotalInstallments(item: BudgetItem): number {
+  if (!item.recurrence || !item.startDate || !item.endDate) return 0;
+  const start = new Date(item.startDate);
+  const end = new Date(item.endDate);
+  let count = 0;
+  let y = start.getFullYear();
+  let m = start.getMonth() + 1;
+  const endY = end.getFullYear();
+  const endM = end.getMonth() + 1;
+  while (y < endY || (y === endY && m <= endM)) {
+    count += expandRecurrence(item.dueDate, item.recurrence, y, m, item.startDate, item.endDate).length;
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return count;
+}
+
+function GoalsMini({ goals, accounts, data, loading }: { goals: Goal[]; accounts: Account[]; data: BudgetData | undefined; loading: boolean }) {
   if (loading) return <Skeleton className="h-36 rounded-xl" />;
-  const active = goals.filter((g) => g.status === "active" && !g.is_deleted);
-  if (active.length === 0) return null;
+
+  const resolved = useMemo(() => {
+    const active = goals.filter((g) => g.status === "active" && !g.is_deleted);
+    if (!data) return active;
+
+    // Build account map
+    const accMap = new Map<string, Account>();
+    accounts.forEach((a) => accMap.set(a.id, a));
+
+    // Build budget map from savings
+    const budgetMap = new Map<string, { budgetTotal: number }>();
+    const savingsItems = data.expenses.savings ?? [];
+    savingsItems.forEach((item) => {
+      if (item.recurrence && item.budget > 0) {
+        const total = countTotalInstallments(item);
+        budgetMap.set(item.label, { budgetTotal: item.budget * total });
+      }
+    });
+
+    return active.map((g) => {
+      let currentAmount = g.current_amount;
+      let targetAmount = g.target_amount;
+      // Sync current_amount from linked account balance
+      if (g.linked_account_id) {
+        const acc = accMap.get(g.linked_account_id);
+        if (acc) currentAmount = acc.balance;
+      }
+      // Sync target_amount from budget installment total
+      const matched = budgetMap.get(g.name);
+      if (matched && matched.budgetTotal > 0) targetAmount = matched.budgetTotal;
+      return { ...g, current_amount: currentAmount, target_amount: targetAmount };
+    });
+  }, [goals, accounts, data]);
+
+  if (resolved.length === 0) return null;
 
   return (
     <Card className="border-none shadow-sm">
@@ -248,7 +299,7 @@ function GoalsMini({ goals, loading }: { goals: Goal[]; loading: boolean }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {active.map((g) => {
+        {resolved.map((g) => {
           const pct = g.target_amount > 0 ? Math.min(100, (g.current_amount / g.target_amount) * 100) : 0;
           return (
             <div key={g.id} className="space-y-1">
@@ -692,7 +743,7 @@ export default function OverviewPage() {
             </div>
 
             {/* Row 4: Goals */}
-            <GoalsMini goals={goals} loading={assetsLoading} />
+            <GoalsMini goals={goals} accounts={accounts} data={latestData} loading={assetsLoading} />
 
             {/* Row 5: Recent Transactions */}
             <RecentTransactionsTable transactions={recentTx} loading={latestLoading} />
