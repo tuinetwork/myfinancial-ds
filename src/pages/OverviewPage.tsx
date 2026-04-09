@@ -7,17 +7,20 @@ import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AppFooter } from "@/components/AppFooter";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAvailableMonths, useBudgetData, formatCurrency } from "@/hooks/useBudgetData";
+import { useAvailableMonths, useBudgetData, formatCurrency, type BudgetData } from "@/hooks/useBudgetData";
 import { getAccounts, getGoals, getInvestments } from "@/lib/firestore-services";
 import type { Account, Goal, Investment } from "@/types/finance";
 import { cn } from "@/lib/utils";
 import {
   Eye, TrendingUp, TrendingDown, Wallet, Target, CreditCard, PiggyBank,
-  ArrowUpRight, ArrowDownRight, Minus, Receipt,
+  ArrowUpRight, ArrowDownRight, Minus, Receipt, CalendarClock, Sparkles,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useEndOfMonthForecast } from "@/hooks/useEndOfMonthForecast";
+import { expandRecurrence, matchTxToOccurrences, type TxEntry } from "@/lib/recurrence";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, CartesianGrid, LineChart, Line, Legend,
+  BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, CartesianGrid, LineChart, Line,
+  PieChart, Pie, Cell,
 } from "recharts";
 
 // ===== Helpers =====
@@ -303,6 +306,207 @@ function AvgExpenseCard({ data, loading }: { data: MonthSummary[]; loading: bool
   );
 }
 
+// ===== Upcoming Bills Mini =====
+function UpcomingBillsMini({ data, loading }: { data: BudgetData | undefined; loading: boolean }) {
+  if (loading || !data) return <Skeleton className="h-40 rounded-xl" />;
+
+  const bills = useMemo(() => {
+    const now = new Date();
+    const [yearStr, monthStr] = data.period.split("-");
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    const categories = ["bills", "debts", "subscriptions", "savings"] as const;
+    const items: { label: string; amount: number; dueDate: string; daysUntil: number; isPaid: boolean }[] = [];
+
+    // Build txBySubDate for matching
+    const txBySubDate: Record<string, TxEntry[]> = {};
+    data.transactions.forEach((t) => {
+      if (!txBySubDate[t.category]) txBySubDate[t.category] = [];
+      txBySubDate[t.category].push({ date: t.date, amount: t.amount });
+    });
+
+    for (const cat of categories) {
+      for (const item of data.expenses[cat]) {
+        if (item.budget <= 0) continue;
+        const dates = item.recurrence
+          ? expandRecurrence(item.dueDate, item.recurrence, year, month, item.startDate, item.endDate)
+          : item.dueDate ? [item.dueDate] : [];
+        if (dates.length === 0) continue;
+
+        const txs = txBySubDate[item.label] ?? [];
+        const matchResult = matchTxToOccurrences(txs, dates, item.budget);
+
+        for (let i = 0; i < dates.length; i++) {
+          const d = new Date(dates[i]);
+          d.setHours(0, 0, 0, 0);
+          const today = new Date(now);
+          today.setHours(0, 0, 0, 0);
+          const daysUntil = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          const isPaid = matchResult[i]?.paid ?? false;
+          if (!isPaid) {
+            items.push({ label: item.label, amount: item.budget, dueDate: dates[i], daysUntil, isPaid });
+          }
+        }
+      }
+    }
+
+    return items.sort((a, b) => a.daysUntil - b.daysUntil).slice(0, 5);
+  }, [data]);
+
+  if (bills.length === 0) return null;
+
+  return (
+    <Card className="border-none shadow-sm">
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
+          <CalendarClock className="h-4 w-4 text-primary" />
+          <CardTitle className="text-base font-semibold">บิลที่ต้องจ่ายเร็วๆ นี้</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {bills.map((b, i) => (
+          <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm truncate">{b.label}</p>
+              <p className="text-[11px] text-muted-foreground">
+                {formatThaiDateShort(b.dueDate)}
+                {b.daysUntil < 0 && <span className="ml-1 text-destructive font-medium">เลยกำหนด {Math.abs(b.daysUntil)} วัน</span>}
+                {b.daysUntil === 0 && <span className="ml-1 text-amber-500 font-medium">วันนี้!</span>}
+                {b.daysUntil > 0 && b.daysUntil <= 3 && <span className="ml-1 text-amber-500">อีก {b.daysUntil} วัน</span>}
+                {b.daysUntil > 3 && <span className="ml-1">อีก {b.daysUntil} วัน</span>}
+              </p>
+            </div>
+            <span className={cn("text-sm font-semibold tabular-nums shrink-0", b.daysUntil < 0 ? "text-destructive" : "text-foreground")}>
+              {formatCurrency(b.amount)}
+            </span>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ===== Month Cash Flow Summary =====
+function MonthCashFlowCard({ data, carryOver, loading }: { data: BudgetData | undefined; carryOver: number; loading: boolean }) {
+  if (loading || !data) return <Skeleton className="h-40 rounded-xl" />;
+
+  const forecast = useEndOfMonthForecast(data, carryOver);
+
+  const { actualIncome, actualExpense, balance } = useMemo(() => {
+    const inc = data.transactions.filter((t) => t.type === "รายรับ").reduce((s, t) => s + t.amount, 0);
+    const exp = data.transactions.filter((t) => t.type !== "รายรับ" && t.type !== "โอน" && t.category !== "โอนระหว่างบัญชี").reduce((s, t) => s + t.amount, 0);
+    return { actualIncome: inc + carryOver, actualExpense: exp, balance: inc + carryOver - exp };
+  }, [data, carryOver]);
+
+  return (
+    <Card className="border-none shadow-sm">
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <CardTitle className="text-base font-semibold">สรุปเดือนนี้</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div>
+            <p className="text-[10px] text-muted-foreground">รายรับ</p>
+            <p className="text-sm font-bold text-accent tabular-nums">{formatCurrency(actualIncome)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground">รายจ่าย</p>
+            <p className="text-sm font-bold text-destructive tabular-nums">{formatCurrency(actualExpense)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground">คงเหลือ</p>
+            <p className={cn("text-sm font-bold tabular-nums", balance >= 0 ? "text-foreground" : "text-destructive")}>
+              {formatCurrency(balance)}
+            </p>
+          </div>
+        </div>
+        {forecast && (
+          <div className="border-t pt-2 space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">คาดการณ์สิ้นเดือน</span>
+              <span className={cn("font-semibold tabular-nums", forecast.projectedBalance >= 0 ? "text-accent" : "text-destructive")}>
+                {forecast.projectedBalance >= 0 ? "" : "-"}{formatCurrency(Math.abs(forecast.projectedBalance))}
+              </span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">ใช้จ่ายเฉลี่ย/วัน</span>
+              <span className="tabular-nums">{formatCurrency(forecast.dailyBurnRate)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">เหลืออีก</span>
+              <span className="tabular-nums">{forecast.remainingDays} วัน</span>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ===== Top 5 Spending Categories (donut) =====
+const DONUT_COLORS = ["hsl(var(--primary))", "hsl(var(--destructive))", "hsl(var(--accent))", "hsl(var(--debt))", "hsl(var(--saving))"];
+
+function TopSpendingDonut({ data, loading }: { data: BudgetData | undefined; loading: boolean }) {
+  if (loading || !data) return <Skeleton className="h-52 rounded-xl" />;
+
+  const top5 = useMemo(() => {
+    const byCategory: Record<string, number> = {};
+    data.transactions
+      .filter((t) => t.type !== "รายรับ" && t.type !== "โอน" && t.category !== "โอนระหว่างบัญชี")
+      .forEach((t) => {
+        byCategory[t.category] = (byCategory[t.category] ?? 0) + t.amount;
+      });
+    return Object.entries(byCategory)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([name, value]) => ({ name, value }));
+  }, [data]);
+
+  if (top5.length === 0) return null;
+
+  const total = top5.reduce((s, d) => s + d.value, 0);
+
+  return (
+    <Card className="border-none shadow-sm">
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
+          <PiggyBank className="h-4 w-4 text-primary" />
+          <CardTitle className="text-base font-semibold">Top 5 หมวดใช้จ่าย</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-4">
+          <div className="w-28 h-28 shrink-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={top5} dataKey="value" cx="50%" cy="50%" innerRadius={28} outerRadius={50} paddingAngle={2} strokeWidth={0}>
+                  {top5.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex-1 space-y-1.5 min-w-0">
+            {top5.map((item, i) => {
+              const pct = total > 0 ? ((item.value / total) * 100).toFixed(0) : 0;
+              return (
+                <div key={item.name} className="flex items-center gap-2 text-xs">
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+                  <span className="truncate flex-1">{item.name}</span>
+                  <span className="tabular-nums text-muted-foreground shrink-0">{pct}%</span>
+                  <span className="tabular-nums font-medium shrink-0">{formatCurrency(item.value)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ===== Recent Transactions (same layout as TransactionTable) =====
 function getTypeBadgeClass(type: string) {
   switch (type) {
@@ -517,6 +721,7 @@ export default function OverviewPage() {
     })));
   }, [latestData]);
 
+  const latestCarryOver = latestData?.carryOver ?? 0;
   const isLoading = monthsLoading || dataLoading;
 
   return (
@@ -544,23 +749,30 @@ export default function OverviewPage() {
         {/* Content */}
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">
           <div className="space-y-5">
-            {/* Row 1: Net Worth + Avg Expense + Accounts */}
+            {/* Row 1: Cash Flow + Net Worth + Upcoming Bills */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <MonthCashFlowCard data={latestData} carryOver={latestCarryOver} loading={latestLoading} />
               <NetWorthCard accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
+              <UpcomingBillsMini data={latestData} loading={latestLoading} />
+            </div>
+
+            {/* Row 2: Top 5 Spending + Avg Expense + Accounts */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <TopSpendingDonut data={latestData} loading={latestLoading} />
               <AvgExpenseCard data={monthlyData} loading={isLoading} />
               <AccountsSummary accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
             </div>
 
-            {/* Row 2: Trend + Savings Rate side by side on desktop */}
+            {/* Row 3: Trend + Savings Rate */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <TrendChart data={monthlyData} loading={isLoading} />
               <SavingsRateChart data={monthlyData} loading={isLoading} />
             </div>
 
-            {/* Row 3: Goals */}
+            {/* Row 4: Goals */}
             <GoalsMini goals={goals} loading={assetsLoading} />
 
-            {/* Row 4: Recent Transactions */}
+            {/* Row 5: Recent Transactions */}
             <RecentTransactionsTable transactions={recentTx} loading={latestLoading} />
           </div>
         </main>
