@@ -642,6 +642,7 @@ export default function OverviewPage() {
           const txByPeriod: Record<string, { amount: number; type: string }[]> = {};
           txSnap.docs.forEach((d) => {
             const data = d.data();
+            if (data.is_deleted) return;
             const period = data.month_year as string;
             if (!txByPeriod[period]) txByPeriod[period] = [];
             txByPeriod[period].push({
