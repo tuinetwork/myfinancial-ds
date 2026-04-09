@@ -14,11 +14,11 @@ import type { Account, Goal, Investment } from "@/types/finance";
 import { cn } from "@/lib/utils";
 import {
   Eye, TrendingUp, TrendingDown, Wallet, Target, CreditCard, PiggyBank,
-  ArrowUpRight, ArrowDownRight, Minus, Receipt, CalendarClock, Sparkles,
+  ArrowUpRight, ArrowDownRight, Minus, Receipt, Sparkles,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEndOfMonthForecast } from "@/hooks/useEndOfMonthForecast";
-import { expandRecurrence, matchTxToOccurrences, type TxEntry } from "@/lib/recurrence";
+import { UpcomingBills } from "@/components/UpcomingBills";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, CartesianGrid, LineChart, Line,
   PieChart, Pie, Cell,
@@ -302,91 +302,6 @@ function AvgExpenseCard({ data, loading }: { data: MonthSummary[]; loading: bool
           )}
           {diff === 0 && <Minus className="h-3 w-3 text-muted-foreground ml-1" />}
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ===== Upcoming Bills Mini =====
-function UpcomingBillsMini({ data, loading }: { data: BudgetData | undefined; loading: boolean }) {
-  if (loading || !data) return <Skeleton className="h-40 rounded-xl" />;
-
-  const bills = useMemo(() => {
-    const now = new Date();
-    const [yearStr, monthStr] = data.period.split("-");
-    const year = parseInt(yearStr, 10);
-    const month = parseInt(monthStr, 10);
-    const categories = ["bills", "debts", "subscriptions", "savings"] as const;
-    const items: { label: string; amount: number; dueDate: string; daysUntil: number; isPaid: boolean }[] = [];
-
-    // Build txBySubDate for matching
-    const txBySubDate: Record<string, TxEntry[]> = {};
-    data.transactions.forEach((t) => {
-      if (!txBySubDate[t.category]) txBySubDate[t.category] = [];
-      txBySubDate[t.category].push({ date: t.date, amount: t.amount });
-    });
-
-    for (const cat of categories) {
-      for (const item of data.expenses[cat]) {
-        if (item.budget <= 0) continue;
-        const dates = item.recurrence
-          ? expandRecurrence(item.dueDate, item.recurrence, year, month, item.startDate, item.endDate)
-          : item.dueDate ? [item.dueDate] : [];
-        if (dates.length === 0) continue;
-
-        const txs = txBySubDate[item.label] ?? [];
-        const matchResult = matchTxToOccurrences(txs, dates, item.budget);
-
-        for (let i = 0; i < dates.length; i++) {
-          const d = new Date(dates[i]);
-          d.setHours(0, 0, 0, 0);
-          const today = new Date(now);
-          today.setHours(0, 0, 0, 0);
-          const daysUntil = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          const isPaid = matchResult.get(dates[i])?.isPaid ?? false;
-          if (!isPaid) {
-            items.push({ label: item.label, amount: item.budget, dueDate: dates[i], daysUntil, isPaid });
-          }
-        }
-      }
-    }
-
-    // Sort: upcoming first (nearest positive), then overdue (most recent first)
-    return items.sort((a, b) => {
-      if (a.daysUntil >= 0 && b.daysUntil >= 0) return a.daysUntil - b.daysUntil;
-      if (a.daysUntil < 0 && b.daysUntil < 0) return a.daysUntil - b.daysUntil; // least overdue first
-      return a.daysUntil >= 0 ? -1 : 1; // upcoming before overdue
-    }).slice(0, 5);
-  }, [data]);
-
-  if (bills.length === 0) return null;
-
-  return (
-    <Card className="border-none shadow-sm">
-      <CardHeader className="pb-2">
-        <div className="flex items-center gap-2">
-          <CalendarClock className="h-4 w-4 text-primary" />
-          <CardTitle className="text-base font-semibold">บิลที่ต้องจ่ายเร็วๆ นี้</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {bills.map((b, i) => (
-          <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm truncate">{b.label}</p>
-              <p className="text-[11px] text-muted-foreground">
-                {formatThaiDateShort(b.dueDate)}
-                {b.daysUntil < 0 && <span className="ml-1 text-destructive font-medium">เลยกำหนด {Math.abs(b.daysUntil)} วัน</span>}
-                {b.daysUntil === 0 && <span className="ml-1 text-amber-500 font-medium">วันนี้!</span>}
-                {b.daysUntil > 0 && b.daysUntil <= 3 && <span className="ml-1 text-amber-500">อีก {b.daysUntil} วัน</span>}
-                {b.daysUntil > 3 && <span className="ml-1">อีก {b.daysUntil} วัน</span>}
-              </p>
-            </div>
-            <span className={cn("text-sm font-semibold tabular-nums shrink-0", b.daysUntil < 0 ? "text-destructive" : "text-foreground")}>
-              {formatCurrency(b.amount)}
-            </span>
-          </div>
-        ))}
       </CardContent>
     </Card>
   );
@@ -760,7 +675,7 @@ export default function OverviewPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <MonthCashFlowCard data={latestData} carryOver={latestCarryOver} loading={latestLoading} />
               <NetWorthCard accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
-              <UpcomingBillsMini data={latestData} loading={latestLoading} />
+              {latestData && <UpcomingBills data={latestData} />}
             </div>
 
             {/* Row 2: Top 5 Spending + Avg Expense + Accounts */}
