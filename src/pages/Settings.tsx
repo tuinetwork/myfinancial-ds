@@ -4,6 +4,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { NotificationBell } from "@/components/NotificationBell";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { GlobalInsights } from "@/components/GlobalInsights";
 import { AppFooter } from "@/components/AppFooter";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -2198,6 +2199,7 @@ const Settings = () => {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <GlobalInsights />
             <ThemeToggle />
             <span className="hidden md:contents">
               <NotificationBell />

@@ -8,6 +8,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { GlobalInsights } from "@/components/GlobalInsights";
 import { AppFooter } from "@/components/AppFooter";
 import { TwoFactorAuth, isMfaSessionValid, clearMfaSession } from "@/components/TwoFactorAuth";
 import {
@@ -531,6 +532,7 @@ export default function CommandCenter() {
             Production
           </Badge>
           <div className="ml-auto flex items-center gap-2">
+            <GlobalInsights />
             <ThemeToggle />
             <NotificationBell />
             <UserProfilePopover />

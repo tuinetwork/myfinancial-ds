@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { GlobalInsights } from "@/components/GlobalInsights";
 import { AppFooter } from "@/components/AppFooter";
 import { useBudgetData, useAvailableMonths, Transaction } from "@/hooks/useBudgetData";
 import { collection, getDocs, query, where } from "firebase/firestore";
@@ -135,6 +136,7 @@ const Transactions = () => {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <GlobalInsights />
             <ThemeToggle />
             <span className="hidden md:contents">
               <NotificationBell />

@@ -12,6 +12,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { NotificationBell } from "@/components/NotificationBell";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { GlobalInsights } from "@/components/GlobalInsights";
 import { AppFooter } from "@/components/AppFooter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -709,6 +710,7 @@ const CalendarPage = () => {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <GlobalInsights />
             <ThemeToggle />
             <NotificationBell />
             <UserProfilePopover />

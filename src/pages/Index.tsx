@@ -25,6 +25,7 @@ import { useEndOfMonthForecast } from "@/hooks/useEndOfMonthForecast";
 import { SpendingInsightsButton } from "@/components/SpendingInsights";
 import { useSpendingInsights } from "@/hooks/useSpendingInsights";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { GlobalInsights } from "@/components/GlobalInsights";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -234,6 +235,7 @@ const Index = () => {
                 </>
               )}
             </div>
+            <GlobalInsights />
             <ThemeToggle />
             <span className="hidden md:contents">
               <NotificationBell />

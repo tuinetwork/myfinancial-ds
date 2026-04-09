@@ -9,6 +9,7 @@ import type { Account, AccountType } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { GlobalInsights } from "@/components/GlobalInsights";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -514,6 +515,7 @@ export default function AccountsPage() {
           <SidebarTrigger className="hidden md:flex" />
           <h1 className="text-lg font-semibold text-foreground">กระเป๋าเงิน</h1>
           <div className="ml-auto flex items-center gap-2">
+            <GlobalInsights />
             <ThemeToggle />
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => {
               const BOM = "\uFEFF";
