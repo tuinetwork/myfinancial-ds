@@ -303,7 +303,7 @@ function AvgExpenseCard({ data, loading }: { data: MonthSummary[]; loading: bool
 
 // ===== Recent Transactions =====
 function RecentTransactionsTable({ transactions, loading }: {
-  transactions: { date: string; description: string; amount: number; type: string; category: string }[];
+  transactions: { date: string; description: string; amount: number; type: string; category: string; created_at?: number }[];
   loading: boolean;
 }) {
   if (loading) return <Skeleton className="h-64 rounded-xl" />;
@@ -334,7 +334,14 @@ function RecentTransactionsTable({ transactions, loading }: {
                 const isTransfer = tx.type === "โอน" || tx.category === "โอนระหว่างบัญชี";
                 return (
                   <tr key={i} className="border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">{formatThaiDateShort(tx.date)}</td>
+                    <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">
+                      <div>{formatThaiDateShort(tx.date)}</div>
+                      {tx.created_at && (
+                        <div className="text-[10px] text-muted-foreground/60">
+                          {new Date(tx.created_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-2 truncate max-w-[200px]">{tx.description || tx.category}</td>
                     <td className="px-4 py-2 text-muted-foreground truncate max-w-[120px]">{tx.category}</td>
                     <td className={cn(
@@ -367,7 +374,7 @@ export default function OverviewPage() {
 
   // Load budget data for each period
   const [monthlyData, setMonthlyData] = useState<MonthSummary[]>([]);
-  const [recentTx, setRecentTx] = useState<{ date: string; description: string; amount: number; type: string; category: string }[]>([]);
+  const [recentTx, setRecentTx] = useState<{ date: string; description: string; amount: number; type: string; category: string; created_at?: number }[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   // Accounts, Goals, trueNetWorth
@@ -470,6 +477,7 @@ export default function OverviewPage() {
       amount: t.amount,
       type: t.type,
       category: t.category,
+      created_at: t.created_at,
     })));
   }, [latestData]);
 

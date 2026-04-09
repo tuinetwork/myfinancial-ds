@@ -52,6 +52,7 @@ function mapTransaction(docId: string, docData: Record<string, unknown>): Transa
     type: mappedType,
     category: (docData.sub_category as string) ?? "",
     description: (docData.note as string) ?? "",
+    created_at: (docData.created_at as number) || undefined,
   };
 }
 

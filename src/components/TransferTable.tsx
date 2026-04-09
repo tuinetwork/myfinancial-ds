@@ -419,7 +419,12 @@ export function TransferTable({ data, userId, onMutate, allTransactions }: Props
                     {paged.map((t, i) => (
                       <TableRow key={t.id || i} className="border-border group">
                         <TableCell className="text-xs sm:text-sm text-muted-foreground py-2 sm:py-2.5 whitespace-nowrap">
-                          {formatDate(t.date)}
+                          <div>{formatDate(t.date)}</div>
+                          {t.created_at && (
+                            <div className="text-[10px] text-muted-foreground/60">
+                              {new Date(t.created_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="text-xs sm:text-sm py-2 sm:py-2.5">
                           <Badge variant="outline" className="text-xs font-normal">

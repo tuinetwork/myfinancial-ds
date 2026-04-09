@@ -84,7 +84,10 @@ export function RecentTransactions({ data }: Props) {
 
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{t.category}</p>
-                  <p className="text-xs text-muted-foreground">{formatDate(t.date)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(t.date)}
+                    {t.created_at && <span className="ml-1 opacity-60">{new Date(t.created_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}</span>}
+                  </p>
                 </div>
 
                 {/* จำนวนเงิน: ถ้าเป็นโอน ไม่ต้องมีเครื่องหมายลบ และใช้สีเทา */}
