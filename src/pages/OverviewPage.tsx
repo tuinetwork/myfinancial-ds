@@ -26,15 +26,31 @@ const THAI_MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.",
 const fmt = (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 // ===== Net Worth Card =====
-function NetWorthCard({ accounts, loading }: { accounts: Account[]; loading: boolean }) {
+function NetWorthCard({ accounts, trueNetWorth, loading }: { accounts: Account[]; trueNetWorth: number; loading: boolean }) {
   const { totalAssets, totalLiabilities, netWorth, breakdown } = useMemo(() => {
     const liabilityTypes = ["credit_card", "loan", "payable"];
+    const isMainAccount = (a: Account) => a.name === "กระเป๋าเงินสดหลัก";
     const active = accounts.filter((a) => a.is_active && !a.is_deleted);
+
+    // Calculate main wallet balance from trueNetWorth (same as AccountsPage)
+    let otherAssetsTotal = 0;
+    let liabilitiesTotal = 0;
+    active.forEach((a) => {
+      if (isMainAccount(a)) return;
+      const bal = Number(a.balance) || 0;
+      if (liabilityTypes.includes(a.type)) {
+        liabilitiesTotal += Math.abs(bal);
+      } else {
+        otherAssetsTotal += bal;
+      }
+    });
+    const mainBalance = trueNetWorth - otherAssetsTotal + liabilitiesTotal;
+
     let assets = 0;
     let liabilities = 0;
     const groups: Record<string, number> = {};
     active.forEach((a) => {
-      const bal = Number(a.balance) || 0;
+      const bal = isMainAccount(a) ? mainBalance : (Number(a.balance) || 0);
       if (liabilityTypes.includes(a.type)) {
         liabilities += Math.abs(bal);
         groups[a.type] = (groups[a.type] ?? 0) - Math.abs(bal);
@@ -44,7 +60,7 @@ function NetWorthCard({ accounts, loading }: { accounts: Account[]; loading: boo
       }
     });
     return { totalAssets: assets, totalLiabilities: liabilities, netWorth: assets - liabilities, breakdown: groups };
-  }, [accounts]);
+  }, [accounts, trueNetWorth]);
 
   if (loading) return <Skeleton className="h-40 rounded-xl" />;
 
@@ -158,12 +174,24 @@ function SavingsRateChart({ data, loading }: { data: MonthSummary[]; loading: bo
 }
 
 // ===== Accounts Summary =====
-function AccountsSummary({ accounts, loading }: { accounts: Account[]; loading: boolean }) {
+function AccountsSummary({ accounts, trueNetWorth, loading }: { accounts: Account[]; trueNetWorth: number; loading: boolean }) {
   if (loading) return <Skeleton className="h-36 rounded-xl" />;
   const active = accounts.filter((a) => a.is_active && !a.is_deleted);
   if (active.length === 0) return null;
 
   const liabilityTypes = ["credit_card", "loan", "payable"];
+  const isMainAccount = (a: Account) => a.name === "กระเป๋าเงินสดหลัก";
+
+  // Calculate main wallet balance (same as AccountsPage)
+  let otherAssets = 0;
+  let liabTotal = 0;
+  active.forEach((a) => {
+    if (isMainAccount(a)) return;
+    const bal = Number(a.balance) || 0;
+    if (liabilityTypes.includes(a.type)) liabTotal += Math.abs(bal);
+    else otherAssets += bal;
+  });
+  const mainBalance = trueNetWorth - otherAssets + liabTotal;
 
   return (
     <Card className="border-none shadow-sm">
@@ -175,7 +203,7 @@ function AccountsSummary({ accounts, loading }: { accounts: Account[]; loading: 
       </CardHeader>
       <CardContent className="space-y-1.5">
         {active.map((a) => {
-          const bal = Number(a.balance) || 0;
+          const bal = isMainAccount(a) ? mainBalance : (Number(a.balance) || 0);
           const isLiability = liabilityTypes.includes(a.type);
           return (
             <div key={a.id} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
@@ -333,9 +361,10 @@ export default function OverviewPage() {
   const [recentTx, setRecentTx] = useState<{ date: string; description: string; amount: number; type: string; category: string }[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
-  // Accounts, Goals
+  // Accounts, Goals, trueNetWorth
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [trueNetWorth, setTrueNetWorth] = useState(0);
   const [assetsLoading, setAssetsLoading] = useState(true);
 
   useEffect(() => {
@@ -343,6 +372,24 @@ export default function OverviewPage() {
     Promise.all([getAccounts(userId), getGoals(userId)])
       .then(([a, g]) => { setAccounts(a); setGoals(g); })
       .finally(() => setAssetsLoading(false));
+
+    // Compute trueNetWorth from all transactions (same logic as AccountsPage)
+    import("firebase/firestore").then(({ collection, getDocs }) => {
+      import("@/lib/firebase").then(({ firestore }) => {
+        getDocs(collection(firestore, "users", userId, "transactions")).then((snap) => {
+          let income = 0;
+          let expense = 0;
+          snap.forEach((d) => {
+            const t = d.data();
+            if (!t.is_deleted) {
+              if (t.type === "income") income += Number(t.amount) || 0;
+              if (t.type === "expense") expense += Number(t.amount) || 0;
+            }
+          });
+          setTrueNetWorth(income - expense);
+        });
+      });
+    });
   }, [userId]);
 
   // Load last 6 months budget data
@@ -446,7 +493,7 @@ export default function OverviewPage() {
           <div className="max-w-6xl mx-auto space-y-6">
             {/* Row 1: Net Worth + Avg Expense */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <NetWorthCard accounts={accounts} loading={assetsLoading} />
+              <NetWorthCard accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
               <AvgExpenseCard data={monthlyData} loading={isLoading} />
             </div>
 
@@ -458,7 +505,7 @@ export default function OverviewPage() {
 
             {/* Row 4: Accounts + Goals */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <AccountsSummary accounts={accounts} loading={assetsLoading} />
+              <AccountsSummary accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
               <GoalsMini goals={goals} loading={assetsLoading} />
             </div>
 
