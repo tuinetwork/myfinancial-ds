@@ -116,15 +116,18 @@ export function useSpendingInsights(data: BudgetData | undefined, carryOver: num
       });
     }
 
-    // 4. Transaction frequency insight
-    const txDays = new Set(data.transactions.map((t) => t.date));
-    const avgTxPerDay = txDays.size > 0 ? (data.transactions.length / txDays.size).toFixed(1) : "0";
-    if (data.transactions.length > 30) {
+    // 4. Transaction frequency insight (exclude transfers)
+    const nonTransferTx = data.transactions.filter(
+      (t) => t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี"
+    );
+    const txDays = new Set(nonTransferTx.map((t) => t.date));
+    const avgTxPerDay = txDays.size > 0 ? (nonTransferTx.length / txDays.size).toFixed(1) : "0";
+    if (nonTransferTx.length > 30) {
       tips.push({
         icon: Lightbulb,
         color: "text-primary",
         title: "ธุรกรรมถี่",
-        description: `เฉลี่ย ${avgTxPerDay} รายการ/วัน (${data.transactions.length} รายการเดือนนี้) ลองรวมรายจ่ายเล็ก ๆ`,
+        description: `เฉลี่ย ${avgTxPerDay} รายการ/วัน (${nonTransferTx.length} รายการเดือนนี้) ลองรวมรายจ่ายเล็ก ๆ`,
         priority: 2,
       });
     }
