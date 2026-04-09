@@ -28,9 +28,9 @@ interface MenuItem {
 
 // ── Menu Groups ──
 const dashboardItems: MenuItem[] = [
-  { title: "ภาพรวม", url: "/overview", icon: Eye },
-  { title: "รายเดือน", url: "/?view=monthly", icon: CalendarDays },
-  { title: "รายปี", url: "/?view=yearly", icon: BarChart3 },
+  { title: "ภาพรวม", url: "/", icon: Eye },
+  { title: "รายเดือน", url: "/dashboard?view=monthly", icon: CalendarDays },
+  { title: "รายปี", url: "/dashboard?view=yearly", icon: BarChart3 },
   { title: "วิเคราะห์", url: "/analysis", icon: PieChart },
 ];
 
@@ -122,9 +122,11 @@ export function AppSidebar() {
     const childPath = childUrlObj.pathname;
     const childParams = childUrlObj.searchParams;
 
-    if (childPath === "/") {
+    if (childPath === "/dashboard") {
       const currentView = new URLSearchParams(location.search).get("view") || "monthly";
-      return location.pathname === "/" && currentView === (childParams.get("view") || "monthly");
+      return location.pathname === "/dashboard" && currentView === (childParams.get("view") || "monthly");
+    } else if (childPath === "/") {
+      return location.pathname === "/";
     } else {
       const currentTab = new URLSearchParams(location.search).get("tab");
       return location.pathname === childPath && currentTab === childParams.get("tab");

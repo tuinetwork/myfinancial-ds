@@ -177,8 +177,8 @@ function AuthenticatedApp() {
       <div className="min-h-screen flex w-full">
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/overview" element={<OverviewPage />} />
+            <Route path="/" element={<OverviewPage />} />
+            <Route path="/dashboard" element={<Index />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/analysis" element={<Analysis />} />
             <Route path="/calendar" element={<CalendarPage />} />

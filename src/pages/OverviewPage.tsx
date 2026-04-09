@@ -301,11 +301,26 @@ function AvgExpenseCard({ data, loading }: { data: MonthSummary[]; loading: bool
   );
 }
 
-// ===== Recent Transactions =====
-function RecentTransactionsTable({ transactions, loading }: {
-  transactions: { date: string; description: string; amount: number; type: string; category: string; created_at?: number }[];
-  loading: boolean;
-}) {
+// ===== Recent Transactions (same layout as TransactionTable) =====
+function getTypeBadgeClass(type: string) {
+  switch (type) {
+    case "รายรับ": return "bg-income/15 text-income border-none";
+    case "ค่าใช้จ่าย": return "bg-expense/15 text-expense border-none";
+    case "หนี้สิน": return "bg-debt/15 text-debt border-none";
+    case "บิล/สาธารณูปโภค": return "bg-saving/15 text-saving border-none";
+    case "ค่าสมาชิกรายเดือน": return "bg-primary/15 text-primary border-none";
+    case "เงินออมและการลงทุน": return "bg-investment/15 text-investment border-none";
+    case "โอน": return "bg-muted text-foreground border-none";
+    default: return "bg-muted text-muted-foreground border-none";
+  }
+}
+
+interface RecentTx {
+  date: string; description: string; amount: number; type: string;
+  category: string; main_category?: string; created_at?: number;
+}
+
+function RecentTransactionsTable({ transactions, loading }: { transactions: RecentTx[]; loading: boolean }) {
   if (loading) return <Skeleton className="h-64 rounded-xl" />;
   if (transactions.length === 0) return null;
 
@@ -322,10 +337,12 @@ function RecentTransactionsTable({ transactions, loading }: {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="text-left px-4 py-2 font-medium text-muted-foreground">วันที่</th>
-                <th className="text-left px-4 py-2 font-medium text-muted-foreground">รายการ</th>
-                <th className="text-left px-4 py-2 font-medium text-muted-foreground">หมวดหมู่</th>
-                <th className="text-right px-4 py-2 font-medium text-muted-foreground">จำนวน</th>
+                <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">วันที่</th>
+                <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">ประเภท</th>
+                <th className="text-left px-3 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">หมวดหมู่</th>
+                <th className="text-left px-3 py-2.5 font-medium text-muted-foreground hidden md:table-cell">หมวดหมู่ย่อย</th>
+                <th className="text-left px-3 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">รายละเอียด</th>
+                <th className="text-right px-3 py-2.5 font-medium text-muted-foreground">จำนวน</th>
               </tr>
             </thead>
             <tbody>
@@ -334,7 +351,7 @@ function RecentTransactionsTable({ transactions, loading }: {
                 const isTransfer = tx.type === "โอน" || tx.category === "โอนระหว่างบัญชี";
                 return (
                   <tr key={i} className="border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">
+                    <td className="px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
                       <div>{formatThaiDateShort(tx.date)}</div>
                       {tx.created_at && (
                         <div className="text-[10px] text-muted-foreground/60">
@@ -342,13 +359,25 @@ function RecentTransactionsTable({ transactions, loading }: {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-2 truncate max-w-[200px]">{tx.description || tx.category}</td>
-                    <td className="px-4 py-2 text-muted-foreground truncate max-w-[120px]">{tx.category}</td>
+                    <td className="px-3 py-2 sm:py-2.5">
+                      <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", getTypeBadgeClass(tx.type))}>
+                        {tx.type}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 sm:py-2.5 text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none hidden sm:table-cell">
+                      {tx.main_category || tx.category}
+                    </td>
+                    <td className="px-3 py-2 sm:py-2.5 text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none hidden md:table-cell">
+                      {tx.category}
+                    </td>
+                    <td className="px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-muted-foreground hidden sm:table-cell">
+                      {tx.description || "-"}
+                    </td>
                     <td className={cn(
-                      "px-4 py-2 text-right font-semibold tabular-nums whitespace-nowrap",
-                      isTransfer ? "text-muted-foreground" : isIncome ? "text-accent" : "text-foreground"
+                      "px-3 py-2 sm:py-2.5 text-right text-sm font-semibold tabular-nums whitespace-nowrap",
+                      isTransfer ? "text-muted-foreground" : isIncome ? "text-accent" : "text-destructive"
                     )}>
-                      {isTransfer ? "↔" : isIncome ? "+" : "-"}{formatCurrency(tx.amount)}
+                      {isTransfer ? "" : isIncome ? "+" : "-"}{formatCurrency(tx.amount)}
                     </td>
                   </tr>
                 );
@@ -374,7 +403,7 @@ export default function OverviewPage() {
 
   // Load budget data for each period
   const [monthlyData, setMonthlyData] = useState<MonthSummary[]>([]);
-  const [recentTx, setRecentTx] = useState<{ date: string; description: string; amount: number; type: string; category: string; created_at?: number }[]>([]);
+  const [recentTx, setRecentTx] = useState<RecentTx[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   // Accounts, Goals, trueNetWorth
@@ -477,6 +506,7 @@ export default function OverviewPage() {
       amount: t.amount,
       type: t.type,
       category: t.category,
+      main_category: t.main_category,
       created_at: t.created_at,
     })));
   }, [latestData]);
