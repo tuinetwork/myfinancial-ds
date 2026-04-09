@@ -544,24 +544,24 @@ export default function OverviewPage() {
         {/* Content */}
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">
           <div className="space-y-5">
-            {/* Row 1: Recent Transactions (top) */}
-            <RecentTransactionsTable transactions={recentTx} loading={latestLoading} />
-
-            {/* Row 2: Net Worth + Avg Expense + Accounts */}
+            {/* Row 1: Net Worth + Avg Expense + Accounts */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <NetWorthCard accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
               <AvgExpenseCard data={monthlyData} loading={isLoading} />
               <AccountsSummary accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
             </div>
 
-            {/* Row 3: Trend + Savings Rate side by side on desktop */}
+            {/* Row 2: Trend + Savings Rate side by side on desktop */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <TrendChart data={monthlyData} loading={isLoading} />
               <SavingsRateChart data={monthlyData} loading={isLoading} />
             </div>
 
-            {/* Row 4: Goals */}
+            {/* Row 3: Goals */}
             <GoalsMini goals={goals} loading={assetsLoading} />
+
+            {/* Row 4: Recent Transactions */}
+            <RecentTransactionsTable transactions={recentTx} loading={latestLoading} />
           </div>
         </main>
 
