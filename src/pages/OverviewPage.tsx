@@ -464,7 +464,7 @@ export default function OverviewPage() {
   useEffect(() => {
     if (!latestData) return;
     const sorted = [...latestData.transactions].sort((a, b) => b.date.localeCompare(a.date));
-    setRecentTx(sorted.slice(0, 30).map((t) => ({
+    setRecentTx(sorted.slice(0, 10).map((t) => ({
       date: t.date,
       description: t.description,
       amount: t.amount,

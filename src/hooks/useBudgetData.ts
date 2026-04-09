@@ -40,6 +40,7 @@ export interface Transaction {
   to_account_id?: string;
   tags?: string[];
   is_deleted?: boolean;
+  created_at?: number;
 }
 
 export interface BudgetData {
@@ -185,6 +186,7 @@ function mapTransaction(docId: string, docData: Record<string, unknown>): Transa
     from_account_id: (docData.from_account_id as string) || undefined,
     to_account_id: (docData.to_account_id as string) || undefined,
     tags: (docData.tags as string[]) || undefined,
+    created_at: (docData.created_at as number) || undefined,
   };
 }
 

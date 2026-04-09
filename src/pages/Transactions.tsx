@@ -99,6 +99,7 @@ const Transactions = () => {
           from_account_id: (t.from_account_id as string) || undefined,
           to_account_id: (t.to_account_id as string) || undefined,
           tags: (t.tags as string[]) || undefined,
+          created_at: (t.created_at as number) || undefined,
         };
         if (isTransfer) transfers.push(tx);
         else nonTransfers.push(tx);
