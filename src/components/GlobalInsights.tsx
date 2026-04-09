@@ -16,7 +16,7 @@ export function GlobalInsights() {
   if (!data || insights.length === 0) return null;
 
   return (
-    <div className="fixed top-16 right-4 z-40">
+    <div className="fixed top-3 right-28 z-40">
       <SpendingInsightsButton insights={insights} />
     </div>
   );
