@@ -19,6 +19,7 @@ import { Loader2, AlertTriangle, X, Megaphone } from "lucide-react";
 
 // Lazy load all page components for code splitting
 const SharedReportPage = lazy(() => import("./pages/SharedReportPage"));
+const OverviewPage = lazy(() => import("./pages/OverviewPage"));
 const Index = lazy(() => import("./pages/Index"));
 const Transactions = lazy(() => import("./pages/Transactions"));
 const Analysis = lazy(() => import("./pages/Analysis"));
@@ -177,6 +178,7 @@ function AuthenticatedApp() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/overview" element={<OverviewPage />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/analysis" element={<Analysis />} />
             <Route path="/calendar" element={<CalendarPage />} />

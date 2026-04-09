@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Receipt, ChevronDown, ChevronRight,
   CalendarDays, BarChart3, DollarSign, Tags, Target, PieChart, ShieldCheck, Wallet,
-  TrendingUp, Landmark, Terminal, Calculator, Repeat,
+  TrendingUp, Landmark, Terminal, Calculator, Repeat, Eye,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +28,7 @@ interface MenuItem {
 
 // ── Menu Groups ──
 const dashboardItems: MenuItem[] = [
+  { title: "ภาพรวม", url: "/overview", icon: Eye },
   { title: "รายเดือน", url: "/?view=monthly", icon: CalendarDays },
   { title: "รายปี", url: "/?view=yearly", icon: BarChart3 },
   { title: "วิเคราะห์", url: "/analysis", icon: PieChart },
