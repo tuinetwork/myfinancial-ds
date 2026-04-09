@@ -154,7 +154,8 @@ function TrendChart({ data, loading }: { data: MonthSummary[]; loading: boolean 
 
 // ===== Savings Rate Trend =====
 function SavingsRateChart({ data, loading }: { data: MonthSummary[]; loading: boolean }) {
-  if (loading || data.length === 0) return null;
+  if (loading) return <Skeleton className="h-64 rounded-xl" />;
+  if (data.length === 0) return null;
 
   return (
     <Card className="border-none shadow-sm">
@@ -271,7 +272,8 @@ function GoalsMini({ goals, loading }: { goals: Goal[]; loading: boolean }) {
 
 // ===== Average Monthly Expense =====
 function AvgExpenseCard({ data, loading }: { data: MonthSummary[]; loading: boolean }) {
-  if (loading || data.length < 2) return null;
+  if (loading) return <Skeleton className="h-40 rounded-xl" />;
+  if (data.length < 2) return null;
 
   const avg = data.reduce((s, d) => s + d.expense, 0) / data.length;
   const current = data[data.length - 1];
@@ -499,7 +501,11 @@ export default function OverviewPage() {
   // Recent transactions from latest month
   useEffect(() => {
     if (!latestData) return;
-    const sorted = [...latestData.transactions].sort((a, b) => b.date.localeCompare(a.date));
+    const sorted = [...latestData.transactions].sort((a, b) => {
+      // Sort by created_at (newest first), fallback to date string
+      if (a.created_at && b.created_at) return b.created_at - a.created_at;
+      return b.date.localeCompare(a.date);
+    });
     setRecentTx(sorted.slice(0, 10).map((t) => ({
       date: t.date,
       description: t.description,
@@ -537,27 +543,25 @@ export default function OverviewPage() {
 
         {/* Content */}
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden">
-          <div className="space-y-6">
-            {/* Row 1: Net Worth + Avg Expense */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-5">
+            {/* Row 1: Recent Transactions (top) */}
+            <RecentTransactionsTable transactions={recentTx} loading={latestLoading} />
+
+            {/* Row 2: Net Worth + Avg Expense + Accounts */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <NetWorthCard accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
               <AvgExpenseCard data={monthlyData} loading={isLoading} />
-            </div>
-
-            {/* Row 2: Income vs Expense Trend */}
-            <TrendChart data={monthlyData} loading={isLoading} />
-
-            {/* Row 3: Savings Rate */}
-            <SavingsRateChart data={monthlyData} loading={isLoading} />
-
-            {/* Row 4: Accounts + Goals */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <AccountsSummary accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
-              <GoalsMini goals={goals} loading={assetsLoading} />
             </div>
 
-            {/* Row 5: Recent Transactions */}
-            <RecentTransactionsTable transactions={recentTx} loading={latestLoading} />
+            {/* Row 3: Trend + Savings Rate side by side on desktop */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <TrendChart data={monthlyData} loading={isLoading} />
+              <SavingsRateChart data={monthlyData} loading={isLoading} />
+            </div>
+
+            {/* Row 4: Goals */}
+            <GoalsMini goals={goals} loading={assetsLoading} />
           </div>
         </main>
 
