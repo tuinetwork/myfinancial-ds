@@ -717,16 +717,19 @@ export default function OverviewPage() {
             carryOverByPeriod[data.period as string] = (data.carry_over as number) ?? 0;
           });
 
-          const summaries: MonthSummary[] = periods.map((p) => {
-            const txs = txByPeriod[p.period] ?? [];
-            const income = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0) + (carryOverByPeriod[p.period] ?? 0);
-            const expense = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-            const savings = income - expense;
-            const savingsRate = income > 0 ? (savings / income) * 100 : 0;
-            const [, m] = p.period.split("-");
-            const label = THAI_MONTHS_SHORT[parseInt(m, 10) - 1];
-            return { period: p.period, label, income, expense, savings, savingsRate };
-          });
+          const summaries: MonthSummary[] = periods
+            .map((p) => {
+              const txs = txByPeriod[p.period] ?? [];
+              const income = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0) + (carryOverByPeriod[p.period] ?? 0);
+              const expense = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+              const savings = income - expense;
+              const savingsRate = income > 0 ? (savings / income) * 100 : 0;
+              const [, m] = p.period.split("-");
+              const label = THAI_MONTHS_SHORT[parseInt(m, 10) - 1];
+              const hasTx = txs.length > 0;
+              return { period: p.period, label, income, expense, savings, savingsRate, hasTx };
+            })
+            .filter((s) => s.hasTx); // exclude months with no transactions
 
           setMonthlyData(summaries);
         }).finally(() => setDataLoading(false));
