@@ -151,7 +151,8 @@ export function UpcomingBills({ data }: UpcomingBillsProps) {
 
   const filteredBills = useMemo(() => {
     if (filter === "paid") {
-      return allBills.filter(item => item.isPaid).slice(0, 4);
+      // Paid: newest first (latest due date on top)
+      return allBills.filter(item => item.isPaid).sort((a, b) => b.dueDate.localeCompare(a.dueDate)).slice(0, 4);
     }
     return allBills.filter(item => !item.isPaid).slice(0, 4);
   }, [allBills, filter]);
