@@ -326,32 +326,88 @@ function GoalsMini({ goals, accounts, data, loading }: { goals: Goal[]; accounts
 }
 
 // ===== Average Monthly Expense =====
-function AvgExpenseCard({ data, loading }: { data: MonthSummary[]; loading: boolean }) {
+function SixMonthStatsCard({ data, loading }: { data: MonthSummary[]; loading: boolean }) {
   if (loading) return <Skeleton className="h-40 rounded-xl" />;
   if (data.length < 2) return null;
 
-  const avg = data.reduce((s, d) => s + d.expense, 0) / data.length;
+  const n = data.length;
+  const avgIncome = data.reduce((s, d) => s + d.income, 0) / n;
+  const avgExpense = data.reduce((s, d) => s + d.expense, 0) / n;
+  const avgSavings = avgIncome - avgExpense;
+  const avgSavingsRate = avgIncome > 0 ? (avgSavings / avgIncome) * 100 : 0;
   const current = data[data.length - 1];
-  const diff = current.expense - avg;
-  const diffPct = avg > 0 ? ((diff / avg) * 100) : 0;
+
+  const expDiff = current.expense - avgExpense;
+  const expDiffPct = avgExpense > 0 ? (expDiff / avgExpense) * 100 : 0;
+  const incDiff = current.income - avgIncome;
+  const incDiffPct = avgIncome > 0 ? (incDiff / avgIncome) * 100 : 0;
+
+  // Best/worst expense months
+  const sorted = [...data].sort((a, b) => a.expense - b.expense);
+  const best = sorted[0];
+  const worst = sorted[sorted.length - 1];
 
   return (
     <Card className="border-none shadow-sm">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold">ค่าใช้จ่ายเฉลี่ย/เดือน</CardTitle>
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-primary" />
+          <CardTitle className="text-base font-semibold">สถิติ {n} เดือน</CardTitle>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        <p className="text-2xl font-bold font-display tabular-nums">{formatCurrency(avg)}</p>
-        <div className="flex items-center gap-1 text-xs">
-          <span className="text-muted-foreground">{current.label}:</span>
-          <span className="font-semibold tabular-nums">{formatCurrency(current.expense)}</span>
-          {diff !== 0 && (
-            <span className={cn("flex items-center gap-0.5 ml-1", diff > 0 ? "text-destructive" : "text-accent")}>
-              {diff > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-              {Math.abs(diffPct).toFixed(0)}%
-            </span>
-          )}
-          {diff === 0 && <Minus className="h-3 w-3 text-muted-foreground ml-1" />}
+      <CardContent className="space-y-3">
+        {/* Average row */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+          <div>
+            <p className="text-muted-foreground">รายรับเฉลี่ย</p>
+            <p className="font-semibold text-accent tabular-nums">{formatCurrency(avgIncome)}</p>
+            <div className="flex items-center gap-0.5 mt-0.5">
+              <span className="text-muted-foreground">{current.label}:</span>
+              {incDiff !== 0 && (
+                <span className={cn("flex items-center gap-0.5", incDiff > 0 ? "text-accent" : "text-destructive")}>
+                  {incDiff > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                  {Math.abs(incDiffPct).toFixed(0)}%
+                </span>
+              )}
+            </div>
+          </div>
+          <div>
+            <p className="text-muted-foreground">รายจ่ายเฉลี่ย</p>
+            <p className="font-semibold text-destructive tabular-nums">{formatCurrency(avgExpense)}</p>
+            <div className="flex items-center gap-0.5 mt-0.5">
+              <span className="text-muted-foreground">{current.label}:</span>
+              {expDiff !== 0 && (
+                <span className={cn("flex items-center gap-0.5", expDiff > 0 ? "text-destructive" : "text-accent")}>
+                  {expDiff > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                  {Math.abs(expDiffPct).toFixed(0)}%
+                </span>
+              )}
+            </div>
+          </div>
+          <div>
+            <p className="text-muted-foreground">เก็บออมเฉลี่ย</p>
+            <p className={cn("font-semibold tabular-nums", avgSavings >= 0 ? "text-foreground" : "text-destructive")}>
+              {formatCurrency(avgSavings)}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">อัตราออมเฉลี่ย</p>
+            <p className={cn("font-semibold tabular-nums", avgSavingsRate >= 20 ? "text-accent" : avgSavingsRate >= 0 ? "text-foreground" : "text-destructive")}>
+              {avgSavingsRate.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+
+        {/* Best / Worst */}
+        <div className="border-t pt-2 grid grid-cols-2 gap-4 text-xs">
+          <div>
+            <p className="text-muted-foreground">เดือนที่ใช้น้อยสุด</p>
+            <p className="font-medium">{best.label} <span className="text-accent tabular-nums">{formatCurrency(best.expense)}</span></p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">เดือนที่ใช้มากสุด</p>
+            <p className="font-medium">{worst.label} <span className="text-destructive tabular-nums">{formatCurrency(worst.expense)}</span></p>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -736,7 +792,7 @@ export default function OverviewPage() {
             {/* Row 2: Top 5 Spending + Avg Expense + Accounts */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <TopSpendingDonut data={latestData} loading={latestLoading} />
-              <AvgExpenseCard data={monthlyData} loading={isLoading} />
+              <SixMonthStatsCard data={monthlyData} loading={isLoading} />
               <AccountsSummary accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
             </div>
 
