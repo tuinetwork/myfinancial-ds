@@ -99,7 +99,7 @@ function countTotalInstallments(item: BudgetItem): number {
   return count;
 }
 
-import { THAI_MONTHS_SHORT } from "@/lib/constants";
+const THAI_MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
 const GOAL_COLORS = [
   "hsl(var(--primary))",

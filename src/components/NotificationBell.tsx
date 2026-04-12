@@ -13,7 +13,16 @@ import { useBudgetData } from "@/hooks/useBudgetData";
 import { formatCurrency } from "@/hooks/useBudgetData";
 import { Link } from "react-router-dom";
 
-import { formatThaiDateShort as formatThaiDate } from "@/lib/constants";
+function formatThaiDate(dateStr: string) {
+  const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    const day = parseInt(parts[2], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    return `${day} ${monthNames[month]}`;
+  }
+  return dateStr;
+}
 
 // 1. ปรับ typeLabel ให้รองรับ "โอน"
 function typeLabel(type: string) {

@@ -9,7 +9,6 @@ import { GlobalInsights } from "@/components/GlobalInsights";
 import { AppFooter } from "@/components/AppFooter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAvailableMonths, useBudgetData, formatCurrency, type BudgetData, type BudgetItem } from "@/hooks/useBudgetData";
-import { useTrueNetWorth } from "@/hooks/useAllTransactions";
 import { expandRecurrence } from "@/lib/recurrence";
 import { getAccounts, getGoals, getInvestments } from "@/lib/firestore-services";
 import type { Account, Goal, Investment } from "@/types/finance";
@@ -26,10 +25,19 @@ import {
   PieChart, Pie, Cell,
 } from "recharts";
 
-import { THAI_MONTHS_SHORT, formatThaiDateShort } from "@/lib/constants";
-
 // ===== Helpers =====
+const THAI_MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+
 const fmt = (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+/** Format "2026-04-09" → "9 เม.ย. 69" (Thai Buddhist short year) */
+function formatThaiDateShort(dateStr: string): string {
+  if (!dateStr) return "-";
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (!y || !m || !d) return dateStr;
+  const buddhistYear = (y + 543) % 100; // short year e.g. 69
+  return `${d} ${THAI_MONTHS_SHORT[m - 1]} ${buddhistYear}`;
+}
 
 // ===== Net Worth Card =====
 function NetWorthCard({ accounts, trueNetWorth, loading }: { accounts: Account[]; trueNetWorth: number; loading: boolean }) {
@@ -635,17 +643,35 @@ export default function OverviewPage() {
   const [recentTx, setRecentTx] = useState<RecentTx[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
-  // Accounts, Goals
+  // Accounts, Goals, trueNetWorth
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [trueNetWorth, setTrueNetWorth] = useState(0);
   const [assetsLoading, setAssetsLoading] = useState(true);
-  const trueNetWorth = useTrueNetWorth();
 
   useEffect(() => {
     if (!userId) return;
     Promise.all([getAccounts(userId), getGoals(userId)])
       .then(([a, g]) => { setAccounts(a); setGoals(g); })
       .finally(() => setAssetsLoading(false));
+
+    // Compute trueNetWorth from all transactions (same logic as AccountsPage)
+    import("firebase/firestore").then(({ collection, getDocs }) => {
+      import("@/lib/firebase").then(({ firestore }) => {
+        getDocs(collection(firestore, "users", userId, "transactions")).then((snap) => {
+          let income = 0;
+          let expense = 0;
+          snap.forEach((d) => {
+            const t = d.data();
+            if (!t.is_deleted) {
+              if (t.type === "income") income += Number(t.amount) || 0;
+              if (t.type === "expense") expense += Number(t.amount) || 0;
+            }
+          });
+          setTrueNetWorth(income - expense);
+        });
+      });
+    });
   }, [userId]);
 
   // Load last 6 months budget data
@@ -658,10 +684,7 @@ export default function OverviewPage() {
 
   // For the 6-month summaries, we query each period individually via Firestore
   useEffect(() => {
-    if (!userId || periods.length === 0) {
-      if (!monthsLoading) setDataLoading(false);
-      return;
-    }
+    if (!userId || periods.length === 0) return;
     setDataLoading(true);
 
     import("firebase/firestore").then(({ collection, getDocs, query, where }) => {
@@ -712,7 +735,7 @@ export default function OverviewPage() {
         }).finally(() => setDataLoading(false));
       });
     });
-  }, [userId, p0, p5, monthsLoading]);
+  }, [userId, p0, p5]);
 
   // Recent transactions from latest month
   useEffect(() => {

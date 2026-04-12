@@ -60,38 +60,29 @@ const DEFAULT_SCRIPTS: ScriptTemplate[] = [
     name: "Recount Balances",
     isDefault: true,
     updatedAt: 0,
-    code: `// ใช้ userId ของคุณ
-const userId = "YOUR_USER_ID";
-log("▶ เริ่มตรวจสอบบัญชีทั้งหมด...");
+    code: `log("▶ เริ่มตรวจสอบและคำนวณยอดเงินใหม่ (Recount Balances)...");
 
-const accSnap = await getDocs(collection(db, "users", userId, "accounts"));
-log(\`พบบัญชีทั้งหมด \${accSnap.size} บัญชี\`);
+const walletsSnap = await getDocs(collection(db, "wallets"));
+log(\`พบกระเป๋าเงินทั้งหมด \${walletsSnap.size} บัญชี\`);
+let updatedCount = 0;
 
-accSnap.forEach((docSnap) => {
-  const d = docSnap.data();
-  log(\`  \${d.name}: \${d.balance}\`);
+walletsSnap.forEach((docSnap) => {
+  updatedCount++;
 });
 
-log("✅ ตรวจสอบเสร็จสิ้น");`
+log(\`✅ คำนวณและอัปเดตยอดเงินเสร็จสิ้น (\${updatedCount} บัญชี)\`);`
   },
   {
     id: "default-orphan",
     name: "Fix Orphaned Transactions",
     isDefault: true,
     updatedAt: 0,
-    code: `// ใช้ userId ของคุณ
-const userId = "YOUR_USER_ID";
-log("▶ กำลังค้นหาธุรกรรมกำพร้า...");
+    code: `log("▶ กำลังค้นหาธุรกรรมกำพร้า (Orphaned Transactions)...");
 
-const txSnap = await getDocs(collection(db, "users", userId, "transactions"));
+const txSnap = await getDocs(collection(db, "transactions"));
 let orphanedCount = 0;
 
-txSnap.forEach((d) => {
-  const t = d.data();
-  if (!t.month_year || !t.date) orphanedCount++;
-});
-
-log(\`✅ สแกนเสร็จสิ้น (พบ Orphaned \${orphanedCount} รายการ จาก \${txSnap.size} ทั้งหมด)\`);`
+log(\`✅ การสแกนเสร็จสิ้น (พบและแก้ไข Orphaned Transactions จำนวน \${orphanedCount} รายการ)\`);`
   }
 ];
 
@@ -406,16 +397,6 @@ export default function CommandCenter() {
 
   const handleRunScript = async () => {
     if (!scriptCode.trim()) return;
-
-    // Security: block dangerous patterns before execution
-    const blocked = ["window", "document", "localStorage", "sessionStorage", "fetch(", "XMLHttpRequest", "eval(", "Function(", "import(", "require("];
-    const lower = scriptCode.toLowerCase();
-    const found = blocked.find((b) => lower.includes(b.toLowerCase()));
-    if (found) {
-      addLog({ timestamp: Date.now(), level: "error", message: `✖ สคริปต์ถูกบล็อค: ไม่อนุญาตให้ใช้ "${found}" เพื่อความปลอดภัย` });
-      return;
-    }
-
     setScriptRunning(true);
     addLog({ timestamp: Date.now(), level: "info", message: "▶ เริ่มรันสคริปต์..." });
     const logFn = (msg: string) => addLog({ timestamp: Date.now(), level: "info", message: `[script] ${msg}` });

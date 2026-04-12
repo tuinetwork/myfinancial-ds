@@ -209,6 +209,22 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
 
   const removeTag = (tag: string) => setTags(tags.filter((t) => t !== tag));
 
+  const getNextTransactionId = async (userId: string, monthYear: string): Promise<string> => {
+    const txCol = collection(firestore, "users", userId, "transactions");
+    const q = query(txCol, where("month_year", "==", monthYear));
+    const snap = await getDocs(q);
+    const prefix = `${monthYear}-tx-`;
+    let maxNum = 0;
+    snap.forEach((d) => {
+      const id = d.id;
+      if (id.startsWith(prefix)) {
+        const num = parseInt(id.slice(prefix.length), 10);
+        if (!isNaN(num) && num > maxNum) maxNum = num;
+      }
+    });
+    return `${prefix}${String(maxNum + 1).padStart(3, "0")}`;
+  };
+
   const MAX_AMOUNT = 9_999_999.99;
   const MAX_NOTE_LENGTH = 500;
   const MAX_TAG_LENGTH = 30;
@@ -239,6 +255,7 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
     try {
       const dateStr = format(date, "yyyy-MM-dd");
       const monthYear = format(date, "yyyy-MM");
+      const newId = await getNextTransactionId(userId, monthYear);
 
       const txData: Record<string, any> = {
         type: isTransfer ? "transfer" : type,
@@ -293,7 +310,7 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
       }
 
       // Atomic: write transaction + update balances in single Firestore transaction
-      await createTransactionAtomic(userId, null, txData, balanceUpdates);
+      await createTransactionAtomic(userId, newId, txData, balanceUpdates);
       queryClient.invalidateQueries({ queryKey: ["budget-data"] });
       toast.success("บันทึกรายการสำเร็จ");
       handleClose();
