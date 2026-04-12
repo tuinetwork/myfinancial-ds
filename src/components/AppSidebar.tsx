@@ -309,7 +309,7 @@ export function AppSidebar() {
         </button>
       </SidebarHeader>
 
-      <SidebarContent className={collapsed ? "justify-center" : ""}>
+      <SidebarContent>
         {/* DASHBOARD */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
