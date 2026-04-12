@@ -658,7 +658,10 @@ export default function OverviewPage() {
 
   // For the 6-month summaries, we query each period individually via Firestore
   useEffect(() => {
-    if (!userId || periods.length === 0) return;
+    if (!userId || periods.length === 0) {
+      if (!monthsLoading) setDataLoading(false);
+      return;
+    }
     setDataLoading(true);
 
     import("firebase/firestore").then(({ collection, getDocs, query, where }) => {
@@ -709,7 +712,7 @@ export default function OverviewPage() {
         }).finally(() => setDataLoading(false));
       });
     });
-  }, [userId, p0, p5]);
+  }, [userId, p0, p5, monthsLoading]);
 
   // Recent transactions from latest month
   useEffect(() => {
