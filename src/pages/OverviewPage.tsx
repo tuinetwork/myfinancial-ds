@@ -9,6 +9,7 @@ import { GlobalInsights } from "@/components/GlobalInsights";
 import { AppFooter } from "@/components/AppFooter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAvailableMonths, useBudgetData, formatCurrency, type BudgetData, type BudgetItem } from "@/hooks/useBudgetData";
+import { useTrueNetWorth } from "@/hooks/useAllTransactions";
 import { expandRecurrence } from "@/lib/recurrence";
 import { getAccounts, getGoals, getInvestments } from "@/lib/firestore-services";
 import type { Account, Goal, Investment } from "@/types/finance";
@@ -634,35 +635,17 @@ export default function OverviewPage() {
   const [recentTx, setRecentTx] = useState<RecentTx[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
-  // Accounts, Goals, trueNetWorth
+  // Accounts, Goals
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
-  const [trueNetWorth, setTrueNetWorth] = useState(0);
   const [assetsLoading, setAssetsLoading] = useState(true);
+  const trueNetWorth = useTrueNetWorth();
 
   useEffect(() => {
     if (!userId) return;
     Promise.all([getAccounts(userId), getGoals(userId)])
       .then(([a, g]) => { setAccounts(a); setGoals(g); })
       .finally(() => setAssetsLoading(false));
-
-    // Compute trueNetWorth from all transactions (same logic as AccountsPage)
-    import("firebase/firestore").then(({ collection, getDocs }) => {
-      import("@/lib/firebase").then(({ firestore }) => {
-        getDocs(collection(firestore, "users", userId, "transactions")).then((snap) => {
-          let income = 0;
-          let expense = 0;
-          snap.forEach((d) => {
-            const t = d.data();
-            if (!t.is_deleted) {
-              if (t.type === "income") income += Number(t.amount) || 0;
-              if (t.type === "expense") expense += Number(t.amount) || 0;
-            }
-          });
-          setTrueNetWorth(income - expense);
-        });
-      });
-    });
   }, [userId]);
 
   // Load last 6 months budget data

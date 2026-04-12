@@ -55,53 +55,11 @@ import { toast } from "@/hooks/use-toast";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { IconPicker, getIconByName } from "@/components/IconPicker";
 import { RecurringRulesManager } from "@/components/RecurringRulesManager";
-
-// ─── Sub-menu tabs ───
-type SettingsTab = "budget" | "categories" | "savings" | "user" | "recurring";
-
-// ─── Budget tree types ───
-// Budget value can be a number (general) or {amount, due_date} (bills, debts, savings, subscriptions)
-type BudgetValue = number | { amount: number; due_date: string | null; recurrence?: string | null; start_date?: string | null; end_date?: string | null; paid_dates?: string[] };
-
-interface BudgetTreeData {
-  income_estimates: Record<string, Record<string, number>>;
-  expense_budgets: Record<string, Record<string, BudgetValue>>;
-  carry_over: number;
-  period: string;
-}
-
-const MAP_CATEGORIES = [
-  "บิลและสาธารณูปโภค",
-  "หนี้สิน",
-  "เงินออมและการลงทุน",
-  "ค่าสมาชิกรายเดือน",
-];
-
-function getAmount(val: BudgetValue): number {
-  return typeof val === "number" ? val : val?.amount ?? 0;
-}
-
-function getDueDate(val: BudgetValue): string | null {
-  return typeof val === "object" && val !== null ? val?.due_date ?? null : null;
-}
-
-function getRecurrence(val: BudgetValue): string | null {
-  return typeof val === "object" && val !== null ? (val as any)?.recurrence ?? null : null;
-}
-
-function getStartDate(val: BudgetValue): string | null {
-  return typeof val === "object" && val !== null ? (val as any)?.start_date ?? null : null;
-}
-
-function getEndDate(val: BudgetValue): string | null {
-  return typeof val === "object" && val !== null ? (val as any)?.end_date ?? null : null;
-}
-
-function getPaidDates(val: BudgetValue): string[] {
-  return typeof val === "object" && val !== null ? (val as any)?.paid_dates ?? [] : [];
-}
-
 import { formatThaiDate } from "@/lib/constants";
+import {
+  type SettingsTab, type BudgetValue, type BudgetTreeData,
+  MAP_CATEGORIES, getAmount, getDueDate, getRecurrence, getStartDate, getEndDate, getPaidDates,
+} from "@/lib/budget-types";
 
 // ─── Editable cell ───
 const EditableAmount = ({
