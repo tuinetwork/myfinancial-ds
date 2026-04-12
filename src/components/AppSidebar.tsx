@@ -295,7 +295,7 @@ export function AppSidebar() {
       <SidebarHeader className="p-2">
         <button
           onClick={toggleSidebar}
-          className="flex items-center gap-2.5 w-full rounded-lg p-2 hover:bg-sidebar-accent/50 transition-all duration-300 group/logo"
+          className={`flex items-center gap-2.5 w-full rounded-lg p-2 hover:bg-sidebar-accent/50 transition-all duration-300 group/logo ${collapsed ? "justify-center" : ""}`}
         >
           <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shrink-0 transition-transform duration-300 group-hover/logo:scale-110">
             <Wallet className="h-5 w-5" />
