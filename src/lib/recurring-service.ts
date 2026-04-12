@@ -70,21 +70,6 @@ export async function deleteRecurringRule(userId: string, ruleId: string): Promi
   }
 }
 
-async function getNextTxId(userId: string, monthYear: string): Promise<string> {
-  const txCol = collection(firestore, "users", userId, "transactions");
-  const q = query(txCol, where("month_year", "==", monthYear));
-  const snap = await getDocs(q);
-  const prefix = `${monthYear}-tx-`;
-  let maxNum = 0;
-  snap.forEach((d) => {
-    if (d.id.startsWith(prefix)) {
-      const n = parseInt(d.id.slice(prefix.length), 10);
-      if (!isNaN(n) && n > maxNum) maxNum = n;
-    }
-  });
-  return `${prefix}${String(maxNum + 1).padStart(3, "0")}`;
-}
-
 export async function applyRecurringRules(userId: string, period: string): Promise<number> {
   const rules = await getRecurringRules(userId);
   const active = rules.filter((r) => r.is_active && r.last_applied !== period);
@@ -96,8 +81,6 @@ export async function applyRecurringRules(userId: string, period: string): Promi
       const daysInMonth = new Date(y, m, 0).getDate();
       const day = Math.min(rule.day_of_month, daysInMonth);
       const dateStr = `${period}-${String(day).padStart(2, "0")}`;
-      const txId = await getNextTxId(userId, period);
-
       const txData: Record<string, any> = {
         type: rule.type,
         amount: rule.amount,
@@ -119,7 +102,7 @@ export async function applyRecurringRules(userId: string, period: string): Promi
         balanceUpdates.push({ accountId: rule.to_account_id, delta: rule.amount });
       }
 
-      await createTransactionAtomic(userId, txId, txData, balanceUpdates);
+      await createTransactionAtomic(userId, null, txData, balanceUpdates);
       await updateDoc(doc(firestore, "users", userId, "recurring_rules", rule.id), { last_applied: period });
       applied++;
     } catch (err) {

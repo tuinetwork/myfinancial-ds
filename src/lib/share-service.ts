@@ -33,10 +33,7 @@ export interface SharedReport {
   snapshot: SharedReportSnapshot;
 }
 
-const THAI_MONTHS = [
-  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
-];
+import { THAI_MONTHS } from "@/lib/constants";
 
 function buildSnapshot(data: BudgetData, carryOver: number): SharedReportSnapshot {
   const [yearStr, monthStr] = data.period.split("-");

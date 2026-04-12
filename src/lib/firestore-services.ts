@@ -170,11 +170,12 @@ export async function softDeleteGoal(userId: string, goalId: string): Promise<vo
  */
 export async function createTransactionAtomic(
   userId: string,
-  transactionId: string,
+  transactionId: string | null,
   txData: Record<string, any>,
   balanceUpdates: { accountId: string; delta: number }[]
-): Promise<void> {
-  const txRef = doc(firestore, "users", userId, "transactions", transactionId);
+): Promise<string> {
+  const txCol = collection(firestore, "users", userId, "transactions");
+  const txRef = transactionId ? doc(txCol, transactionId) : doc(txCol);
 
   try {
     await runTransaction(firestore, async (transaction) => {
@@ -206,6 +207,7 @@ export async function createTransactionAtomic(
         });
       });
     });
+    return txRef.id;
   } catch (err: any) {
     // Offline fallback: runTransaction fails offline, use direct writes instead
     // Firestore persistent cache will queue these and sync when back online
@@ -220,10 +222,12 @@ export async function createTransactionAtomic(
           await updateDoc(accRef, { balance: newBalance, updated_at: Date.now() });
         }
       }
+      return txRef.id;
     } else {
       throw err;
     }
   }
+  return txRef.id;
 }
 
 /**

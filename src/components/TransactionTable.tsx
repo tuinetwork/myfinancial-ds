@@ -185,7 +185,7 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
       return source.filter((t) => t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี");
     }
     return source;
-  }, [data.transactions, allTransactions, excludeTransfers, dateFrom, dateTo]);
+  }, [data.transactions, allTransactions, excludeTransfers, dateFrom, dateTo, search]);
 
   const types = useMemo(() => {
     const available = Array.from(new Set(baseTransactions.map((t) => t.type)));
@@ -285,7 +285,7 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
   // Reset page when filter/search/pageSize changes
-  useMemo(() => { setPage(0); }, [filter, search, pageSize, dateFrom, dateTo, minAmount, maxAmount]);
+  useEffect(() => { setPage(0); }, [filter, search, pageSize, dateFrom, dateTo, minAmount, maxAmount]);
 
   const exportCSV = () => {
     const BOM = "\uFEFF";

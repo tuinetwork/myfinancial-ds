@@ -180,7 +180,7 @@ function BalanceComparisonChart({ assets, liabilities, privacyMode, formatBalanc
   );
 }
 
-const THAI_MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+import { THAI_MONTHS_SHORT } from "@/lib/constants";
 
 function NetWorthTrendChart({ userId, privacyMode, formatBalance }: {
   userId: string;

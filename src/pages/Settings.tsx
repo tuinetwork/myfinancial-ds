@@ -101,21 +101,7 @@ function getPaidDates(val: BudgetValue): string[] {
   return typeof val === "object" && val !== null ? (val as any)?.paid_dates ?? [] : [];
 }
 
-// Format date string to Thai Buddhist Era display
-function formatThaiDate(dateStr: string | null): string {
-  if (!dateStr) return "-";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return "-";
-    const day = d.getDate();
-    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-    const month = thaiMonths[d.getMonth()];
-    const buddhistYear = d.getFullYear() + 543;
-    return `${day} ${month} ${buddhistYear}`;
-  } catch {
-    return "-";
-  }
-}
+import { formatThaiDate } from "@/lib/constants";
 
 // ─── Editable cell ───
 const EditableAmount = ({

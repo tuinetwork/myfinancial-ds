@@ -13,26 +13,7 @@ import { BudgetData, BudgetItem, Transaction } from "./useBudgetData";
 import { useAuth } from "@/contexts/AuthContext";
 import { expandRecurrence } from "@/lib/recurrence";
 
-const EXPENSE_CATEGORY_MAP: Record<string, keyof BudgetData["expenses"]> = {
-  "ค่าใช้จ่ายทั่วไป": "general",
-  "บิลและสาธารณูปโภค": "bills",
-  "หนี้สิน": "debts",
-  "ค่าสมาชิกรายเดือน": "subscriptions",
-  "เงินออมและการลงทุน": "savings",
-};
-
-const MAIN_CATEGORY_TYPE_MAP: Record<string, string> = {
-  "ค่าใช้จ่ายทั่วไป": "ค่าใช้จ่าย",
-  "บิลและสาธารณูปโภค": "บิล/สาธารณูปโภค",
-  "หนี้สิน": "หนี้สิน",
-  "ค่าสมาชิกรายเดือน": "ค่าสมาชิกรายเดือน",
-  "เงินออมและการลงทุน": "เงินออม/การลงทุน",
-};
-
-const THAI_MONTHS = [
-  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
-];
+import { THAI_MONTHS, EXPENSE_CATEGORY_MAP, MAIN_CATEGORY_TYPE_MAP } from "@/lib/constants";
 
 function mapTransaction(docId: string, docData: Record<string, unknown>): Transaction {
   const type = docData.type as string;

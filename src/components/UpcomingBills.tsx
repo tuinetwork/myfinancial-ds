@@ -24,13 +24,7 @@ interface BillItem {
   isRecurring: boolean;
 }
 
-function formatThaiDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  const day = d.getDate();
-  const thaiMonth = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."][d.getMonth()];
-  const buddhistYear = d.getFullYear() + 543;
-  return `${day} ${thaiMonth} ${buddhistYear}`;
-}
+import { formatThaiDate } from "@/lib/constants";
 
 function getDaysUntil(dateStr: string, refDate?: Date): number {
   const ref = refDate ? new Date(refDate) : new Date();

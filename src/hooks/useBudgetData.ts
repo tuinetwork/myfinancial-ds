@@ -68,32 +68,7 @@ export interface MonthOption {
   label: string;
 }
 
-const THAI_MONTHS = [
-  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
-];
-
-function periodToMonthName(period: string): string {
-  const [, monthStr] = period.split("-");
-  const idx = parseInt(monthStr, 10) - 1;
-  return THAI_MONTHS[idx] ?? period;
-}
-
-const EXPENSE_CATEGORY_MAP: Record<string, keyof BudgetData["expenses"]> = {
-  "ค่าใช้จ่ายทั่วไป": "general",
-  "บิลและสาธารณูปโภค": "bills",
-  "หนี้สิน": "debts",
-  "ค่าสมาชิกรายเดือน": "subscriptions",
-  "เงินออมและการลงทุน": "savings",
-};
-
-const MAIN_CATEGORY_TYPE_MAP: Record<string, string> = {
-  "ค่าใช้จ่ายทั่วไป": "ค่าใช้จ่าย",
-  "บิลและสาธารณูปโภค": "บิล/สาธารณูปโภค",
-  "หนี้สิน": "หนี้สิน",
-  "ค่าสมาชิกรายเดือน": "ค่าสมาชิกรายเดือน",
-  "เงินออมและการลงทุน": "เงินออม/การลงทุน",
-};
+import { periodToMonthName, EXPENSE_CATEGORY_MAP, MAIN_CATEGORY_TYPE_MAP } from "@/lib/constants";
 
 function budgetsCollection(userId: string) {
   return collection(firestore, "users", userId, "budgets");

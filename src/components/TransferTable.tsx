@@ -202,7 +202,7 @@ export function TransferTable({ data, userId, onMutate, allTransactions }: Props
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
-  useMemo(() => { setPage(0); }, [search, pageSize, filterFrom, filterTo, dateRange]);
+  useEffect(() => { setPage(0); }, [search, pageSize, filterFrom, filterTo, dateRange]);
 
   const exportCSV = () => {
     const BOM = "\uFEFF";

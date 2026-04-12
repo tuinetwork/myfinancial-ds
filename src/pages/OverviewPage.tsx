@@ -25,19 +25,10 @@ import {
   PieChart, Pie, Cell,
 } from "recharts";
 
+import { THAI_MONTHS_SHORT, formatThaiDateShort } from "@/lib/constants";
+
 // ===== Helpers =====
-const THAI_MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-
 const fmt = (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-/** Format "2026-04-09" → "9 เม.ย. 69" (Thai Buddhist short year) */
-function formatThaiDateShort(dateStr: string): string {
-  if (!dateStr) return "-";
-  const [y, m, d] = dateStr.split("-").map(Number);
-  if (!y || !m || !d) return dateStr;
-  const buddhistYear = (y + 543) % 100; // short year e.g. 69
-  return `${d} ${THAI_MONTHS_SHORT[m - 1]} ${buddhistYear}`;
-}
 
 // ===== Net Worth Card =====
 function NetWorthCard({ accounts, trueNetWorth, loading }: { accounts: Account[]; trueNetWorth: number; loading: boolean }) {

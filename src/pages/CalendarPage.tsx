@@ -50,10 +50,7 @@ interface DueDateItem {
   txDate?: string; // actual transaction date that matched
 }
 
-const THAI_MONTHS = [
-  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
-];
+import { THAI_MONTHS, formatThaiDate } from "@/lib/constants";
 
 const THAI_WEEKDAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 
@@ -63,14 +60,6 @@ const CATEGORY_ICON_MAP: Record<string, React.ComponentType<{ className?: string
   "เงินออมและการลงทุน": CircleDollarSign,
   "ค่าสมาชิกรายเดือน": Banknote,
 };
-
-function formatThaiDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  const day = d.getDate();
-  const thaiMonth = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."][d.getMonth()];
-  const buddhistYear = d.getFullYear() + 543;
-  return `${day} ${thaiMonth} ${buddhistYear}`;
-}
 
 function getDaysUntil(dateStr: string): number {
   const today = new Date();
