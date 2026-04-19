@@ -137,7 +137,9 @@ function getBalanceDeltas(tx: Transaction): { accountId: string; delta: number }
 
 export function TransactionTable({ data, userId, onMutate, excludeTransfers = false, allTransactions }: Props) {
   const [pageSize, setPageSize] = useState(50);
-  const [filter, setFilter] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterMainCat, setFilterMainCat] = useState<string>("all");
+  const [filterSubCat, setFilterSubCat] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
@@ -187,12 +189,23 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
     return source;
   }, [data.transactions, allTransactions, excludeTransfers, dateFrom, dateTo]);
 
-  const types = useMemo(() => {
+  const typeOptions = useMemo(() => {
     const available = Array.from(new Set(baseTransactions.map((t) => t.type)));
     return TYPE_ORDER.filter((t) => available.includes(t)).concat(
       available.filter((t) => !TYPE_ORDER.includes(t))
     );
   }, [baseTransactions]);
+
+  const mainCatOptions = useMemo(() => {
+    const src = filterType === "all" ? baseTransactions : baseTransactions.filter((t) => t.type === filterType);
+    return Array.from(new Set(src.map((t) => t.main_category || t.category))).sort((a, b) => a.localeCompare(b, "th"));
+  }, [baseTransactions, filterType]);
+
+  const subCatOptions = useMemo(() => {
+    let src = filterType === "all" ? baseTransactions : baseTransactions.filter((t) => t.type === filterType);
+    if (filterMainCat !== "all") src = src.filter((t) => (t.main_category || t.category) === filterMainCat);
+    return Array.from(new Set(src.map((t) => t.category))).sort((a, b) => a.localeCompare(b, "th"));
+  }, [baseTransactions, filterType, filterMainCat]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -212,7 +225,10 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
   };
 
   const filtered = useMemo(() => {
-    let items = filter === "all" ? baseTransactions : baseTransactions.filter((t) => t.type === filter);
+    let items = baseTransactions;
+    if (filterType !== "all") items = items.filter((t) => t.type === filterType);
+    if (filterMainCat !== "all") items = items.filter((t) => (t.main_category || t.category) === filterMainCat);
+    if (filterSubCat !== "all") items = items.filter((t) => t.category === filterSubCat);
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -274,7 +290,7 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
     });
 
     return indexed;
-  }, [baseTransactions, filter, search, sortKey, sortDir, dateFrom, dateTo, minAmount, maxAmount]);
+  }, [baseTransactions, filterType, filterMainCat, filterSubCat, search, sortKey, sortDir, dateFrom, dateTo, minAmount, maxAmount]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((sum, t) => sum + t.amount, 0),
@@ -285,7 +301,7 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
   // Reset page when filter/search/pageSize changes
-  useMemo(() => { setPage(0); }, [filter, search, pageSize, dateFrom, dateTo, minAmount, maxAmount]);
+  useMemo(() => { setPage(0); }, [filterType, filterMainCat, filterSubCat, search, pageSize, dateFrom, dateTo, minAmount, maxAmount]);
 
   const exportCSV = () => {
     const BOM = "\uFEFF";
@@ -454,16 +470,42 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
           {/* ── Controls ── */}
           <div className="space-y-2">
             {/* Row 1: always visible */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {/* ประเภท */}
-              <Select value={filter} onValueChange={setFilter}>
-                <SelectTrigger className="flex-1 h-9 text-xs min-w-0">
-                  <SelectValue placeholder="ทั้งหมด" />
+              <Select value={filterType} onValueChange={(v) => { setFilterType(v); setFilterMainCat("all"); setFilterSubCat("all"); }}>
+                <SelectTrigger className="h-9 text-xs min-w-[90px] flex-1">
+                  <SelectValue placeholder="ประเภท" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">ทั้งหมด</SelectItem>
-                  {types.map((type) => (
+                  <SelectItem value="all">ทุกประเภท</SelectItem>
+                  {typeOptions.map((type) => (
                     <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* หมวดหมู่ */}
+              <Select value={filterMainCat} onValueChange={(v) => { setFilterMainCat(v); setFilterSubCat("all"); }}>
+                <SelectTrigger className="h-9 text-xs min-w-[90px] flex-1">
+                  <SelectValue placeholder="หมวดหมู่" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ทุกหมวดหมู่</SelectItem>
+                  {mainCatOptions.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* หมวดหมู่ย่อย */}
+              <Select value={filterSubCat} onValueChange={setFilterSubCat}>
+                <SelectTrigger className="h-9 text-xs min-w-[90px] flex-1">
+                  <SelectValue placeholder="หมวดหมู่ย่อย" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ทุกหมวดย่อย</SelectItem>
+                  {subCatOptions.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -473,7 +515,7 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
                 placeholder="ค้นหา..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="flex-1 h-9 text-xs min-w-0"
+                className="flex-1 h-9 text-xs min-w-[100px]"
               />
 
               {/* ตัวกรองเพิ่มเติม toggle (mobile) / always show (desktop) */}
@@ -669,14 +711,14 @@ export function TransactionTable({ data, userId, onMutate, excludeTransfers = fa
                   </TableRow>
                 ))}
               </TableBody>
-              {filter !== "all" && (
+              {(filterType !== "all" || filterMainCat !== "all" || filterSubCat !== "all") && (
                 <tfoot>
                   <tr className="border-t border-border bg-muted/50">
                     <TableCell colSpan={canEdit ? 5 : 4} className="text-sm font-semibold py-2.5 hidden sm:table-cell">
-                      รวม {filter}
+                      รวม {filterSubCat !== "all" ? filterSubCat : filterMainCat !== "all" ? filterMainCat : filterType}
                     </TableCell>
                     <TableCell colSpan={canEdit ? 2 : 1} className="text-sm font-semibold py-2.5 sm:hidden">
-                      รวม {filter}
+                      รวม {filterSubCat !== "all" ? filterSubCat : filterMainCat !== "all" ? filterMainCat : filterType}
                     </TableCell>
                     <TableCell className="text-sm text-right font-bold font-display py-2.5">
                       {formatCurrency(totalAmount)}
