@@ -150,7 +150,7 @@ function parseBudgetDoc(
         const startDate = typeof val === "object" && val !== null ? (val as any)?.start_date ?? null : null;
         const endDate = typeof val === "object" && val !== null ? (val as any)?.end_date ?? null : null;
         const paidDates = typeof val === "object" && val !== null ? (val as any)?.paid_dates ?? [] : [];
-        return { label, budget, dueDate, recurrence, startDate, endDate, paidDates };
+        return { label, budget, dueDate, recurrence, startDate, endDate, paidDates, mainCategory: mainCat };
       });
       expenses[key] = [...expenses[key], ...mapped];
     }
