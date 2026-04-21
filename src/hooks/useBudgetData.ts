@@ -25,6 +25,8 @@ export interface BudgetItem {
   startDate?: string | null;
   endDate?: string | null;
   paidDates?: string[];
+  /** Original main category name from Firestore (e.g. "ค่าใช้จ่ายทั่วไป", "ค่าดูแลเด็ก ๆ") */
+  mainCategory?: string;
 }
 
 export interface Transaction {
