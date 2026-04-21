@@ -20,8 +20,24 @@ function getMonthlyBudget(item: BudgetItem, period: string): number {
   return occurrences > 0 ? item.budget * occurrences : item.budget;
 }
 
+// Built-in main category names (from Firestore expense_budgets keys)
+const BUILTIN_EXPENSE_MAIN_CATS = [
+  "ค่าใช้จ่ายทั่วไป",
+  "บิลและสาธารณูปโภค",
+  "หนี้สิน",
+  "ค่าสมาชิกรายเดือน",
+  "เงินออมและการลงทุน",
+];
+
+// Display label override for built-in groups (matches existing UX language)
+const MAIN_CAT_DISPLAY: Record<string, string> = {
+  "ค่าใช้จ่ายทั่วไป": "ค่าใช้จ่าย",
+  "บิลและสาธารณูปโภค": "บิล/สาธารณูปโภค",
+  "เงินออมและการลงทุน": "เงินออม/การลงทุน",
+};
+
 export function BudgetBreakdown({ data }: Props) {
-  const [filter, setFilter] = useState<string>("ค่าใช้จ่าย");
+  const [filter, setFilter] = useState<string>("ค่าใช้จ่ายทั่วไป");
   const [hideUnused, setHideUnused] = useState(true);
 
   const actualByCategory: Record<string, number> = {};
@@ -30,14 +46,6 @@ export function BudgetBreakdown({ data }: Props) {
     .forEach((t) => {
       actualByCategory[t.category] = (actualByCategory[t.category] || 0) + t.amount;
     });
-
-  // Build category-to-type mapping from transactions
-  const categoryType: Record<string, string> = {};
-  data.transactions.forEach((t) => {
-    if (!categoryType[t.category]) categoryType[t.category] = t.type;
-  });
-
-  const groups = ["รายรับ", "ค่าใช้จ่าย", "หนี้สิน", "เงินออม/การลงทุน", "บิล/สาธารณูปโภค", "ค่าสมาชิกรายเดือน"];
 
   const allBudgets = useMemo(
     () =>
@@ -52,18 +60,32 @@ export function BudgetBreakdown({ data }: Props) {
     [data.income, data.expenses]
   );
 
-  // Build label-to-type mapping from budget structure
-  const labelType: Record<string, string> = {};
-  data.income.forEach((item) => { labelType[item.label] = "รายรับ"; });
-  data.expenses.general.forEach((item) => { labelType[item.label] = "ค่าใช้จ่าย"; });
-  data.expenses.bills.forEach((item) => { labelType[item.label] = "บิล/สาธารณูปโภค"; });
-  data.expenses.debts.forEach((item) => { labelType[item.label] = "หนี้สิน"; });
-  data.expenses.subscriptions.forEach((item) => { labelType[item.label] = "ค่าสมาชิกรายเดือน"; });
-  data.expenses.savings.forEach((item) => { labelType[item.label] = "เงินออม/การลงทุน"; });
+  // Build dynamic filter options: income + every main category present in budget data
+  const filterOptions = useMemo(() => {
+    const present = new Set<string>();
+    allBudgets.forEach((b) => {
+      if (b.mainCategory) present.add(b.mainCategory);
+    });
+    // Built-ins first (in canonical order), then any custom mainCategory the user added
+    const ordered: string[] = [];
+    BUILTIN_EXPENSE_MAIN_CATS.forEach((c) => {
+      if (present.has(c)) ordered.push(c);
+    });
+    Array.from(present)
+      .filter((c) => !BUILTIN_EXPENSE_MAIN_CATS.includes(c))
+      .sort((a, b) => a.localeCompare(b, "th"))
+      .forEach((c) => ordered.push(c));
+    return ordered;
+  }, [allBudgets]);
 
-  const baseFiltered = filter === "all"
-    ? allBudgets
-    : allBudgets.filter((b) => labelType[b.label] === filter);
+  // Income labels (used for filter "รายรับ" + alert exclusion)
+  const incomeLabels = useMemo(() => new Set(data.income.map((i) => i.label)), [data.income]);
+
+  const baseFiltered = useMemo(() => {
+    if (filter === "all") return allBudgets;
+    if (filter === "รายรับ") return allBudgets.filter((b) => incomeLabels.has(b.label));
+    return allBudgets.filter((b) => b.mainCategory === filter);
+  }, [filter, allBudgets, incomeLabels]);
 
   const filtered = hideUnused
     ? baseFiltered.filter((b) => (actualByCategory[b.label] || 0) > 0)
