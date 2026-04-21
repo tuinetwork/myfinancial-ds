@@ -150,6 +150,7 @@ function parseBudgetDoc(
         const paidDates = typeof val === "object" && val !== null ? (val as any)?.paid_dates ?? [] : [];
         return { label, budget, dueDate, recurrence, startDate, endDate, paidDates };
       });
+      expenses[key] = [...expenses[key], ...mapped];
     }
   }
 
