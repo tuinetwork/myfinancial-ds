@@ -25,6 +25,8 @@ export interface BudgetItem {
   startDate?: string | null;
   endDate?: string | null;
   paidDates?: string[];
+  /** Original main category name from Firestore (e.g. "ค่าใช้จ่ายทั่วไป", "ค่าดูแลเด็ก ๆ") */
+  mainCategory?: string;
 }
 
 export interface Transaction {
@@ -148,7 +150,7 @@ function parseBudgetDoc(
         const startDate = typeof val === "object" && val !== null ? (val as any)?.start_date ?? null : null;
         const endDate = typeof val === "object" && val !== null ? (val as any)?.end_date ?? null : null;
         const paidDates = typeof val === "object" && val !== null ? (val as any)?.paid_dates ?? [] : [];
-        return { label, budget, dueDate, recurrence, startDate, endDate, paidDates };
+        return { label, budget, dueDate, recurrence, startDate, endDate, paidDates, mainCategory: mainCat };
       });
       expenses[key] = [...expenses[key], ...mapped];
     }
