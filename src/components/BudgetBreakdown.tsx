@@ -95,7 +95,6 @@ export function BudgetBreakdown({ data }: Props) {
   const totalBudget = filtered.reduce((sum, item) => sum + getMonthlyBudget(item, data.period), 0);
 
   // Budget alerts: items over 80% or 100% (exclude income — income over budget is good)
-  const incomeLabels = new Set(data.income.map((i) => i.label));
 
   const alerts = useMemo(() => {
     return allBudgets
