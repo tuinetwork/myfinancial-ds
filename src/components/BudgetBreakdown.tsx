@@ -132,9 +132,10 @@ export function BudgetBreakdown({ data }: Props) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">ทั้งหมด</SelectItem>
-              {groups.map((g) => (
+              {data.income.length > 0 && <SelectItem value="รายรับ">รายรับ</SelectItem>}
+              {filterOptions.map((g) => (
                 <SelectItem key={g} value={g}>
-                  {g}
+                  {MAIN_CAT_DISPLAY[g] ?? g}
                 </SelectItem>
               ))}
             </SelectContent>
