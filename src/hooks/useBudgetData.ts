@@ -137,9 +137,11 @@ function parseBudgetDoc(
     savings: [],
   };
   for (const [mainCat, subs] of Object.entries(expenseBudgets)) {
-    const key = EXPENSE_CATEGORY_MAP[mainCat];
-    if (key && subs && typeof subs === "object") {
-      expenses[key] = Object.entries(subs).map(([label, val]) => {
+    // Map known main categories to their group; unknown/custom main categories
+    // (e.g. "ค่าดูแลเด็ก ๆ") fall back to "general" so they appear under "ค่าใช้จ่าย".
+    const key = EXPENSE_CATEGORY_MAP[mainCat] ?? "general";
+    if (subs && typeof subs === "object") {
+      const mapped = Object.entries(subs).map(([label, val]) => {
         const budget = typeof val === "number" ? val : (val as any)?.amount ?? 0;
         const dueDate = typeof val === "object" && val !== null ? (val as any)?.due_date ?? null : null;
         const recurrence = typeof val === "object" && val !== null ? (val as any)?.recurrence ?? null : null;
@@ -148,6 +150,7 @@ function parseBudgetDoc(
         const paidDates = typeof val === "object" && val !== null ? (val as any)?.paid_dates ?? [] : [];
         return { label, budget, dueDate, recurrence, startDate, endDate, paidDates };
       });
+      expenses[key] = [...expenses[key], ...mapped];
     }
   }
 
