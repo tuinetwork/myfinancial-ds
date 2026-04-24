@@ -398,15 +398,12 @@ export default function CalculatorFAB() {
 
   return (
     <>
-      {/* Trigger button — above AddTransactionFAB on desktop, above BottomNavbar on mobile */}
+      {/* Trigger button — desktop only (hidden on mobile to avoid BottomNavbar) */}
       <button
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "fixed right-4 md:right-6 z-40",
-          "bottom-24 md:bottom-24",
-          // On mobile, BottomNavbar is ~64px tall + safe area; lift higher
-          "[bottom:calc(env(safe-area-inset-bottom)+5.5rem)] md:[bottom:6rem]",
-          "flex w-12 h-12 rounded-full items-center justify-center",
+          "hidden md:flex fixed bottom-24 right-6 z-40",
+          "w-12 h-12 rounded-full items-center justify-center",
           "bg-card border border-border shadow-lg",
           "hover:bg-muted active:scale-95 transition-all",
           open && "bg-primary text-primary-foreground border-primary"
