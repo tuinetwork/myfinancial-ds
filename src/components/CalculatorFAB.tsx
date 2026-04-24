@@ -390,11 +390,11 @@ export default function CalculatorFAB() {
   // Button style helpers
   const btn = "h-11 rounded-lg font-semibold text-sm active:scale-95 transition-transform select-none flex items-center justify-center";
   const numBtn = cn(btn, "bg-muted text-foreground hover:bg-muted/80");
-  const opBtn = cn(btn, "bg-[hsl(var(--bills))] text-white hover:opacity-90");
+  const opBtn = cn(btn, "bg-[hsl(var(--debt))] text-[hsl(var(--debt-foreground))] hover:opacity-90");
   const eqBtn = cn(btn, "bg-primary text-primary-foreground hover:opacity-90");
   const clearBtn = cn(btn, "bg-destructive text-destructive-foreground hover:opacity-90");
   const utilBtn = cn(btn, "bg-secondary text-secondary-foreground hover:bg-secondary/80");
-  const parenBtn = cn(btn, "bg-accent text-accent-foreground hover:bg-accent/80");
+  const parenBtn = cn(btn, "bg-accent/20 text-accent-foreground hover:bg-accent/30 border border-accent/40");
 
   return (
     <>
