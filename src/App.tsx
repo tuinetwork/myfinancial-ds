@@ -194,6 +194,7 @@ function AuthenticatedApp() {
           </Routes>
         </Suspense>
         <AddTransactionFAB open={fabOpen} onOpenChange={setFabOpen} />
+        <CalculatorFAB />
         <BottomNavbar onAddClick={() => setFabOpen(true)} />
       </div>
     </SidebarProvider>
