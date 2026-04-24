@@ -387,14 +387,14 @@ export default function CalculatorFAB() {
     } catch { /* ignore */ }
   }
 
-  // Button style helpers
-  const btn = "h-11 rounded-lg font-semibold text-sm active:scale-95 transition-transform select-none flex items-center justify-center";
+  // Button style helpers — taller buttons + tabular nums for consistent label width
+  const btn = "h-12 rounded-lg font-semibold text-base tabular-nums leading-none active:scale-95 transition-transform select-none flex items-center justify-center";
   const numBtn = cn(btn, "bg-muted text-foreground hover:bg-muted/80");
-  const opBtn = cn(btn, "bg-[hsl(var(--debt))] text-[hsl(var(--debt-foreground))] hover:opacity-90");
-  const eqBtn = cn(btn, "bg-primary text-primary-foreground hover:opacity-90");
+  const opBtn = cn(btn, "bg-[hsl(var(--debt))] text-[hsl(var(--debt-foreground))] hover:opacity-90 text-lg");
+  const eqBtn = cn(btn, "bg-primary text-primary-foreground hover:opacity-90 text-lg");
   const clearBtn = cn(btn, "bg-destructive text-destructive-foreground hover:opacity-90");
-  const utilBtn = cn(btn, "bg-secondary text-secondary-foreground hover:bg-secondary/80");
-  const parenBtn = cn(btn, "bg-accent/20 text-accent-foreground hover:bg-accent/30 border border-accent/40");
+  const utilBtn = cn(btn, "bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs");
+  const parenBtn = cn(btn, "bg-muted text-foreground hover:bg-muted/80 text-lg font-bold");
 
   return (
     <>
