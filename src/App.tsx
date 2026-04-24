@@ -14,6 +14,7 @@ import { firestore } from "@/lib/firebase";
 import { applyRecurringRules } from "@/lib/recurring-service";
 import GoogleLogin from "./components/GoogleLogin";
 import AddTransactionFAB from "./components/AddTransactionFAB";
+import CalculatorFAB from "./components/CalculatorFAB";
 import { BottomNavbar } from "./components/BottomNavbar";
 import { Loader2, AlertTriangle, X, Megaphone } from "lucide-react";
 
@@ -193,6 +194,7 @@ function AuthenticatedApp() {
           </Routes>
         </Suspense>
         <AddTransactionFAB open={fabOpen} onOpenChange={setFabOpen} />
+        <CalculatorFAB />
         <BottomNavbar onAddClick={() => setFabOpen(true)} />
       </div>
     </SidebarProvider>
