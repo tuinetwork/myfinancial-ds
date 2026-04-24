@@ -1,53 +1,77 @@
+## เป้าหมาย
+
+สร้างเครื่องคิดเลข (Calculator) ที่:
+
+- เปิดด้วย **ปุ่มลอย (Trigger Button)** ที่อยู่มุมขวาล่าง **เหนือปุ่ม FAB เพิ่มรายการเดิม**
+- แสดงเป็น **Draggable Floating Window** (ลากย้ายตำแหน่งได้ทั่วหน้าจอ)
+- รองรับ **คีย์บอร์ด**: `0-9` `.` `+` `-` `*` `/` `Enter` (=) `Backspace` (DEL) `Escape` (C) `%`
+- มีปุ่ม `C`, `DEL`, `/`, `*`, `-`, `+`, `=`, `%`, `0-9`, `.` ตามภาพอ้างอิง
+
+## ไฟล์ที่จะสร้าง / แก้ไข
+
+### 1. สร้างใหม่: `src/components/CalculatorFAB.tsx`
+
+- คอมโพเนนต์เดี่ยวที่จัดการทั้ง 3 ส่วน:
+  1. **ปุ่มลอย Trigger** — ตำแหน่ง `fixed bottom-24 right-6 z-40` (อยู่เหนือ AddTransactionFAB ที่ใช้ `bottom-6`) ขนาด 48×48 ทรงกลม ไอคอน `Calculator` จาก lucide-react ใช้ design token (`bg-primary` / `bg-card` border) — ซ่อนอัตโนมัติบนมือถือ (`hidden md:flex`) เพื่อไม่ชนกับ BottomNavbar
+  2. **Floating Window** — render เมื่อ `open=true` ด้วย `position: fixed` และ `transform: translate(x, y)`; เริ่มต้นใกล้ปุ่ม trigger
+  3. **State**: `display`, `previousValue`, `operator`, `waitingForOperand`, `position {x, y}`, `dragging`
+
+### 2. ตรรกะเครื่องคิดเลข (ใน CalculatorFAB)
+
+- `inputDigit(d)` — ต่อตัวเลข, ถ้า `waitingForOperand` ให้แทนที่
+- `inputDot()` — เพิ่ม `.` ครั้งเดียว
+- `clear()` — รีเซ็ตทุกอย่าง
+- `del()` — ตัดอักขระท้าย (ถ้าเหลือตัวเดียวให้เป็น `0`)
+- `percent()` — `display = display / 100`
+- `performOperation(nextOp)` — คำนวณ `previousValue [operator] currentValue` ด้วย switch (`+ - * /`); ป้องกันหารด้วย 0 (แสดง `Error`)
+- `equals()` — เรียก `performOperation` แล้วเคลียร์ operator
+- จัดรูปแบบผลลัพธ์: `Number.toLocaleString('en-US', { maximumFractionDigits: 10 })` ป้องกัน floating point เพี้ยน (ใช้ `Math.round(x * 1e10) / 1e10`)  
+  
 
 
-## Plan: สร้างหน้าตั้งค่าแบบ Modal + สวิตช์ยอดยกมา + คำอธิบายตัวเลข
+### 3. รองรับคีย์บอร์ด
 
-### สรุปสิ่งที่จะทำ
+- `useEffect` ติดตั้ง `window.addEventListener('keydown', handler)` เฉพาะตอน `open=true`
+- Mapping:
+  - `0-9` → `inputDigit`
+  - `.` → `inputDot`
+  - `+ - * /` → `performOperation`
+  - `Enter` หรือ `=` → `equals` (preventDefault เพื่อกัน form submit)
+  - `Backspace` → `del`
+  - `Escape` หรือ `c/C` → `clear`
+  - `%` → `percent`
+- Cleanup ตอน unmount / ปิด
 
-1. **เปลี่ยนหน้าตั้งค่าเป็น Dialog/Modal แบบลอย** พร้อมพื้นหลังเบลอ แทนที่จะเป็นหน้าเต็ม
-2. **เพิ่มสวิตช์เปิด-ปิด "รวมยอดยกมา"** ที่บันทึกการตั้งค่าลง Firestore และส่งผลต่อการแสดงผลทั้งมุมมองรายเดือนและรายปี
-3. **เพิ่มคำอธิบายตัวเลข (Tooltip/ข้อความ)** บน Summary Cards และ MonthComparison เพื่ออธิบายว่าตัวเลขแต่ละจุดคิดมาจากอะไร
-4. **แก้ build error** ใน ThemeContext.tsx
+### 4. Drag & Drop
 
----
+- ใช้ `onMouseDown` ที่ header bar เท่านั้น (มี cursor-grab)
+- เก็บ `dragOffset` ตอนกดเริ่ม
+- `useEffect` ติดตั้ง `mousemove` + `mouseup` บน `window` ขณะ `dragging=true`
+- จำกัดตำแหน่งไม่ให้หลุดขอบหน้าจอ (`Math.max/min` กับ `window.innerWidth/Height`)
+- รองรับ touch event (`touchstart/touchmove/touchend`) สำหรับแท็บเล็ต
 
-### รายละเอียดทางเทคนิค
+### 5. UI/Styling (ตรงกับภาพอ้างอิง + Design System)
 
-#### 1. แก้ Build Error — `ThemeContext.tsx`
-- บรรทัด 43: `if (theme === "system")` อยู่ภายใน block ที่ `if (theme === "system") return;` ทำให้ TypeScript เห็นว่า theme ไม่มีทางเป็น "system" — แก้โดยลบ early return ที่บรรทัด 39 แล้วใช้เงื่อนไขใน handler แทน หรือเปลี่ยน early return เป็น `if (theme !== "system") return;`
+- Container: `bg-card border border-border rounded-2xl shadow-2xl w-72`
+- Header bar: ชื่อ "เครื่องคิดเลข" + ปุ่มปิด (X) — `cursor-grab` สำหรับลาก
+- Display: `bg-foreground text-background` ฟอนต์ `font-mono` (Space Grotesk) ขนาดใหญ่ จัดขวา
+- Grid 4 คอลัมน์ของปุ่ม:
+  - แถว 1: `C` (destructive/red), `DEL` (muted), `%` (accent), `/` (accent/orange)
+  - แถว 2: `7 8 9 *`
+  - แถว 3: `4 5 6 -`
+  - แถว 4: `1 2 3 +`
+  - แถว 5: `0` (col-span-2), `.`, `=` (primary/blue)
+- ใช้ design tokens (`bg-primary`, `bg-destructive`, `bg-muted`, `bg-accent`) **ห้ามใส่สี hex ตรง ๆ** ตาม Core memory
+- ปุ่มทั้งหมด: `h-12 rounded-lg active:scale-95 transition-transform`
 
-#### 2. เปลี่ยน Settings เป็น Modal
-- **`UserProfilePopover.tsx`**: เปลี่ยนปุ่ม "ตั้งค่า" จาก `navigate("/settings")` เป็นเปิด Dialog state
-- **สร้าง `src/components/SettingsDialog.tsx`**: คอมโพเนนต์ใหม่ที่ใช้ `Dialog` จาก shadcn/ui พร้อม `backdrop-blur-md` overlay ข้างในจัดเป็นแท็บย่อย (เหมือนเดิม) แต่ย่อลงให้เหมาะกับ modal
-- **ลบ route `/settings`** จาก App.tsx (หรือ redirect ไปหน้าหลัก)
-- ย้ายเฉพาะ logic ที่จำเป็นจาก Settings.tsx เข้า SettingsDialog (สวิตช์ตั้งค่าทั่วไป + หน้าตั้งค่าหลักยังเปิดได้ถ้าต้องการ)
+### 6. แก้ไข `src/App.tsx`
 
-#### 3. สวิตช์ "รวมยอดยกมา" (Include Carry-Over)
-- เก็บค่าตั้งค่าใน Firestore: `users/{uid}/settings/preferences` → `{ include_carry_over: boolean }`
-- สร้าง **Context** ใหม่ `src/contexts/SettingsContext.tsx` เพื่อ provide ค่า `includeCarryOver` ทั่วทั้งแอป
-- **`SummaryCards.tsx`**: ถ้า `includeCarryOver === false` → การ์ดรายรับแสดงแค่ `actualIncome` (ไม่รวม carryOver), คงเหลือสุทธิ = `actualIncome - actualNonIncome`
-- **`YearlyView`**: ใช้ค่าเดียวกันจาก context
+- import `CalculatorFAB`
+- mount หลัง `AddTransactionFAB` (บรรทัด ~195) เพื่อให้แสดงคู่กัน — ภายใน CalculatorFAB จะจัดการ state `open` ของตัวเองได้ ไม่ต้องส่ง props จาก App
+- ตำแหน่งปุ่ม trigger ใช้ `bottom-24 right-6` (FAB เดิม `bottom-6 right-6` สูงประมาณ 56px → เว้น 16px → 24)
 
-#### 4. คำอธิบายตัวเลข
-เพิ่ม Tooltip หรือข้อความอธิบายที่ตัวเลขสำคัญ:
+## หมายเหตุ
 
-- **การ์ดรายรับ**: "↓ 92.8% รวมยกยอด ฿1,357.62" → เพิ่ม tooltip: *"เปอร์เซ็นต์คำนวณจาก ((รายรับจริง + ยอดยกมา) - งบประมาณรายรับ) / งบประมาณรายรับ × 100"*
-- **การ์ดรายจ่าย**: "↓ 94.1% งบประมาณ ฿18,754.57" → tooltip: *"เปอร์เซ็นต์คำนวณจาก (รายจ่ายจริง - งบประมาณรายจ่าย) / งบประมาณรายจ่าย × 100"*
-- **การ์ดคงเหลือสุทธิ**: tooltip: *"คงเหลือสุทธิ = รายรับจริง + ยอดยกมา - รายจ่ายจริง (ไม่รวมรายการโอน)"*
-- **เปรียบเทียบเดือนก่อน**: แต่ละช่อง (รายรับ, รายจ่าย, คงเหลือ) → tooltip: *"เปอร์เซ็นต์เปลี่ยนแปลง = (เดือนนี้ - เดือนก่อน) / เดือนก่อน × 100"*
-
----
-
-### ไฟล์ที่ต้องแก้ไข/สร้าง
-
-| ไฟล์ | การเปลี่ยนแปลง |
-|---|---|
-| `src/contexts/ThemeContext.tsx` | แก้ build error บรรทัด 39-43 |
-| `src/contexts/SettingsContext.tsx` | **สร้างใหม่** — provide `includeCarryOver` + toggle |
-| `src/components/SettingsDialog.tsx` | **สร้างใหม่** — Modal ตั้งค่าพร้อมสวิตช์ |
-| `src/components/UserProfilePopover.tsx` | เปลี่ยนปุ่มตั้งค่าเปิด Dialog แทน navigate |
-| `src/components/SummaryCards.tsx` | ใช้ `includeCarryOver` + เพิ่ม Tooltip คำอธิบาย |
-| `src/components/MonthComparison.tsx` | เพิ่ม Tooltip คำอธิบายสูตรคำนวณ |
-| `src/App.tsx` | ห่อด้วย `SettingsProvider` |
-| `src/pages/Index.tsx` | ส่ง `includeCarryOver` ไปยัง SummaryCards |
-
+- ไม่กระทบฟีเจอร์อื่น (FAB เพิ่มรายการ, BottomNavbar)
+- ซ่อนบนมือถือเพื่อไม่ชน BottomNavbar — หากต้องการให้แสดงบนมือถือด้วยให้บอกในรอบถัดไป
+- ภาษาไทยทั้งหมด (header, tooltip, aria-label)
