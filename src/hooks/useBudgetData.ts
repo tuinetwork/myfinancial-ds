@@ -222,12 +222,53 @@ export function getPreviousPeriod(period: string): string {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
-/** Incremental carry_over: use previous month's carry_over + previous month's net income
- *  Falls back to full scan only when previous month has no carry_over data */
+/** Compute the net cash flow for the main wallet from a list of tx docs.
+ *  Cash-only: counts transactions that touch the main wallet account.
+ *  Backward-compat: transactions without from/to account_id are treated as cash. */
+function computeMainWalletNet(txDocs: any[], mainWalletId: string | null): number {
+  let net = 0;
+  txDocs.forEach((d) => {
+    const data = d.data();
+    const amt = (data.amount as number) ?? 0;
+    const type = data.type as string;
+    const fromId = (data.from_account_id as string) || null;
+    const toId = (data.to_account_id as string) || null;
+
+    if (type === "income") {
+      // Income lands in the main wallet if to_account matches, or if no account info (legacy → cash)
+      if (!mainWalletId || toId === mainWalletId || (!toId && !fromId)) net += amt;
+    } else if (type === "transfer") {
+      if (mainWalletId && fromId === mainWalletId) net -= amt;
+      if (mainWalletId && toId === mainWalletId) net += amt;
+    } else {
+      // Expense leaves the main wallet if from_account matches, or legacy (no account info → cash)
+      if (!mainWalletId || fromId === mainWalletId || (!toId && !fromId)) net -= amt;
+    }
+  });
+  return net;
+}
+
+/** Resolve the user's main wallet account id (cash on hand). */
+async function getMainWalletId(userId: string): Promise<string | null> {
+  try {
+    const accs = await getAccounts(userId);
+    const main =
+      accs.find((a) => a.name === "กระเป๋าเงินสดหลัก" && a.is_active && !a.is_deleted) ||
+      accs.find((a) => a.type === "cash" && a.is_active && !a.is_deleted) ||
+      null;
+    return main?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Incremental carry_over: previous month's carry_over + previous month's main-wallet net cash flow.
+ *  "ยอดยกมา" = ยอดเงินสดในมือ (กระเป๋าเงินสดหลัก) ณ สิ้นเดือนก่อนหน้า */
 async function syncCarryOver(userId: string, currentPeriod: string): Promise<void> {
   const prevPeriod = getPreviousPeriod(currentPeriod);
   const prevDocRef = doc(firestore, "users", userId, "budgets", prevPeriod);
   const prevSnap = await getDoc(prevDocRef);
+  const mainWalletId = await getMainWalletId(userId);
 
   let carryOver: number;
 
@@ -235,46 +276,20 @@ async function syncCarryOver(userId: string, currentPeriod: string): Promise<voi
     const prevData = prevSnap.data();
     const prevCarry = (prevData.carry_over as number) ?? 0;
 
-    // Get only previous month's transactions (not all history)
     const prevTxQuery = query(
       transactionsCollection(userId),
       where("month_year", "==", prevPeriod)
     );
     const prevTxSnap = await getDocs(prevTxQuery);
-
-    let prevIncome = 0;
-    let prevExpenses = 0;
-    prevTxSnap.docs.forEach((d) => {
-      const data = d.data();
-      if (data.type === "transfer") return;
-      if (data.type === "income") {
-        prevIncome += (data.amount as number) ?? 0;
-      } else {
-        prevExpenses += (data.amount as number) ?? 0;
-      }
-    });
-
-    carryOver = prevCarry + prevIncome - prevExpenses;
+    carryOver = prevCarry + computeMainWalletNet(prevTxSnap.docs, mainWalletId);
   } else {
-    // Fallback: full scan for first month or missing data
+    // Fallback: full scan for first month or missing data — sum cash flow across all prior months
     const txQuery = query(
       transactionsCollection(userId),
       where("month_year", "<", currentPeriod)
     );
     const txSnap = await getDocs(txQuery);
-
-    let income = 0;
-    let expenses = 0;
-    txSnap.docs.forEach((d) => {
-      const data = d.data();
-      if (data.type === "transfer") return;
-      if (data.type === "income") {
-        income += (data.amount as number) ?? 0;
-      } else {
-        expenses += (data.amount as number) ?? 0;
-      }
-    });
-    carryOver = income - expenses;
+    carryOver = computeMainWalletNet(txSnap.docs, mainWalletId);
   }
 
   const currentDocRef = doc(firestore, "users", userId, "budgets", currentPeriod);
