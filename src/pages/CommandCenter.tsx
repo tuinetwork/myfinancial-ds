@@ -680,9 +680,126 @@ export default function CommandCenter() {
             </CardContent>
           </Card>
 
+          {/* ===== 2.5 Recalculate Carry-Over (เฉพาะบัญชีคุณ) ===== */}
+          <Card className="border-[hsl(var(--debt))]/30 shadow-sm">
+            <CardHeader className="pb-3 bg-[hsl(var(--debt))]/5 border-b border-[hsl(var(--debt))]/20">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Wrench className="h-4 w-4 text-[hsl(var(--debt))]" />
+                    Recalculate Carry-Over
+                    <Badge variant="outline" className="text-[10px] font-normal border-[hsl(var(--debt))]/40 text-[hsl(var(--debt))]">
+                      เฉพาะบัญชีคุณ
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    คำนวณยอดยกมาของทุกเดือนใหม่จากศูนย์ (รวม transfer = ไม่เปลี่ยน net) และเขียนทับ Firestore เฉพาะ uid ของคุณ
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCarryOverPreview}
+                    disabled={coLoading || coApplying}
+                    className="h-8 text-xs gap-1.5 bg-background"
+                  >
+                    {coLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                    Preview
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={!coRows || coApplying || coLoading || coRows.filter(r => Math.abs(r.diff) > 0.01).length === 0}
+                    onClick={() => setConfirmAction({
+                      open: true,
+                      title: "เขียนทับ carry_over",
+                      desc: `จะเขียนทับ ${coRows?.filter(r => Math.abs(r.diff) > 0.01).length ?? 0} เดือน ใน Firestore (เฉพาะบัญชีคุณ) ยืนยัน?`,
+                      action: handleCarryOverApply,
+                    })}
+                    className="h-8 text-xs gap-1.5"
+                  >
+                    {coApplying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {coRows === null ? (
+                <div className="text-center py-6 text-xs text-muted-foreground">
+                  กด "Preview" เพื่อดูผลต่างก่อน Apply
+                </div>
+              ) : coRows.length === 0 ? (
+                <div className="text-center py-6 text-xs text-muted-foreground">
+                  ไม่พบข้อมูลเดือนใดเลย
+                </div>
+              ) : (
+                <ScrollArea className="h-72 rounded-lg border border-border">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm border-b border-border">
+                      <tr className="text-left">
+                        <th className="px-3 py-2 font-semibold">เดือน</th>
+                        <th className="px-3 py-2 font-semibold text-right">รายรับ</th>
+                        <th className="px-3 py-2 font-semibold text-right">รายจ่าย</th>
+                        <th className="px-3 py-2 font-semibold text-right">Carry ปัจจุบัน</th>
+                        <th className="px-3 py-2 font-semibold text-right">Carry ที่ถูกต้อง</th>
+                        <th className="px-3 py-2 font-semibold text-right">ผลต่าง</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {coRows.map((r) => {
+                        const hasDiff = Math.abs(r.diff) > 0.01;
+                        return (
+                          <tr
+                            key={r.period}
+                            className={`border-b border-border/50 ${hasDiff ? "bg-[hsl(var(--debt))]/5" : ""}`}
+                          >
+                            <td className="px-3 py-1.5 font-mono">
+                              {r.period}
+                              {!r.hasBudgetDoc && (
+                                <span className="ml-1 text-[9px] text-muted-foreground">(no doc)</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-1.5 text-right tabular-nums text-accent">
+                              {r.income.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-3 py-1.5 text-right tabular-nums text-destructive">
+                              {r.expenses.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">
+                              {r.current.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-3 py-1.5 text-right tabular-nums font-medium">
+                              {r.correct.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className={`px-3 py-1.5 text-right tabular-nums font-semibold ${
+                              hasDiff
+                                ? r.diff > 0 ? "text-accent" : "text-destructive"
+                                : "text-muted-foreground"
+                            }`}>
+                              {hasDiff && (r.diff > 0 ? "+" : "")}
+                              {r.diff.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </ScrollArea>
+              )}
+              {coRows && coRows.filter(r => Math.abs(r.diff) > 0.01).length > 0 && (
+                <p className="text-[11px] text-muted-foreground mt-3 flex items-center gap-1">
+                  <ArrowRight className="h-3 w-3" />
+                  พบ {coRows.filter(r => Math.abs(r.diff) > 0.01).length} เดือนที่ค่า carry_over ใน Firestore ไม่ตรง — กด Apply เพื่อเขียนทับ
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* ===== 3. Split Layout (Left / Right) with Equal Bottom Heights ===== */}
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-            
+
             {/* ========== LEFT COLUMN ========== */}
             <div className="xl:col-span-5 flex flex-col gap-6">
               
