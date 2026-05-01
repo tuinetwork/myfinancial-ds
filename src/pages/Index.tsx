@@ -15,7 +15,7 @@ import { BudgetBreakdown } from "@/components/BudgetBreakdown";
 import { YearlyView } from "@/components/YearlyView";
 import { RecentTransactions } from "@/components/RecentTransactions";
 import { TopSpendingCategories } from "@/components/TopSpendingCategories";
-import { AvailableBalanceCard } from "@/components/AvailableBalanceCard";
+import { FinancialHealthCard } from "@/components/FinancialHealthCard";
 import { SavingsGoalCard } from "@/components/SavingsGoalCard";
 import { UpcomingBills } from "@/components/UpcomingBills";
 import { MonthComparison } from "@/components/MonthComparison";
@@ -315,23 +315,7 @@ const Index = () => {
 
                 {/* 3. การ์ดสถานะ 3 ใบ */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                  <AvailableBalanceCard
-                    availableBalance={mainWalletBalance}
-                    netCashflow={
-                      data.transactions
-                        .filter((t) => t.type === "รายรับ")
-                        .reduce((s, t) => s + t.amount, 0) -
-                      data.transactions
-                        .filter(
-                          (t) =>
-                            t.type !== "รายรับ" &&
-                            t.type !== "โอน" &&
-                            t.type !== "โอนระหว่างบัญชี" &&
-                            t.category !== "โอนระหว่างบัญชี",
-                        )
-                        .reduce((s, t) => s + t.amount, 0)
-                    }
-                  />
+                  <FinancialHealthCard data={data} carryOver={carryOver} />
                   <SavingsGoalCard data={data} />
                   <UpcomingBills data={data} />
                 </div>
