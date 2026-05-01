@@ -262,35 +262,18 @@ async function getMainWalletId(userId: string): Promise<string | null> {
   }
 }
 
-/** Incremental carry_over: previous month's carry_over + previous month's main-wallet net cash flow.
- *  "ยอดยกมา" = ยอดเงินสดในมือ (กระเป๋าเงินสดหลัก) ณ สิ้นเดือนก่อนหน้า */
+/** carry_over for a period = ยอดเงินสดในมือ (กระเป๋าเงินสดหลัก) ณ สิ้นเดือนก่อนหน้า
+ *  Full-scan ทุกครั้ง: ไม่พึ่ง carry_over เก่าใน Firestore เพราะอาจถูกคำนวณด้วยสูตรเดิม
+ *  (ที่รวมทุกบัญชี ไม่ได้แยกเฉพาะกระเป๋าเงินสด) */
 async function syncCarryOver(userId: string, currentPeriod: string): Promise<void> {
-  const prevPeriod = getPreviousPeriod(currentPeriod);
-  const prevDocRef = doc(firestore, "users", userId, "budgets", prevPeriod);
-  const prevSnap = await getDoc(prevDocRef);
   const mainWalletId = await getMainWalletId(userId);
 
-  let carryOver: number;
-
-  if (prevSnap.exists()) {
-    const prevData = prevSnap.data();
-    const prevCarry = (prevData.carry_over as number) ?? 0;
-
-    const prevTxQuery = query(
-      transactionsCollection(userId),
-      where("month_year", "==", prevPeriod)
-    );
-    const prevTxSnap = await getDocs(prevTxQuery);
-    carryOver = prevCarry + computeMainWalletNet(prevTxSnap.docs, mainWalletId);
-  } else {
-    // Fallback: full scan for first month or missing data — sum cash flow across all prior months
-    const txQuery = query(
-      transactionsCollection(userId),
-      where("month_year", "<", currentPeriod)
-    );
-    const txSnap = await getDocs(txQuery);
-    carryOver = computeMainWalletNet(txSnap.docs, mainWalletId);
-  }
+  const txQuery = query(
+    transactionsCollection(userId),
+    where("month_year", "<", currentPeriod)
+  );
+  const txSnap = await getDocs(txQuery);
+  const carryOver = computeMainWalletNet(txSnap.docs, mainWalletId);
 
   const currentDocRef = doc(firestore, "users", userId, "budgets", currentPeriod);
   const currentSnap = await getDoc(currentDocRef);
