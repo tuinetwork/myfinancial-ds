@@ -464,6 +464,52 @@ export default function CommandCenter() {
     setScanning(false);
   };
 
+  const handleCarryOverPreview = async () => {
+    if (!userId) { toast.error("ไม่พบ userId"); return; }
+    setCoLoading(true);
+    setCoRows(null);
+    addLog({ timestamp: Date.now(), level: "info", message: `เริ่มคำนวณ carry_over ใหม่ (uid: ${userId.slice(0, 8)}...)` });
+    try {
+      const rows = await computeCorrectCarryOvers(userId);
+      setCoRows(rows);
+      const diffCount = rows.filter(r => Math.abs(r.diff) > 0.01).length;
+      addLog({
+        timestamp: Date.now(),
+        level: diffCount > 0 ? "warn" : "success",
+        message: `Preview เสร็จ: ${rows.length} เดือน, พบผลต่าง ${diffCount} เดือน`,
+      });
+    } catch (err: any) {
+      addLog({ timestamp: Date.now(), level: "error", message: `คำนวณล้มเหลว: ${err.message}` });
+      toast.error("คำนวณ carry_over ล้มเหลว");
+    } finally {
+      setCoLoading(false);
+    }
+  };
+
+  const handleCarryOverApply = async () => {
+    if (!userId || !coRows) return;
+    setCoApplying(true);
+    addLog({ timestamp: Date.now(), level: "info", message: "เริ่มเขียนทับ carry_over ลง Firestore..." });
+    try {
+      const { updated, skipped } = await applyCarryOverFix(userId, coRows);
+      addLog({
+        timestamp: Date.now(),
+        level: "success",
+        message: `Apply เสร็จ: อัปเดต ${updated} เดือน, ข้าม ${skipped} เดือน`,
+      });
+      toast.success(`อัปเดต carry_over สำเร็จ ${updated} เดือน`);
+      // re-preview เพื่อยืนยันว่าตรงแล้ว
+      const rows = await computeCorrectCarryOvers(userId);
+      setCoRows(rows);
+    } catch (err: any) {
+      addLog({ timestamp: Date.now(), level: "error", message: `Apply ล้มเหลว: ${err.message}` });
+      toast.error("Apply ล้มเหลว");
+    } finally {
+      setCoApplying(false);
+    }
+  };
+
+
   const handleExport = async () => {
     setExporting(true); addLog({ timestamp: Date.now(), level: "info", message: "กำลังสำรองข้อมูล..." });
     try {
