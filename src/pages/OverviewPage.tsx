@@ -20,6 +20,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEndOfMonthForecast } from "@/hooks/useEndOfMonthForecast";
 import { UpcomingBills } from "@/components/UpcomingBills";
+import { FinancialHealthCard } from "@/components/FinancialHealthCard";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, CartesianGrid, LineChart, Line,
   PieChart, Pie, Cell,
@@ -805,8 +806,11 @@ export default function OverviewPage() {
               <SavingsRateChart data={monthlyData} loading={isLoading} />
             </div>
 
-            {/* Row 4: Goals */}
-            <GoalsMini goals={goals} accounts={accounts} data={latestData} loading={assetsLoading} />
+            {/* Row 4: Financial Health + Goals */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {latestData && <FinancialHealthCard data={latestData} carryOver={latestCarryOver} />}
+              <GoalsMini goals={goals} accounts={accounts} data={latestData} loading={assetsLoading} />
+            </div>
 
             {/* Row 5: Recent Transactions */}
             <RecentTransactionsTable transactions={recentTx} loading={latestLoading} />
