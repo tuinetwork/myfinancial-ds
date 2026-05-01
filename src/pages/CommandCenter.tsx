@@ -15,6 +15,10 @@ import {
   detectOrphanedData, exportAllData,
   type OperationLog, type OrphanedRecord,
 } from "@/lib/migration-service";
+import {
+  computeCorrectCarryOvers, applyCarryOverFix,
+  type CarryOverDiffRow,
+} from "@/lib/carry-over-recalc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +35,8 @@ import {
   Terminal, ShieldCheck, Database, Download, Upload, Radio, AlertTriangle,
   Loader2, Search, RefreshCw, Megaphone, Plug, CheckCircle, XCircle,
   Info, Trash2, Code, Play, FileJson, Plus, Edit, Save, X, ShieldAlert, 
-  Bookmark, BookmarkPlus, PlayCircle, Ban, Unlock, BarChart3, DatabaseBackup
+  Bookmark, BookmarkPlus, PlayCircle, Ban, Unlock, BarChart3, DatabaseBackup,
+  Wrench, ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
