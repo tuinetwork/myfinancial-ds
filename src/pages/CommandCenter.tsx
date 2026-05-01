@@ -177,6 +177,11 @@ export default function CommandCenter() {
 `);
   const [scriptRunning, setScriptRunning] = useState(false);
 
+  // Carry-over recalc tool
+  const [coRows, setCoRows] = useState<CarryOverDiffRow[] | null>(null);
+  const [coLoading, setCoLoading] = useState(false);
+  const [coApplying, setCoApplying] = useState(false);
+
   // Idle timeout
   const idleRef = useRef<ReturnType<typeof setTimeout>>();
 
