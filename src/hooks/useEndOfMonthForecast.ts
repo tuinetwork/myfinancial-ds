@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { BudgetData } from "./useBudgetData";
+import { useSettings } from "@/contexts/SettingsContext";
 
 export interface ForecastResult {
   projectedBalance: number;
@@ -16,7 +17,9 @@ export interface ForecastResult {
 }
 
 export function useEndOfMonthForecast(data: BudgetData | undefined, carryOver: number): ForecastResult | null {
+  const { includeCarryOver } = useSettings();
   return useMemo(() => {
+    const effectiveCarry = includeCarryOver ? carryOver : 0;
     if (!data?.period) return null;
 
     const now = new Date();
@@ -38,14 +41,14 @@ export function useEndOfMonthForecast(data: BudgetData | undefined, carryOver: n
 
     const actualIncome = activeTransactions
       .filter((t) => t.type === "รายรับ")
-      .reduce((s, t) => s + t.amount, 0) + carryOver;
+      .reduce((s, t) => s + t.amount, 0) + effectiveCarry;
 
     const actualExpense = activeTransactions
       .filter((t) => t.type !== "รายรับ")
       .reduce((s, t) => s + t.amount, 0);
 
     // รายรับที่ตั้งงบไว้ทั้งเดือน (ประมาณการรายรับสิ้นเดือน)
-    const budgetedIncome = data.income.reduce((s, i) => s + i.budget, 0) + carryOver;
+    const budgetedIncome = data.income.reduce((s, i) => s + i.budget, 0) + effectiveCarry;
     // ใช้ค่าที่มากกว่าระหว่างรับจริงกับงบที่ตั้ง (กรณีรับจริงเกินงบ)
     const projectedIncome = Math.max(actualIncome, budgetedIncome);
 
@@ -69,5 +72,5 @@ export function useEndOfMonthForecast(data: BudgetData | undefined, carryOver: n
       confidence,
       isCurrentMonth,
     };
-  }, [data, carryOver]);
+  }, [data, carryOver, includeCarryOver]);
 }

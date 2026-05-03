@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
+import { useSettings } from "@/contexts/SettingsContext";
 import { ShieldCheck, Percent, PiggyBank, CreditCard, CalendarDays, TrendingUp } from "lucide-react";
 
 interface Props {
@@ -9,7 +10,9 @@ interface Props {
 }
 
 export function FinancialHealthCard({ data, carryOver = 0 }: Props) {
+  const { includeCarryOver } = useSettings();
   const metrics = useMemo(() => {
+    const effectiveCarry = includeCarryOver ? carryOver : 0;
     // 1. กรองรายการโอนระหว่างบัญชีออกทั้งหมดก่อนนำไปคำนวณ
     const activeTransactions = data.transactions.filter(
       (t) => t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี"
@@ -17,7 +20,7 @@ export function FinancialHealthCard({ data, carryOver = 0 }: Props) {
 
     const income = activeTransactions
       .filter((t) => t.type === "รายรับ")
-      .reduce((s, t) => s + t.amount, 0) + carryOver;
+      .reduce((s, t) => s + t.amount, 0) + effectiveCarry;
 
     const expenses = activeTransactions
       .filter((t) => t.type !== "รายรับ")
@@ -76,7 +79,7 @@ export function FinancialHealthCard({ data, carryOver = 0 }: Props) {
         desc: `รายการทั้งหมดในเดือนนี้`,
       },
     ];
-  }, [data, carryOver]);
+  }, [data, carryOver, includeCarryOver]);
 
   return (
     <Card className="border-none shadow-sm animate-fade-in h-full" style={{ animationDelay: "440ms" }}>

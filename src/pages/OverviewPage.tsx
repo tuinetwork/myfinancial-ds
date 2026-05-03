@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEndOfMonthForecast } from "@/hooks/useEndOfMonthForecast";
+import { useWalletHistory } from "@/hooks/useWalletHistory";
 import { UpcomingBills } from "@/components/UpcomingBills";
 import { FinancialHealthCard } from "@/components/FinancialHealthCard";
 import {
@@ -417,13 +418,13 @@ function SixMonthStatsCard({ data, loading }: { data: MonthSummary[]; loading: b
 }
 
 // ===== Month Cash Flow Summary =====
-function MonthCashFlowCard({ data, carryOver, loading }: { data: BudgetData | undefined; carryOver: number; loading: boolean }) {
+function MonthCashFlowCard({ data, carryOver, loading, otherAssets, liabilities }: { data: BudgetData | undefined; carryOver: number; loading: boolean; otherAssets?: number; liabilities?: number }) {
   if (loading || !data) return <Skeleton className="h-40 rounded-xl" />;
 
   const forecast = useEndOfMonthForecast(data, carryOver);
   const { includeCarryOver } = useSettings();
 
-  const { actualIncome, actualExpense, balance, avgDailyExpense, expenseDays } = useMemo(() => {
+  const { actualIncome, actualExpense, balance, avgDailyExpense, expenseDays, cashInHand } = useMemo(() => {
     const active = data.transactions.filter((t) => t.type !== "โอน" && t.category !== "โอนระหว่างบัญชี");
     const inc = active.filter((t) => t.type === "รายรับ").reduce((s, t) => s + t.amount, 0);
     const expTx = active.filter((t) => t.type !== "รายรับ");
@@ -431,8 +432,12 @@ function MonthCashFlowCard({ data, carryOver, loading }: { data: BudgetData | un
     const uniqueDays = new Set(expTx.map((t) => t.date)).size;
     const avg = uniqueDays > 0 ? exp / uniqueDays : 0;
     const effectiveCarry = includeCarryOver ? carryOver : 0;
-    return { actualIncome: inc + effectiveCarry, actualExpense: exp, balance: inc + effectiveCarry - exp, avgDailyExpense: avg, expenseDays: uniqueDays };
-  }, [data, carryOver, includeCarryOver]);
+    const bal = inc + effectiveCarry - exp;
+    const cash = otherAssets !== undefined && liabilities !== undefined
+      ? bal - otherAssets + liabilities
+      : undefined;
+    return { actualIncome: inc + effectiveCarry, actualExpense: exp, balance: bal, avgDailyExpense: avg, expenseDays: uniqueDays, cashInHand: cash };
+  }, [data, carryOver, includeCarryOver, otherAssets, liabilities]);
 
   return (
     <Card className="border-none shadow-sm">
@@ -459,6 +464,14 @@ function MonthCashFlowCard({ data, carryOver, loading }: { data: BudgetData | un
             </p>
           </div>
         </div>
+        {cashInHand !== undefined && (
+          <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
+            <p className="text-xs text-muted-foreground">เงินสดในมือ (พร้อมใช้)</p>
+            <p className={cn("text-sm font-bold tabular-nums", cashInHand >= 0 ? "text-foreground" : "text-destructive")}>
+              {cashInHand < 0 ? "-" : ""}{formatCurrency(Math.abs(cashInHand))}
+            </p>
+          </div>
+        )}
         {forecast && (
           <div className="border-t pt-2 space-y-1.5">
             <div className="flex justify-between text-xs">
@@ -634,6 +647,7 @@ function RecentTransactionsTable({ transactions, loading }: { transactions: Rece
 // ===== Main Page =====
 export default function OverviewPage() {
   const { userId } = useAuth();
+  const { includeCarryOver } = useSettings();
   const { data: months, isLoading: monthsLoading } = useAvailableMonths();
 
   // Get last 6 periods
@@ -686,6 +700,13 @@ export default function OverviewPage() {
   const latestPeriod = months?.[0]?.period;
   const { data: latestData, isLoading: latestLoading } = useBudgetData(latestPeriod);
 
+  const latestYear = latestPeriod?.slice(0, 4);
+  const { data: walletHistory } = useWalletHistory(latestYear);
+  const latestWalletRow = useMemo(
+    () => walletHistory?.find((r) => r.period === latestPeriod),
+    [walletHistory, latestPeriod]
+  );
+
   // For the 6-month summaries, we query each period individually via Firestore
   useEffect(() => {
     if (!userId || periods.length === 0) return;
@@ -724,7 +745,7 @@ export default function OverviewPage() {
           const summaries: MonthSummary[] = periods
             .map((p) => {
               const txs = txByPeriod[p.period] ?? [];
-              const income = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0) + (carryOverByPeriod[p.period] ?? 0);
+              const income = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0) + (includeCarryOver ? (carryOverByPeriod[p.period] ?? 0) : 0);
               const expense = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
               const savings = income - expense;
               const savingsRate = income > 0 ? (savings / income) * 100 : 0;
@@ -739,7 +760,7 @@ export default function OverviewPage() {
         }).finally(() => setDataLoading(false));
       });
     });
-  }, [userId, p0, p5]);
+  }, [userId, p0, p5, includeCarryOver]);
 
   // Recent transactions from latest month
   useEffect(() => {
@@ -791,7 +812,7 @@ export default function OverviewPage() {
           <div className="space-y-5">
             {/* Row 1: Cash Flow + Net Worth + Upcoming Bills */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <MonthCashFlowCard data={latestData} carryOver={latestCarryOver} loading={latestLoading} />
+              <MonthCashFlowCard data={latestData} carryOver={latestCarryOver} loading={latestLoading} otherAssets={latestWalletRow?.otherAssets} liabilities={latestWalletRow?.liabilities} />
               <NetWorthCard accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
               {latestData && <UpcomingBills data={latestData} />}
             </div>
