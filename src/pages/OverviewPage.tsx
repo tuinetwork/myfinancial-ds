@@ -734,6 +734,7 @@ export default function OverviewPage() {
   const latestPeriod = months?.[0]?.period;
   const { data: latestData, isLoading: latestLoading } = useBudgetData(latestPeriod);
 
+  const latestCarryOver = latestData?.carryOver ?? 0;
   const latestYear = latestPeriod?.slice(0, 4);
   const { data: walletHistory } = useWalletHistory(latestYear);
   const latestWalletRow = useMemo(
@@ -867,7 +868,6 @@ export default function OverviewPage() {
     })));
   }, [latestData]);
 
-  const latestCarryOver = latestData?.carryOver ?? 0;
   const isLoading = monthsLoading || dataLoading;
 
   return (
