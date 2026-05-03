@@ -229,7 +229,9 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
       title: "สินทรัพย์",
       primary: otherAssets,
       pct: 0,
-      pctLabel: `${accounts.filter(a => !a.is_deleted && !LIABILITY_TYPES.has(a.type) && a.name !== "กระเป๋าเงินสดหลัก").length} บัญชี`,
+      pctLabel: historicalOtherAssets !== undefined
+        ? "ณ สิ้นเดือนล่าสุด"
+        : `${accounts.filter(a => !a.is_deleted && !LIABILITY_TYPES.has(a.type) && a.name !== "กระเป๋าเงินสดหลัก").length} บัญชี`,
       icon: PiggyBank,
       gradient: "from-[hsl(270,55%,55%)] to-[hsl(270,55%,45%)]",
       sparkData: [],
