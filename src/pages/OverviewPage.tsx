@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSettings } from "@/contexts/SettingsContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -420,6 +421,7 @@ function MonthCashFlowCard({ data, carryOver, loading }: { data: BudgetData | un
   if (loading || !data) return <Skeleton className="h-40 rounded-xl" />;
 
   const forecast = useEndOfMonthForecast(data, carryOver);
+  const { includeCarryOver } = useSettings();
 
   const { actualIncome, actualExpense, balance, avgDailyExpense, expenseDays } = useMemo(() => {
     const active = data.transactions.filter((t) => t.type !== "โอน" && t.category !== "โอนระหว่างบัญชี");
@@ -428,8 +430,9 @@ function MonthCashFlowCard({ data, carryOver, loading }: { data: BudgetData | un
     const exp = expTx.reduce((s, t) => s + t.amount, 0);
     const uniqueDays = new Set(expTx.map((t) => t.date)).size;
     const avg = uniqueDays > 0 ? exp / uniqueDays : 0;
-    return { actualIncome: inc + carryOver, actualExpense: exp, balance: inc + carryOver - exp, avgDailyExpense: avg, expenseDays: uniqueDays };
-  }, [data, carryOver]);
+    const effectiveCarry = includeCarryOver ? carryOver : 0;
+    return { actualIncome: inc + effectiveCarry, actualExpense: exp, balance: inc + effectiveCarry - exp, avgDailyExpense: avg, expenseDays: uniqueDays };
+  }, [data, carryOver, includeCarryOver]);
 
   return (
     <Card className="border-none shadow-sm">
