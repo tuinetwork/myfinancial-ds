@@ -222,18 +222,31 @@ export function getPreviousPeriod(period: string): string {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
-/** หา id กระเป๋าหลัก */
-async function findMainWalletId(userId: string): Promise<string | null> {
+const DEBT_TYPES = new Set(["loan", "payable", "credit_card"]);
+
+/** หา id กระเป๋าหลัก + typeById ของทุก account */
+async function loadAccountContext(userId: string): Promise<{
+  mainWalletId: string | null;
+  typeById: Map<string, string>;
+}> {
   const snap = await getDocs(collection(firestore, "users", userId, "accounts"));
   const accs = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
   const main = accs.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted && a.is_active)
     ?? accs.find((a) => a.type === "cash" && !a.is_deleted && a.is_active);
-  return main?.id ?? null;
+  const typeById = new Map(accs.map((a) => [a.id as string, a.type as string]));
+  return { mainWalletId: main?.id ?? null, typeById };
 }
 
 /** คำนวณ net ของ transactions ชุดหนึ่ง
- *  net = income + transfer_เข้ากระเป๋าหลัก − expense − transfer_ออกกระเป๋าหลัก */
-function aggregateNet(docs: any[], mainWalletId: string | null): number {
+ *  net = income
+ *      + transfer เข้ากระเป๋าหลัก (ยกเว้นจากสินเชื่อ/เจ้าหนี้)
+ *      − expense
+ *      − transfer ออกกระเป๋าหลัก */
+function aggregateNet(
+  docs: any[],
+  mainWalletId: string | null,
+  typeById: Map<string, string>,
+): number {
   let income = 0;
   let expenses = 0;
   for (const d of docs) {
@@ -245,15 +258,18 @@ function aggregateNet(docs: any[], mainWalletId: string | null): number {
     } else if (data.type === "expense") {
       expenses += amt;
     } else if (data.type === "transfer" && mainWalletId) {
-      if (data.to_account_id === mainWalletId) income += amt;
-      else if (data.from_account_id === mainWalletId) expenses += amt;
+      if (data.to_account_id === mainWalletId) {
+        const fromType = typeById.get(data.from_account_id ?? "") ?? "";
+        if (!DEBT_TYPES.has(fromType)) income += amt; // ไม่นับ transfer เข้าจากสินเชื่อ/เจ้าหนี้
+      } else if (data.from_account_id === mainWalletId) {
+        expenses += amt;
+      }
     }
   }
   return income - expenses;
 }
 
 /** carry[เดือนนี้] = carry[เดือนก่อน] + net[เดือนก่อน]
- *  net = income + transfer_เข้ากระเป๋าหลัก − expense − transfer_ออกกระเป๋าหลัก
  *  Guard: เดือนปัจจุบันยังไม่จบ → ไม่ rollover net เข้า carry */
 async function syncCarryOver(userId: string, currentPeriod: string): Promise<void> {
   const now = new Date();
@@ -263,7 +279,7 @@ async function syncCarryOver(userId: string, currentPeriod: string): Promise<voi
   const prevDocRef = doc(firestore, "users", userId, "budgets", prevPeriod);
   const prevSnap = await getDoc(prevDocRef);
 
-  const mainWalletId = await findMainWalletId(userId);
+  const { mainWalletId, typeById } = await loadAccountContext(userId);
 
   let carryOver: number;
 
@@ -278,7 +294,7 @@ async function syncCarryOver(userId: string, currentPeriod: string): Promise<voi
         transactionsCollection(userId),
         where("month_year", "==", prevPeriod)
       ));
-      carryOver = prevCarry + aggregateNet(prevTxSnap.docs, mainWalletId);
+      carryOver = prevCarry + aggregateNet(prevTxSnap.docs, mainWalletId, typeById);
     }
   } else {
     // Fallback: สแกนทุก transaction ก่อนเดือนปัจจุบัน
@@ -286,7 +302,7 @@ async function syncCarryOver(userId: string, currentPeriod: string): Promise<voi
       transactionsCollection(userId),
       where("month_year", "<", currentPeriod)
     ));
-    carryOver = aggregateNet(txSnap.docs, mainWalletId);
+    carryOver = aggregateNet(txSnap.docs, mainWalletId, typeById);
   }
 
   const currentDocRef = doc(firestore, "users", userId, "budgets", currentPeriod);
