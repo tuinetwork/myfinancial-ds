@@ -435,12 +435,11 @@ function CompareChip({ current, previous, invert = false }: { current: number; p
 }
 
 function MonthCashFlowCard({ data, carryOver, loading, cashInHand, comparisonData }: { data: BudgetData | undefined; carryOver: number; loading: boolean; cashInHand?: number; comparisonData?: ComparisonData | null }) {
-  if (loading || !data) return <Skeleton className="h-40 rounded-xl" />;
-
   const forecast = useEndOfMonthForecast(data, carryOver);
   const { includeCarryOver } = useSettings();
 
   const { actualIncome, actualExpense, balance, avgDailyExpense, expenseDays } = useMemo(() => {
+    if (!data) return { actualIncome: 0, actualExpense: 0, balance: 0, avgDailyExpense: 0, expenseDays: 0 };
     const active = data.transactions.filter((t) => t.type !== "โอน" && t.category !== "โอนระหว่างบัญชี");
     const inc = active.filter((t) => t.type === "รายรับ").reduce((s, t) => s + t.amount, 0);
     const expTx = active.filter((t) => t.type !== "รายรับ");
@@ -450,6 +449,8 @@ function MonthCashFlowCard({ data, carryOver, loading, cashInHand, comparisonDat
     const effectiveCarry = includeCarryOver ? carryOver : 0;
     return { actualIncome: inc + effectiveCarry, actualExpense: exp, balance: inc + effectiveCarry - exp, avgDailyExpense: avg, expenseDays: uniqueDays };
   }, [data, carryOver, includeCarryOver]);
+
+  if (loading || !data) return <Skeleton className="h-40 rounded-xl" />;
 
   return (
     <Card className="border-none shadow-sm">
