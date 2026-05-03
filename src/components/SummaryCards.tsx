@@ -11,6 +11,8 @@ interface Props {
   carryOver?: number;
   hideNetBalance?: boolean;
   accounts?: Account[];
+  historicalOtherAssets?: number;
+  historicalLiabilities?: number;
 }
 
 function MiniSparkline({ data, type }: { data: number[]; type: "line" | "bar" }) {
@@ -80,7 +82,7 @@ function buildDailyTotals(transactions: Transaction[], typeFilter: (t: Transacti
   });
 }
 
-export function SummaryCards({ data, carryOver = 0, accounts = [] }: Props) {
+export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOtherAssets, historicalLiabilities }: Props) {
   const { includeCarryOver } = useSettings();
 
   const isTransfer = (t: Transaction) =>
@@ -88,8 +90,11 @@ export function SummaryCards({ data, carryOver = 0, accounts = [] }: Props) {
 
   const LIABILITY_TYPES = new Set(["credit_card", "loan", "payable"]);
 
-  // สินทรัพย์อื่น + หนี้สิน จากบัญชีปัจจุบัน (ไม่รวมกระเป๋าหลัก)
+  // สินทรัพย์อื่น + หนี้สิน — ใช้ค่าย้อนหลังถ้ามี มิฉะนั้นคำนวณจากบัญชีปัจจุบัน
   const { otherAssets, liabilities } = useMemo(() => {
+    if (historicalOtherAssets !== undefined && historicalLiabilities !== undefined) {
+      return { otherAssets: historicalOtherAssets, liabilities: historicalLiabilities };
+    }
     const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted)
       ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
     let otherAssets = 0;
@@ -104,7 +109,7 @@ export function SummaryCards({ data, carryOver = 0, accounts = [] }: Props) {
       }
     });
     return { otherAssets, liabilities };
-  }, [accounts]);
+  }, [accounts, historicalOtherAssets, historicalLiabilities]);
 
   // คำนวณ transfer ถอนจากบัญชีออม/ลงทุน → กระเป๋าหลัก
   const withdrawFromSavings = useMemo(() => {

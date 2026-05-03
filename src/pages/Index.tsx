@@ -7,6 +7,7 @@ import { useBudgetData, useAvailableMonths, getPreviousPeriod } from "@/hooks/us
 import { getAccounts } from "@/lib/firestore-services";
 import { useAuth } from "@/contexts/AuthContext";
 import { useYearlyData } from "@/hooks/useYearlyData";
+import { useWalletHistory } from "@/hooks/useWalletHistory";
 import { SummaryCards } from "@/components/SummaryCards";
 import { ExpenseChart } from "@/components/ExpenseChart";
 import { ExpenseTabsChart } from "@/components/ExpenseTabsChart";
@@ -117,6 +118,13 @@ const Index = () => {
     if (!userId) return;
     getAccounts(userId).then(setAccounts);
   }, [userId]);
+
+  // ดึง wallet history ของปีที่เลือก เพื่อใช้ค่าย้อนหลังที่แม่นยำสำหรับ SummaryCards
+  const { data: walletHistory } = useWalletHistory(selectedYear);
+  const walletRow = useMemo(
+    () => walletHistory?.find((r) => r.period === selectedPeriod),
+    [walletHistory, selectedPeriod]
+  );
 
 
   const isPageLoading = viewMode === "monthly"
@@ -280,7 +288,13 @@ const Index = () => {
             ) : viewMode === "monthly" && data ? (
               <>
                 {/* 1. สรุปยอด */}
-                <SummaryCards data={data} carryOver={carryOver} accounts={accounts} />
+                <SummaryCards
+                  data={data}
+                  carryOver={carryOver}
+                  accounts={accounts}
+                  historicalOtherAssets={walletRow?.otherAssets}
+                  historicalLiabilities={walletRow?.liabilities}
+                />
 
                 {/* 2. เปรียบเทียบเดือน */}
                 <MonthComparison data={data} />
