@@ -184,12 +184,13 @@ export function SummaryCards({ data, carryOver = 0, accounts = [] }: Props) {
   ];
 
   const netRows: TooltipRow[] = [
-    { label: "ยอดยกมา", value: fmtC(carryOver) },
-    { label: "รายรับจริง", value: fmtC(actualIncome) },
-    { label: "รายจ่ายจริง", value: fmtC(actualNonIncome) },
-    { label: "Net Worth", value: `${trueNetWorth >= 0 ? "+" : "-"}${fmtC(trueNetWorth)}`, highlight: true, color: pctColor(trueNetWorth) },
-    { label: "หมายเหตุ", value: "ไม่รวมรายการโอนระหว่างบัญชี" },
-    { label: "เงินสดในมือ", value: formatCurrency(computedWalletBalance), highlight: true, color: computedWalletBalance >= 0 ? "green" as const : "red" as const },
+    { label: "ยอดยกมา",        value: fmtC(carryOver) },
+    { label: "+ รายรับจริง",   value: fmtC(actualIncome) },
+    { label: "− รายจ่ายจริง", value: fmtC(actualNonIncome) },
+    { label: "= Net Worth",    value: `${trueNetWorth >= 0 ? "+" : ""}${trueNetWorth >= 0 ? fmtC(trueNetWorth) : `-${fmtC(trueNetWorth)}`}`, highlight: true, color: pctColor(trueNetWorth) },
+    { label: "− สินทรัพย์อื่น", value: fmtC(otherAssets) },
+    { label: "+ หนี้สิน",      value: fmtC(liabilities) },
+    { label: "= เงินสดในมือ",  value: `${computedWalletBalance >= 0 ? "" : "-"}${fmtC(computedWalletBalance)}`, highlight: true, color: computedWalletBalance >= 0 ? "green" as const : "red" as const },
   ];
 
   const cards: {
