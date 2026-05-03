@@ -688,7 +688,7 @@ export default function OverviewPage() {
   const [monthlyData, setMonthlyData] = useState<MonthSummary[]>([]);
   const [recentTx, setRecentTx] = useState<RecentTx[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [prevMonthRaw, setPrevMonthRaw] = useState<{ income: number; expense: number; carryOver: number } | null>(null);
+  const [prevMonthRaw, setPrevMonthRaw] = useState<{ income: number; expense: number; carryOver: number; transactions: { amount: number; type: string; main_category: string; from_account_id?: string; to_account_id?: string }[] } | null>(null);
 
   // Accounts, Goals, trueNetWorth
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -739,43 +739,53 @@ export default function OverviewPage() {
 
   const comparisonData = useMemo(() => {
     if (!prevMonthRaw || !latestData || !accounts.length) return null;
-    const delta = new Map<string, number>();
-    for (const t of latestData.transactions) {
-      const isTransfer = t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
-      if (t.type === "รายรับ") {
-        if (t.to_account_id) delta.set(t.to_account_id, (delta.get(t.to_account_id) ?? 0) + t.amount);
-      } else if (isTransfer) {
-        if (t.from_account_id) delta.set(t.from_account_id, (delta.get(t.from_account_id) ?? 0) - t.amount);
-        if (t.to_account_id) delta.set(t.to_account_id, (delta.get(t.to_account_id) ?? 0) + t.amount);
-      } else {
-        if (t.from_account_id) delta.set(t.from_account_id, (delta.get(t.from_account_id) ?? 0) - t.amount);
-      }
-    }
+
     const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted)
       ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
-    let curOther = 0, curLiab = 0, prevOther = 0, prevLiab = 0;
-    for (const a of accounts.filter((a) => !a.is_deleted)) {
-      if (main && a.id === main.id) continue;
-      const curBal = Number(a.balance) || 0;
-      const prevBal = curBal - (delta.get(a.id) ?? 0);
-      if (LIABILITY_TYPES_OVW.has(a.type)) {
-        curLiab += Math.abs(curBal);
-        prevLiab += Math.abs(prevBal);
-      } else {
-        curOther += curBal;
-        prevOther += prevBal;
-      }
-    }
-    const currentIncome = latestData.transactions.filter((t) => t.type === "รายรับ").reduce((s, t) => s + t.amount, 0);
-    const currentExpense = latestData.transactions
-      .filter((t) => t.type !== "รายรับ" && t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี")
+    const mainId = main?.id;
+    const savingsInvestTypes = new Set(["savings", "investment"]);
+    const debtTypes = new Set(["loan", "payable"]);
+    const accountTypeById = new Map(accounts.filter((a) => !a.is_deleted).map((a) => [a.id, a.type]));
+
+    // Current month (latestData uses Thai types after transformation)
+    const curAssets = latestData.transactions
+      .filter((t) =>
+        ((t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && t.from_account_id === mainId && savingsInvestTypes.has(accountTypeById.get(t.to_account_id ?? "") ?? ""))
+        || t.type === "เงินออม/การลงทุน"
+      )
       .reduce((s, t) => s + t.amount, 0);
+
+    const curLiab = latestData.transactions
+      .filter((t) =>
+        ((t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && debtTypes.has(accountTypeById.get(t.from_account_id ?? "") ?? "") && t.to_account_id === mainId)
+        || t.type === "หนี้สิน"
+      )
+      .reduce((s, t) => s + t.amount, 0);
+
+    // Previous month (Firestore raw: type "transfer"/"expense", main_category Thai)
+    const prevAssets = prevMonthRaw.transactions
+      .filter((t) =>
+        (t.type === "transfer" && t.from_account_id === mainId && savingsInvestTypes.has(accountTypeById.get(t.to_account_id ?? "") ?? ""))
+        || (t.type === "expense" && t.main_category === "เงินออมและการลงทุน")
+      )
+      .reduce((s, t) => s + t.amount, 0);
+
+    const prevLiab = prevMonthRaw.transactions
+      .filter((t) =>
+        (t.type === "transfer" && debtTypes.has(accountTypeById.get(t.from_account_id ?? "") ?? "") && t.to_account_id === mainId)
+        || (t.type === "expense" && t.main_category === "หนี้สิน")
+      )
+      .reduce((s, t) => s + t.amount, 0);
+
     return {
-      curOther, prevOther, curLiab, prevLiab,
-      currentNetWorth: latestCarryOver + currentIncome - currentExpense,
-      prevNetWorth: prevMonthRaw.carryOver + prevMonthRaw.income - prevMonthRaw.expense,
+      curOther: curAssets,
+      prevOther: prevAssets,
+      curLiab,
+      prevLiab,
+      currentNetWorth: curAssets - curLiab,
+      prevNetWorth: prevAssets - prevLiab,
     };
-  }, [prevMonthRaw, latestData, accounts, latestCarryOver]);
+  }, [prevMonthRaw, latestData, accounts]);
 
   // For the 6-month summaries, we query each period individually via Firestore
   useEffect(() => {
@@ -793,7 +803,7 @@ export default function OverviewPage() {
           getDocs(query(txCol, where("month_year", "in", periodStrs))),
         ]).then(([budgetSnap, txSnap]) => {
           // Group transactions by period
-          const txByPeriod: Record<string, { amount: number; type: string }[]> = {};
+          const txByPeriod: Record<string, { amount: number; type: string; main_category: string; from_account_id?: string; to_account_id?: string }[]> = {};
           txSnap.docs.forEach((d) => {
             const data = d.data();
             if (data.is_deleted) return;
@@ -802,6 +812,9 @@ export default function OverviewPage() {
             txByPeriod[period].push({
               amount: (data.amount as number) ?? 0,
               type: (data.type as string) ?? "",
+              main_category: (data.main_category as string) ?? "",
+              from_account_id: (data.from_account_id as string) || undefined,
+              to_account_id: (data.to_account_id as string) || undefined,
             });
           });
 
@@ -837,6 +850,7 @@ export default function OverviewPage() {
               income: prevTxs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0),
               expense: prevTxs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0),
               carryOver: carryOverByPeriod[prevPeriod] ?? 0,
+              transactions: prevTxs,
             });
           }
         }).finally(() => setDataLoading(false));
