@@ -65,9 +65,13 @@ function MiniSparkline({ data, type }: { data: number[]; type: "line" | "bar" })
   );
 }
 
-function buildDailyTotals(transactions: Transaction[], typeFilter: (t: Transaction) => boolean): number[] {
+function buildDailyTotals(
+  transactions: Transaction[],
+  typeFilter: (t: Transaction) => boolean,
+  initialValue = 0
+): number[] {
   const filtered = transactions.filter(typeFilter);
-  if (filtered.length === 0) return [];
+  if (filtered.length === 0) return initialValue > 0 ? [initialValue] : [];
 
   const byDate: Record<string, number> = {};
   filtered.forEach((t) => {
@@ -75,7 +79,7 @@ function buildDailyTotals(transactions: Transaction[], typeFilter: (t: Transacti
   });
 
   const sortedDates = Object.keys(byDate).sort();
-  let cumulative = 0;
+  let cumulative = initialValue;
   return sortedDates.map((d) => {
     cumulative += byDate[d];
     return cumulative;
@@ -148,10 +152,10 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
   const computedWalletBalance = trueNetWorth - otherAssets + liabilities;
 
   const sparklines = useMemo(() => ({
-    income: buildDailyTotals(data.transactions, (t) => t.type === "รายรับ"),
+    income: buildDailyTotals(data.transactions, (t) => t.type === "รายรับ", effectiveCarryOver),
     expense: buildDailyTotals(data.transactions, (t) => t.type !== "รายรับ" && !isTransfer(t)),
     net: buildDailyTotals(data.transactions, (t) => !isTransfer(t)),
-  }), [data.transactions]);
+  }), [data.transactions, effectiveCarryOver]);
 
   const incomePct = totalIncome > 0
     ? ((displayIncome - totalIncome) / totalIncome) * 100
