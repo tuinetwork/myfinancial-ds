@@ -237,35 +237,16 @@ async function loadAccountContext(userId: string): Promise<{
   return { mainWalletId: main?.id ?? null, typeById };
 }
 
-/** คำนวณ net ของ transactions ชุดหนึ่ง
- *  net = income
- *      + transfer เข้ากระเป๋าหลัก (ยกเว้นจากสินเชื่อ/เจ้าหนี้)
- *      − expense
- *      − transfer ออกกระเป๋าหลัก */
-function aggregateNet(
-  docs: any[],
-  mainWalletId: string | null,
-  typeById: Map<string, string>,
-): number {
+/** คำนวณ net = income − expense (ไม่นับ transfer ทุกประเภท) */
+function aggregateNet(docs: any[]): number {
   let income = 0;
   let expenses = 0;
   for (const d of docs) {
     const data = d.data ? d.data() : d;
     if (data.is_deleted) continue;
     const amt = (data.amount as number) ?? 0;
-    if (data.type === "income") {
-      income += amt;
-    } else if (data.type === "expense") {
-      expenses += amt;
-    } else if (data.type === "transfer" && mainWalletId) {
-      if (data.to_account_id === mainWalletId) {
-        const fromType = typeById.get(data.from_account_id ?? "") ?? "";
-        if (!DEBT_TYPES.has(fromType)) income += amt; // ไม่นับ transfer เข้าจากสินเชื่อ/เจ้าหนี้
-      } else if (data.from_account_id === mainWalletId) {
-        const toType = typeById.get(data.to_account_id ?? "") ?? "";
-        if (!DEBT_TYPES.has(toType)) expenses += amt; // ไม่นับ transfer ออกไปสินเชื่อ/เจ้าหนี้
-      }
-    }
+    if (data.type === "income") income += amt;
+    else if (data.type === "expense") expenses += amt;
   }
   return income - expenses;
 }
@@ -280,8 +261,6 @@ async function syncCarryOver(userId: string, currentPeriod: string): Promise<voi
   const prevDocRef = doc(firestore, "users", userId, "budgets", prevPeriod);
   const prevSnap = await getDoc(prevDocRef);
 
-  const { mainWalletId, typeById } = await loadAccountContext(userId);
-
   let carryOver: number;
 
   if (prevSnap.exists()) {
@@ -295,7 +274,7 @@ async function syncCarryOver(userId: string, currentPeriod: string): Promise<voi
         transactionsCollection(userId),
         where("month_year", "==", prevPeriod)
       ));
-      carryOver = prevCarry + aggregateNet(prevTxSnap.docs, mainWalletId, typeById);
+      carryOver = prevCarry + aggregateNet(prevTxSnap.docs);
     }
   } else {
     // Fallback: สแกนทุก transaction ก่อนเดือนปัจจุบัน
@@ -303,7 +282,7 @@ async function syncCarryOver(userId: string, currentPeriod: string): Promise<voi
       transactionsCollection(userId),
       where("month_year", "<", currentPeriod)
     ));
-    carryOver = aggregateNet(txSnap.docs, mainWalletId, typeById);
+    carryOver = aggregateNet(txSnap.docs);
   }
 
   const currentDocRef = doc(firestore, "users", userId, "budgets", currentPeriod);

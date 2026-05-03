@@ -12,17 +12,10 @@ export interface CarryOverDiffRow {
   hasBudgetDoc: boolean;
 }
 
-const DEBT_TYPES = new Set(["loan", "payable", "credit_card"]);
-
 /**
  * คำนวณ carry_over ที่ถูกต้องสำหรับทุกเดือนจากศูนย์
- *
- * net[N] = income[N]
- *        + transfer เข้ากระเป๋าหลัก จาก savings/investment (ไม่รวม loan/payable/credit_card)
- *        − expense[N]
- *        − transfer ออกกระเป๋าหลัก ไป savings/investment (ไม่รวม loan/payable/credit_card)
- *
- * Guard: เดือนปัจจุบัน (ยังไม่จบ) → ไม่ rollover net เข้า running carry
+ * net = income − expense (ไม่นับ transfer ทุกประเภท)
+ * Guard: เดือนปัจจุบันยังไม่จบ → ไม่ rollover net เข้า running carry
  */
 export async function computeCorrectCarryOvers(
   userId: string
@@ -34,15 +27,7 @@ export async function computeCorrectCarryOvers(
     budgetMap.set(d.id, (d.data().carry_over as number) ?? 0);
   });
 
-  // 2) accounts — หา mainWalletId + typeById
-  const accSnap = await getDocs(collection(firestore, "users", userId, "accounts"));
-  const accs = accSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-  const main = accs.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted && a.is_active)
-    ?? accs.find((a) => a.type === "cash" && !a.is_deleted && a.is_active);
-  const mainWalletId: string | null = main?.id ?? null;
-  const typeById = new Map(accs.map((a) => [a.id as string, a.type as string]));
-
-  // 3) transactions — group ตาม month_year
+  // 2) transactions — group ตาม month_year (income/expense เท่านั้น)
   const txSnap = await getDocs(collection(firestore, "users", userId, "transactions"));
   const monthlyAgg = new Map<string, { income: number; expenses: number }>();
 
@@ -56,19 +41,9 @@ export async function computeCorrectCarryOvers(
     const agg = monthlyAgg.get(period)!;
     const amount = (t.amount as number) ?? 0;
 
-    if (t.type === "income") {
-      agg.income += amount;
-    } else if (t.type === "expense") {
-      agg.expenses += amount;
-    } else if (t.type === "transfer" && mainWalletId) {
-      if (t.to_account_id === mainWalletId) {
-        const fromType = typeById.get(t.from_account_id ?? "") ?? "";
-        if (!DEBT_TYPES.has(fromType)) agg.income += amount;
-      } else if (t.from_account_id === mainWalletId) {
-        const toType = typeById.get(t.to_account_id ?? "") ?? "";
-        if (!DEBT_TYPES.has(toType)) agg.expenses += amount;
-      }
-    }
+    if (t.type === "income") agg.income += amount;
+    else if (t.type === "expense") agg.expenses += amount;
+    // transfer: ไม่นับทุกประเภท
   });
 
   // 4) sort periods แล้วคำนวณ carry ไล่จากเก่าไปใหม่
