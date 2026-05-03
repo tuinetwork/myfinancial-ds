@@ -418,7 +418,22 @@ function SixMonthStatsCard({ data, loading }: { data: MonthSummary[]; loading: b
 }
 
 // ===== Month Cash Flow Summary =====
-function MonthCashFlowCard({ data, carryOver, loading, cashInHand }: { data: BudgetData | undefined; carryOver: number; loading: boolean; cashInHand?: number }) {
+type ComparisonData = { curOther: number; prevOther: number; curLiab: number; prevLiab: number; currentNetWorth: number; prevNetWorth: number };
+
+function CompareChip({ current, previous, invert = false }: { current: number; previous: number; invert?: boolean }) {
+  const diff = current - previous;
+  if (diff === 0 || previous === 0) return null;
+  const pct = Math.round((diff / Math.abs(previous)) * 100);
+  const isUp = diff > 0;
+  const isGood = invert ? !isUp : isUp;
+  return (
+    <span className={cn("text-[10px] tabular-nums", isGood ? "text-accent" : "text-destructive")}>
+      {isUp ? "↑" : "↓"}{Math.abs(pct)}% ({isUp ? "+" : ""}{formatCurrency(Math.abs(diff))})
+    </span>
+  );
+}
+
+function MonthCashFlowCard({ data, carryOver, loading, cashInHand, comparisonData }: { data: BudgetData | undefined; carryOver: number; loading: boolean; cashInHand?: number; comparisonData?: ComparisonData | null }) {
   if (loading || !data) return <Skeleton className="h-40 rounded-xl" />;
 
   const forecast = useEndOfMonthForecast(data, carryOver);
@@ -466,6 +481,27 @@ function MonthCashFlowCard({ data, carryOver, loading, cashInHand }: { data: Bud
             <p className={cn("text-sm font-bold tabular-nums", cashInHand >= 0 ? "text-foreground" : "text-destructive")}>
               {cashInHand < 0 ? "-" : ""}{formatCurrency(Math.abs(cashInHand))}
             </p>
+          </div>
+        )}
+        {comparisonData && (
+          <div className="grid grid-cols-3 gap-2 text-center border-t pt-2">
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-muted-foreground">สินทรัพย์</p>
+              <p className="text-xs font-bold tabular-nums">{formatCurrency(comparisonData.curOther)}</p>
+              <CompareChip current={comparisonData.curOther} previous={comparisonData.prevOther} />
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-muted-foreground">หนี้สิน</p>
+              <p className="text-xs font-bold tabular-nums">{formatCurrency(comparisonData.curLiab)}</p>
+              <CompareChip current={comparisonData.curLiab} previous={comparisonData.prevLiab} invert />
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-muted-foreground">Net Worth</p>
+              <p className={cn("text-xs font-bold tabular-nums", comparisonData.currentNetWorth >= 0 ? "text-foreground" : "text-destructive")}>
+                {formatCurrency(Math.abs(comparisonData.currentNetWorth))}
+              </p>
+              <CompareChip current={comparisonData.currentNetWorth} previous={comparisonData.prevNetWorth} />
+            </div>
           </div>
         )}
         {forecast && (
@@ -656,6 +692,7 @@ export default function OverviewPage() {
   const [monthlyData, setMonthlyData] = useState<MonthSummary[]>([]);
   const [recentTx, setRecentTx] = useState<RecentTx[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [prevMonthRaw, setPrevMonthRaw] = useState<{ income: number; expense: number; carryOver: number } | null>(null);
 
   // Accounts, Goals, trueNetWorth
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -702,6 +739,47 @@ export default function OverviewPage() {
     () => walletHistory?.find((r) => r.period === latestPeriod),
     [walletHistory, latestPeriod]
   );
+
+  const LIABILITY_TYPES_OVW = new Set(["credit_card", "loan", "payable"]);
+  const comparisonData = useMemo(() => {
+    if (!prevMonthRaw || !latestData || !accounts.length) return null;
+    const delta = new Map<string, number>();
+    for (const t of latestData.transactions) {
+      const isTransfer = t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
+      if (t.type === "รายรับ") {
+        if (t.to_account_id) delta.set(t.to_account_id, (delta.get(t.to_account_id) ?? 0) + t.amount);
+      } else if (isTransfer) {
+        if (t.from_account_id) delta.set(t.from_account_id, (delta.get(t.from_account_id) ?? 0) - t.amount);
+        if (t.to_account_id) delta.set(t.to_account_id, (delta.get(t.to_account_id) ?? 0) + t.amount);
+      } else {
+        if (t.from_account_id) delta.set(t.from_account_id, (delta.get(t.from_account_id) ?? 0) - t.amount);
+      }
+    }
+    const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted)
+      ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
+    let curOther = 0, curLiab = 0, prevOther = 0, prevLiab = 0;
+    for (const a of accounts.filter((a) => !a.is_deleted)) {
+      if (main && a.id === main.id) continue;
+      const curBal = Number(a.balance) || 0;
+      const prevBal = curBal - (delta.get(a.id) ?? 0);
+      if (LIABILITY_TYPES_OVW.has(a.type)) {
+        curLiab += Math.abs(curBal);
+        prevLiab += Math.abs(prevBal);
+      } else {
+        curOther += curBal;
+        prevOther += prevBal;
+      }
+    }
+    const currentIncome = latestData.transactions.filter((t) => t.type === "รายรับ").reduce((s, t) => s + t.amount, 0);
+    const currentExpense = latestData.transactions
+      .filter((t) => t.type !== "รายรับ" && t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี")
+      .reduce((s, t) => s + t.amount, 0);
+    return {
+      curOther, prevOther, curLiab, prevLiab,
+      currentNetWorth: latestCarryOver + currentIncome - currentExpense,
+      prevNetWorth: prevMonthRaw.carryOver + prevMonthRaw.income - prevMonthRaw.expense,
+    };
+  }, [prevMonthRaw, latestData, accounts, latestCarryOver]);
 
   // For the 6-month summaries, we query each period individually via Firestore
   useEffect(() => {
@@ -753,6 +831,18 @@ export default function OverviewPage() {
             .filter((s) => s.hasTx); // exclude months with no transactions
 
           setMonthlyData(summaries);
+
+          // Previous period raw data for comparison (second-to-last sorted period)
+          const sortedPeriods = [...periodStrs].sort();
+          if (sortedPeriods.length >= 2) {
+            const prevPeriod = sortedPeriods[sortedPeriods.length - 2];
+            const prevTxs = txByPeriod[prevPeriod] ?? [];
+            setPrevMonthRaw({
+              income: prevTxs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0),
+              expense: prevTxs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0),
+              carryOver: carryOverByPeriod[prevPeriod] ?? 0,
+            });
+          }
         }).finally(() => setDataLoading(false));
       });
     });
@@ -808,7 +898,7 @@ export default function OverviewPage() {
           <div className="space-y-5">
             {/* Row 1: Cash Flow + Net Worth + Upcoming Bills */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <MonthCashFlowCard data={latestData} carryOver={latestCarryOver} loading={latestLoading} cashInHand={latestWalletRow?.mainWalletBalance} />
+              <MonthCashFlowCard data={latestData} carryOver={latestCarryOver} loading={latestLoading} cashInHand={latestWalletRow?.mainWalletBalance} comparisonData={comparisonData} />
               <NetWorthCard accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
               {latestData && <UpcomingBills data={latestData} />}
             </div>
