@@ -476,33 +476,28 @@ function MonthCashFlowCard({ data, carryOver, loading, cashInHand, comparisonDat
             </p>
           </div>
         </div>
+        {comparisonData && (
+          <div className="grid grid-cols-3 gap-2 text-center border-t pt-2">
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-muted-foreground">สินทรัพย์</p>
+              <CompareChip current={comparisonData.curOther} previous={comparisonData.prevOther} />
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-muted-foreground">หนี้สิน</p>
+              <CompareChip current={comparisonData.curLiab} previous={comparisonData.prevLiab} invert />
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-muted-foreground">Net Worth</p>
+              <CompareChip current={comparisonData.currentNetWorth} previous={comparisonData.prevNetWorth} />
+            </div>
+          </div>
+        )}
         {cashInHand !== undefined && (
           <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
             <p className="text-xs text-muted-foreground">เงินสดในมือ (พร้อมใช้)</p>
             <p className={cn("text-sm font-bold tabular-nums", cashInHand >= 0 ? "text-foreground" : "text-destructive")}>
               {cashInHand < 0 ? "-" : ""}{formatCurrency(Math.abs(cashInHand))}
             </p>
-          </div>
-        )}
-        {comparisonData && (
-          <div className="grid grid-cols-3 gap-2 text-center border-t pt-2">
-            <div className="space-y-0.5">
-              <p className="text-[10px] text-muted-foreground">สินทรัพย์</p>
-              <p className="text-xs font-bold tabular-nums">{formatCurrency(comparisonData.curOther)}</p>
-              <CompareChip current={comparisonData.curOther} previous={comparisonData.prevOther} />
-            </div>
-            <div className="space-y-0.5">
-              <p className="text-[10px] text-muted-foreground">หนี้สิน</p>
-              <p className="text-xs font-bold tabular-nums">{formatCurrency(comparisonData.curLiab)}</p>
-              <CompareChip current={comparisonData.curLiab} previous={comparisonData.prevLiab} invert />
-            </div>
-            <div className="space-y-0.5">
-              <p className="text-[10px] text-muted-foreground">Net Worth</p>
-              <p className={cn("text-xs font-bold tabular-nums", comparisonData.currentNetWorth >= 0 ? "text-foreground" : "text-destructive")}>
-                {formatCurrency(Math.abs(comparisonData.currentNetWorth))}
-              </p>
-              <CompareChip current={comparisonData.currentNetWorth} previous={comparisonData.prevNetWorth} />
-            </div>
           </div>
         )}
         {forecast && (
