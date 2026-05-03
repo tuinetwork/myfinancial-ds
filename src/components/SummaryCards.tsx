@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { TrendingUp, TrendingDown, Wallet, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Info, PiggyBank, CreditCard } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { BudgetData, Transaction, formatCurrency } from "@/hooks/useBudgetData";
@@ -86,6 +86,26 @@ export function SummaryCards({ data, carryOver = 0, mainWalletBalance, accounts 
 
   const isTransfer = (t: Transaction) =>
     t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
+
+  const LIABILITY_TYPES = new Set(["credit_card", "loan", "payable"]);
+
+  // สินทรัพย์อื่น + หนี้สิน จากบัญชีปัจจุบัน (ไม่รวมกระเป๋าหลัก)
+  const { otherAssets, liabilities } = useMemo(() => {
+    const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted)
+      ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
+    let otherAssets = 0;
+    let liabilities = 0;
+    accounts.filter((a) => !a.is_deleted).forEach((a) => {
+      if (main && a.id === main.id) return;
+      const bal = Number(a.balance) || 0;
+      if (LIABILITY_TYPES.has(a.type)) {
+        liabilities += Math.abs(bal);
+      } else {
+        otherAssets += bal;
+      }
+    });
+    return { otherAssets, liabilities };
+  }, [accounts]);
 
   // คำนวณ transfer ถอนจากบัญชีออม/ลงทุน → กระเป๋าหลัก
   const withdrawFromSavings = useMemo(() => {
@@ -202,7 +222,37 @@ export function SummaryCards({ data, carryOver = 0, mainWalletBalance, accounts 
       rows: expenseRows,
     },
     {
-      title: "ฐานะการเงิน",
+      title: "สินทรัพย์",
+      primary: otherAssets,
+      pct: 0,
+      pctLabel: `${accounts.filter(a => !a.is_deleted && !LIABILITY_TYPES.has(a.type) && a.name !== "กระเป๋าเงินสดหลัก").length} บัญชี`,
+      icon: PiggyBank,
+      gradient: "from-[hsl(270,55%,55%)] to-[hsl(270,55%,45%)]",
+      sparkData: [],
+      sparkType: "bar" as const,
+      rows: [
+        { label: "สินทรัพย์อื่น ๆ", value: formatCurrency(otherAssets), highlight: true },
+        { label: "หมายเหตุ", value: "ไม่รวมกระเป๋าเงินสดหลัก" },
+      ],
+    },
+    {
+      title: "หนี้สิน",
+      primary: liabilities,
+      pct: 0,
+      pctLabel: liabilities > 0 ? "มีหนี้คงค้าง" : "ไม่มีหนี้",
+      icon: CreditCard,
+      gradient: liabilities > 0
+        ? "from-[hsl(35,90%,50%)] to-[hsl(35,90%,40%)]"
+        : "from-[hsl(140,55%,48%)] to-[hsl(140,55%,38%)]",
+      sparkData: [],
+      sparkType: "bar" as const,
+      rows: [
+        { label: "หนี้สินรวม", value: formatCurrency(liabilities), highlight: true, color: liabilities > 0 ? "red" as const : "green" as const },
+        { label: "หมายเหตุ", value: "บัตรเครดิต / สินเชื่อ / เจ้าหนี้" },
+      ],
+    },
+    {
+      title: "Net Worth",
       primary: trueNetWorth,
       pct: 0,
       pctLabel: trueNetWorth >= 0 ? "สถานะดี" : "ขาดดุล",
@@ -218,7 +268,7 @@ export function SummaryCards({ data, carryOver = 0, mainWalletBalance, accounts 
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
       {cards.map((card, i) => (
         <Card
           key={card.title}
@@ -230,7 +280,7 @@ export function SummaryCards({ data, carryOver = 0, mainWalletBalance, accounts 
               <span className="text-sm font-medium opacity-90">{card.title}</span>
               <card.icon className="h-4 w-4 sm:h-5 sm:w-5 opacity-70" />
             </div>
-            <p className="text-2xl sm:text-3xl font-bold font-display tracking-tight">
+            <p className="text-xl sm:text-2xl xl:text-3xl font-bold font-display tracking-tight">
               {card.primary < 0 ? "-" : ""}{formatCurrency(Math.abs(card.primary))}
             </p>
             <Tooltip>
