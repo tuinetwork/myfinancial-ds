@@ -262,7 +262,8 @@ function aggregateNet(
         const fromType = typeById.get(data.from_account_id ?? "") ?? "";
         if (!DEBT_TYPES.has(fromType)) income += amt; // ไม่นับ transfer เข้าจากสินเชื่อ/เจ้าหนี้
       } else if (data.from_account_id === mainWalletId) {
-        expenses += amt;
+        const toType = typeById.get(data.to_account_id ?? "") ?? "";
+        if (!DEBT_TYPES.has(toType)) expenses += amt; // ไม่นับ transfer ออกไปสินเชื่อ/เจ้าหนี้
       }
     }
   }
