@@ -420,15 +420,15 @@ function SixMonthStatsCard({ data, loading }: { data: MonthSummary[]; loading: b
 // ===== Month Cash Flow Summary =====
 type ComparisonData = { curOther: number; prevOther: number; curLiab: number; prevLiab: number; currentNetWorth: number; prevNetWorth: number };
 
-function CompareChip({ current, previous, invert = false }: { current: number; previous: number; invert?: boolean }) {
+function CompareChip({ current, previous, invert = false, forceRed = false }: { current: number; previous: number; invert?: boolean; forceRed?: boolean }) {
   const diff = current - previous;
-  if (diff === 0 || previous === 0) return null;
-  const pct = Math.round((diff / Math.abs(previous)) * 100);
+  if (diff === 0 || previous === 0) return <span className="text-[10px] text-muted-foreground">-</span>;
   const isUp = diff > 0;
   const isGood = invert ? !isUp : isUp;
+  const color = forceRed ? "text-destructive" : isGood ? "text-accent" : "text-destructive";
   return (
-    <span className={cn("text-[10px] tabular-nums", isGood ? "text-accent" : "text-destructive")}>
-      {isUp ? "↑" : "↓"}{Math.abs(pct)}% ({isUp ? "+" : ""}{formatCurrency(Math.abs(diff))})
+    <span className={cn("text-[10px] tabular-nums font-medium", color)}>
+      {isUp ? "+" : "-"}{formatCurrency(Math.abs(diff))}
     </span>
   );
 }
@@ -484,7 +484,7 @@ function MonthCashFlowCard({ data, carryOver, loading, cashInHand, comparisonDat
             </div>
             <div className="space-y-0.5">
               <p className="text-[10px] text-muted-foreground">หนี้สิน</p>
-              <CompareChip current={comparisonData.curLiab} previous={comparisonData.prevLiab} invert />
+              <CompareChip current={comparisonData.curLiab} previous={comparisonData.prevLiab} invert forceRed />
             </div>
             <div className="space-y-0.5">
               <p className="text-[10px] text-muted-foreground">Net Worth</p>
