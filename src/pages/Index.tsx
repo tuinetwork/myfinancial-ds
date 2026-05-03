@@ -131,7 +131,7 @@ const Index = () => {
     const actualExpenses = data.transactions.filter((t) => t.type !== "รายรับ" && !isTransferTx(t)).reduce((s, t) => s + t.amount, 0);
     const trueNetWorth = carryOver + actualIncome - actualExpenses;
 
-    const activeAccounts = accounts.filter((a) => !a.is_deleted && a.is_active);
+    const activeAccounts = accounts.filter((a) => !a.is_deleted);
     let otherAssetsTotal = 0;
     let liabilitiesTotal = 0;
     activeAccounts.forEach((a) => {

@@ -120,7 +120,7 @@ export function SummaryCards({ data, carryOver = 0, mainWalletBalance, accounts 
 
   const effectiveCarryOver = includeCarryOver ? carryOver : 0;
   const displayIncome = actualIncome + withdrawFromSavings + effectiveCarryOver;
-  const netBalance = displayIncome - actualNonIncome;
+  const trueNetWorth = carryOver + actualIncome - actualNonIncome;
 
   const sparklines = useMemo(() => ({
     income: buildDailyTotals(data.transactions, (t) => t.type === "รายรับ"),
@@ -164,20 +164,11 @@ export function SummaryCards({ data, carryOver = 0, mainWalletBalance, accounts 
   ];
 
   const netRows: TooltipRow[] = [
-    ...(includeCarryOver
-      ? [
-          { label: "รายรับจริง", value: fmtC(actualIncome) },
-          { label: "ยอดยกมา", value: fmtC(carryOver) },
-          { label: "รายจ่ายจริง", value: fmtC(actualNonIncome) },
-          { label: "ฐานะการเงิน", value: `${netBalance >= 0 ? "+" : "-"}${fmtC(netBalance)}`, highlight: true, color: pctColor(netBalance) },
-          { label: "หมายเหตุ", value: "ไม่รวมรายการโอนระหว่างบัญชี" },
-        ]
-      : [
-          { label: "รายรับจริง", value: fmtC(actualIncome) },
-          { label: "รายจ่ายจริง", value: fmtC(actualNonIncome) },
-          { label: "ฐานะการเงิน", value: `${netBalance >= 0 ? "+" : "-"}${fmtC(netBalance)}`, highlight: true, color: pctColor(netBalance) },
-          { label: "หมายเหตุ", value: "ไม่รวมรายการโอนระหว่างบัญชี" },
-        ]),
+    { label: "ยอดยกมา", value: fmtC(carryOver) },
+    { label: "รายรับจริง", value: fmtC(actualIncome) },
+    { label: "รายจ่ายจริง", value: fmtC(actualNonIncome) },
+    { label: "Net Worth", value: `${trueNetWorth >= 0 ? "+" : "-"}${fmtC(trueNetWorth)}`, highlight: true, color: pctColor(trueNetWorth) },
+    { label: "หมายเหตุ", value: "ไม่รวมรายการโอนระหว่างบัญชี" },
     ...(mainWalletBalance != null
       ? [{ label: "เงินสดในมือ", value: formatCurrency(mainWalletBalance), highlight: true, color: mainWalletBalance >= 0 ? "green" as const : "red" as const }]
       : []),
@@ -212,12 +203,12 @@ export function SummaryCards({ data, carryOver = 0, mainWalletBalance, accounts 
     },
     {
       title: "ฐานะการเงิน",
-      primary: netBalance,
+      primary: trueNetWorth,
       pct: 0,
-      pctLabel: netBalance >= 0 ? "สถานะดี" : "ขาดดุล",
+      pctLabel: trueNetWorth >= 0 ? "สถานะดี" : "ขาดดุล",
       pctLabelExtra: mainWalletBalance != null ? `เงินสดในมือ ${formatCurrency(mainWalletBalance)}` : null,
       icon: Wallet,
-      gradient: netBalance >= 0
+      gradient: trueNetWorth >= 0
         ? "from-[hsl(140,55%,48%)] to-[hsl(140,55%,38%)]"
         : "from-[hsl(0,65%,55%)] to-[hsl(0,65%,42%)]",
       sparkData: sparklines.net,
