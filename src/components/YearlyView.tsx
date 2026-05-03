@@ -24,9 +24,17 @@ export function YearlyView({ yearlyData }: Props) {
   const { aggregated } = yearlyData;
   const { data: walletRows, isLoading: walletLoading } = useWalletHistory(yearlyData.year);
 
+  // ใช้ข้อมูลของเดือนสุดท้ายในปีนั้นเป็น year-end snapshot
+  const lastWalletRow = walletRows && walletRows.length > 0 ? walletRows[walletRows.length - 1] : null;
+
   return (
     <div className="space-y-6">
-      <SummaryCards data={aggregated} hideNetBalance />
+      <SummaryCards
+        data={aggregated}
+        hideNetBalance
+        historicalOtherAssets={lastWalletRow?.otherAssets}
+        historicalLiabilities={lastWalletRow?.liabilities}
+      />
 
       <YearlySummaryCard yearlyData={yearlyData} />
 
