@@ -827,7 +827,7 @@ export default function CommandCenter() {
                     </Badge>
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    คำนวณ mainWalletBalance ย้อนหลังทุกเดือน — trueNetWorth = carry + รายรับ − รายจ่าย (เงินสดในมือ = trueNetWorth − สินทรัพย์อื่น + หนี้สิน ณ ปัจจุบัน)
+                    คำนวณ mainWalletBalance ย้อนหลังทุกเดือน — trueNetWorth = carry + รายรับ − รายจ่าย (เงินสดในมือ = trueNetWorth − สินทรัพย์อื่น + หนี้สิน ย้อนหลังจริงตาม transactions)
                   </CardDescription>
                 </div>
                 <Button
@@ -861,6 +861,8 @@ export default function CommandCenter() {
                         <th className="px-3 py-2 font-semibold text-right">รายรับ</th>
                         <th className="px-3 py-2 font-semibold text-right">รายจ่าย</th>
                         <th className="px-3 py-2 font-semibold text-right">Net Worth</th>
+                        <th className="px-3 py-2 font-semibold text-right">สินทรัพย์อื่น</th>
+                        <th className="px-3 py-2 font-semibold text-right">หนี้สิน</th>
                         <th className="px-3 py-2 font-semibold text-right">เงินสดในมือ</th>
                       </tr>
                     </thead>
@@ -880,6 +882,12 @@ export default function CommandCenter() {
                           <td className={`px-3 py-1.5 text-right tabular-nums font-medium ${r.trueNetWorth >= 0 ? "text-accent" : "text-destructive"}`}>
                             {r.trueNetWorth.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">
+                            {r.otherAssets.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-[hsl(var(--debt))]">
+                            {r.liabilities.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
                           <td className={`px-3 py-1.5 text-right tabular-nums font-semibold ${r.mainWalletBalance >= 0 ? "text-accent" : "text-destructive"}`}>
                             {r.mainWalletBalance.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
@@ -892,7 +900,7 @@ export default function CommandCenter() {
               {walletRows && (
                 <p className="text-[11px] text-muted-foreground mt-3 flex items-center gap-1">
                   <Info className="h-3 w-3" />
-                  ยอด "สินทรัพย์อื่น" และ "หนี้สิน" ใช้ค่า ณ ปัจจุบัน — ไม่ใช่ค่าย้อนหลังของแต่ละเดือน
+                  สินทรัพย์อื่น/หนี้สิน คำนวณย้อนหลังจาก current balance โดยหัก effects ของ transactions หลังจากแต่ละเดือน
                 </p>
               )}
             </CardContent>
