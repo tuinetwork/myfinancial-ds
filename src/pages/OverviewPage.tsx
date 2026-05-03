@@ -418,13 +418,13 @@ function SixMonthStatsCard({ data, loading }: { data: MonthSummary[]; loading: b
 }
 
 // ===== Month Cash Flow Summary =====
-function MonthCashFlowCard({ data, carryOver, loading, otherAssets, liabilities }: { data: BudgetData | undefined; carryOver: number; loading: boolean; otherAssets?: number; liabilities?: number }) {
+function MonthCashFlowCard({ data, carryOver, loading, cashInHand }: { data: BudgetData | undefined; carryOver: number; loading: boolean; cashInHand?: number }) {
   if (loading || !data) return <Skeleton className="h-40 rounded-xl" />;
 
   const forecast = useEndOfMonthForecast(data, carryOver);
   const { includeCarryOver } = useSettings();
 
-  const { actualIncome, actualExpense, balance, avgDailyExpense, expenseDays, cashInHand } = useMemo(() => {
+  const { actualIncome, actualExpense, balance, avgDailyExpense, expenseDays } = useMemo(() => {
     const active = data.transactions.filter((t) => t.type !== "โอน" && t.category !== "โอนระหว่างบัญชี");
     const inc = active.filter((t) => t.type === "รายรับ").reduce((s, t) => s + t.amount, 0);
     const expTx = active.filter((t) => t.type !== "รายรับ");
@@ -432,12 +432,8 @@ function MonthCashFlowCard({ data, carryOver, loading, otherAssets, liabilities 
     const uniqueDays = new Set(expTx.map((t) => t.date)).size;
     const avg = uniqueDays > 0 ? exp / uniqueDays : 0;
     const effectiveCarry = includeCarryOver ? carryOver : 0;
-    const bal = inc + effectiveCarry - exp;
-    const cash = otherAssets !== undefined && liabilities !== undefined
-      ? bal - otherAssets + liabilities
-      : undefined;
-    return { actualIncome: inc + effectiveCarry, actualExpense: exp, balance: bal, avgDailyExpense: avg, expenseDays: uniqueDays, cashInHand: cash };
-  }, [data, carryOver, includeCarryOver, otherAssets, liabilities]);
+    return { actualIncome: inc + effectiveCarry, actualExpense: exp, balance: inc + effectiveCarry - exp, avgDailyExpense: avg, expenseDays: uniqueDays };
+  }, [data, carryOver, includeCarryOver]);
 
   return (
     <Card className="border-none shadow-sm">
@@ -812,7 +808,7 @@ export default function OverviewPage() {
           <div className="space-y-5">
             {/* Row 1: Cash Flow + Net Worth + Upcoming Bills */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <MonthCashFlowCard data={latestData} carryOver={latestCarryOver} loading={latestLoading} otherAssets={latestWalletRow?.otherAssets} liabilities={latestWalletRow?.liabilities} />
+              <MonthCashFlowCard data={latestData} carryOver={latestCarryOver} loading={latestLoading} cashInHand={latestWalletRow?.mainWalletBalance} />
               <NetWorthCard accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
               {latestData && <UpcomingBills data={latestData} />}
             </div>
