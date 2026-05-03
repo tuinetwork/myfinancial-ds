@@ -418,20 +418,8 @@ function SixMonthStatsCard({ data, loading }: { data: MonthSummary[]; loading: b
 }
 
 // ===== Month Cash Flow Summary =====
-type ComparisonData = { curOther: number; prevOther: number; curLiab: number; prevLiab: number; currentNetWorth: number; prevNetWorth: number };
+type ComparisonData = { curOther: number; curLiab: number; currentNetWorth: number };
 
-function CompareChip({ current, previous, invert = false, forceRed = false }: { current: number; previous: number; invert?: boolean; forceRed?: boolean }) {
-  const diff = current - previous;
-  if (diff === 0 || previous === 0) return <span className="text-[10px] text-muted-foreground">-</span>;
-  const isUp = diff > 0;
-  const isGood = invert ? !isUp : isUp;
-  const color = forceRed ? "text-destructive" : isGood ? "text-accent" : "text-destructive";
-  return (
-    <span className={cn("text-[10px] tabular-nums font-medium", color)}>
-      {isUp ? "+" : "-"}{formatCurrency(Math.abs(diff))}
-    </span>
-  );
-}
 
 function MonthCashFlowCard({ data, carryOver, loading, cashInHand, comparisonData }: { data: BudgetData | undefined; carryOver: number; loading: boolean; cashInHand?: number; comparisonData?: ComparisonData | null }) {
   const forecast = useEndOfMonthForecast(data, carryOver);
@@ -480,15 +468,17 @@ function MonthCashFlowCard({ data, carryOver, loading, cashInHand, comparisonDat
           <div className="grid grid-cols-3 gap-2 text-center border-t pt-2">
             <div className="space-y-0.5">
               <p className="text-[10px] text-muted-foreground">สินทรัพย์</p>
-              <CompareChip current={comparisonData.curOther} previous={comparisonData.prevOther} />
+              <p className="text-xs font-semibold tabular-nums text-accent">{formatCurrency(comparisonData.curOther)}</p>
             </div>
             <div className="space-y-0.5">
               <p className="text-[10px] text-muted-foreground">หนี้สิน</p>
-              <CompareChip current={comparisonData.curLiab} previous={comparisonData.prevLiab} invert forceRed />
+              <p className="text-xs font-semibold tabular-nums text-destructive">{formatCurrency(comparisonData.curLiab)}</p>
             </div>
             <div className="space-y-0.5">
               <p className="text-[10px] text-muted-foreground">Net Worth</p>
-              <CompareChip current={comparisonData.currentNetWorth} previous={comparisonData.prevNetWorth} />
+              <p className={cn("text-xs font-semibold tabular-nums", comparisonData.currentNetWorth >= 0 ? "text-foreground" : "text-destructive")}>
+                {comparisonData.currentNetWorth < 0 ? "-" : ""}{formatCurrency(Math.abs(comparisonData.currentNetWorth))}
+              </p>
             </div>
           </div>
         )}
@@ -688,7 +678,6 @@ export default function OverviewPage() {
   const [monthlyData, setMonthlyData] = useState<MonthSummary[]>([]);
   const [recentTx, setRecentTx] = useState<RecentTx[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [prevMonthRaw, setPrevMonthRaw] = useState<{ income: number; expense: number; carryOver: number; transactions: { amount: number; type: string; main_category: string; from_account_id?: string; to_account_id?: string }[] } | null>(null);
 
   // Accounts, Goals, trueNetWorth
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -738,7 +727,7 @@ export default function OverviewPage() {
   );
 
   const comparisonData = useMemo(() => {
-    if (!prevMonthRaw || !latestData || !accounts.length) return null;
+    if (!latestData || !accounts.length) return null;
 
     const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted)
       ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
@@ -747,7 +736,6 @@ export default function OverviewPage() {
     const debtTypes = new Set(["loan", "payable"]);
     const accountTypeById = new Map(accounts.filter((a) => !a.is_deleted).map((a) => [a.id, a.type]));
 
-    // Current month (latestData uses Thai types after transformation)
     const curAssets = latestData.transactions
       .filter((t) =>
         ((t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && t.from_account_id === mainId && savingsInvestTypes.has(accountTypeById.get(t.to_account_id ?? "") ?? ""))
@@ -762,30 +750,8 @@ export default function OverviewPage() {
       )
       .reduce((s, t) => s + t.amount, 0);
 
-    // Previous month (Firestore raw: type "transfer"/"expense", main_category Thai)
-    const prevAssets = prevMonthRaw.transactions
-      .filter((t) =>
-        (t.type === "transfer" && t.from_account_id === mainId && savingsInvestTypes.has(accountTypeById.get(t.to_account_id ?? "") ?? ""))
-        || (t.type === "expense" && t.main_category === "เงินออมและการลงทุน")
-      )
-      .reduce((s, t) => s + t.amount, 0);
-
-    const prevLiab = prevMonthRaw.transactions
-      .filter((t) =>
-        (t.type === "transfer" && debtTypes.has(accountTypeById.get(t.from_account_id ?? "") ?? "") && t.to_account_id === mainId)
-        || (t.type === "expense" && t.main_category === "หนี้สิน")
-      )
-      .reduce((s, t) => s + t.amount, 0);
-
-    return {
-      curOther: curAssets,
-      prevOther: prevAssets,
-      curLiab,
-      prevLiab,
-      currentNetWorth: curAssets - curLiab,
-      prevNetWorth: prevAssets - prevLiab,
-    };
-  }, [prevMonthRaw, latestData, accounts]);
+    return { curOther: curAssets, curLiab, currentNetWorth: curAssets - curLiab };
+  }, [latestData, accounts]);
 
   // For the 6-month summaries, we query each period individually via Firestore
   useEffect(() => {
@@ -840,19 +806,6 @@ export default function OverviewPage() {
             .filter((s) => s.hasTx); // exclude months with no transactions
 
           setMonthlyData(summaries);
-
-          // Previous period raw data for comparison (second-to-last sorted period)
-          const sortedPeriods = [...periodStrs].sort();
-          if (sortedPeriods.length >= 2) {
-            const prevPeriod = sortedPeriods[sortedPeriods.length - 2];
-            const prevTxs = txByPeriod[prevPeriod] ?? [];
-            setPrevMonthRaw({
-              income: prevTxs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0),
-              expense: prevTxs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0),
-              carryOver: carryOverByPeriod[prevPeriod] ?? 0,
-              transactions: prevTxs,
-            });
-          }
         }).finally(() => setDataLoading(false));
       });
     });
