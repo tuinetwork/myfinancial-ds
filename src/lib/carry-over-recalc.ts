@@ -2,50 +2,48 @@ import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 
 export interface CarryOverDiffRow {
-  period: string;          // "YYYY-MM"
-  current: number;         // ปัจจุบันใน Firestore (carry_over field)
-  correct: number;         // ที่คำนวณใหม่จากศูนย์
-  income: number;          // รายรับเดือนนั้น (รวม transfer)
-  expenses: number;        // รายจ่ายเดือนนั้น (รวม transfer)
-  net: number;             // income - expenses
-  diff: number;            // correct - current
+  period: string;
+  current: number;
+  correct: number;
+  income: number;
+  expenses: number;
+  net: number;
+  diff: number;
   hasBudgetDoc: boolean;
 }
 
+const DEBT_TYPES = new Set(["loan", "payable", "credit_card"]);
+
 /**
  * คำนวณ carry_over ที่ถูกต้องสำหรับทุกเดือนจากศูนย์
- * 
- * นิยาม: carry_over ของเดือน N = carry_over(N-1) + income(N-1) - expenses(N-1)
- * โดย "income" และ "expenses" ในที่นี้ "รวม transfer" เพื่อสะท้อนยอดเงินจริงในกระเป๋า
- *  - income: type === "income"
- *  - expenses: type === "expense"
- *  - transfer: ในระบบนี้ transfer เป็นการย้ายระหว่างบัญชีของผู้ใช้ → net effect = 0
- *    แต่ตามคำสั่งของผู้ใช้ ให้ "นับเข้าไปด้วย" → ถ้า amount เป็นบวกเสมอและไม่แยกข้าง
- *    เราจะถือว่า transfer ไม่เปลี่ยน net (เพราะออกจากบัญชีหนึ่งไปอีกบัญชี = 0)
  *
- *    หมายเหตุ: ที่ผู้ใช้บอก "นับ transfer เข้าไปด้วยเพื่อให้ตรงกับยอดเงินจริงในกระเป๋า"
- *    หมายความว่า "อย่าตัดทิ้ง" — แต่เนื่องจาก transfer คือการย้ายภายใน เงินสุทธิไม่เปลี่ยน
- *    ดังนั้นเราจะไม่บวก/ลบ transfer ออกจาก net (effect = 0) เพื่อให้ผลรวมยังคงสะท้อนเงินจริง
+ * net[N] = income[N]
+ *        + transfer เข้ากระเป๋าหลัก จาก savings/investment (ไม่รวม loan/payable/credit_card)
+ *        − expense[N]
+ *        − transfer ออกกระเป๋าหลัก ไป savings/investment (ไม่รวม loan/payable/credit_card)
+ *
+ * Guard: เดือนปัจจุบัน (ยังไม่จบ) → ไม่ rollover net เข้า running carry
  */
 export async function computeCorrectCarryOvers(
   userId: string
 ): Promise<CarryOverDiffRow[]> {
-  // 1) อ่านทุกเอกสาร budgets เพื่อรู้ว่ามีเดือนใดบ้าง + ค่า carry_over ปัจจุบัน
-  const budgetsSnap = await getDocs(
-    collection(firestore, "users", userId, "budgets")
-  );
-
-  const budgetMap = new Map<string, number>(); // period -> current carry_over
+  // 1) budgets
+  const budgetsSnap = await getDocs(collection(firestore, "users", userId, "budgets"));
+  const budgetMap = new Map<string, number>();
   budgetsSnap.docs.forEach((d) => {
-    const data = d.data();
-    budgetMap.set(d.id, (data.carry_over as number) ?? 0);
+    budgetMap.set(d.id, (d.data().carry_over as number) ?? 0);
   });
 
-  // 2) อ่านทุก transactions แล้ว group ตาม month_year
-  const txSnap = await getDocs(
-    collection(firestore, "users", userId, "transactions")
-  );
+  // 2) accounts — หา mainWalletId + typeById
+  const accSnap = await getDocs(collection(firestore, "users", userId, "accounts"));
+  const accs = accSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+  const main = accs.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted && a.is_active)
+    ?? accs.find((a) => a.type === "cash" && !a.is_deleted && a.is_active);
+  const mainWalletId: string | null = main?.id ?? null;
+  const typeById = new Map(accs.map((a) => [a.id as string, a.type as string]));
 
+  // 3) transactions — group ตาม month_year
+  const txSnap = await getDocs(collection(firestore, "users", userId, "transactions"));
   const monthlyAgg = new Map<string, { income: number; expenses: number }>();
 
   txSnap.docs.forEach((d) => {
@@ -54,26 +52,34 @@ export async function computeCorrectCarryOvers(
     const period = (t.month_year as string) ?? "";
     if (!period) return;
 
-    const amount = (t.amount as number) ?? 0;
-    const type = t.type as string;
-
-    if (!monthlyAgg.has(period)) {
-      monthlyAgg.set(period, { income: 0, expenses: 0 });
-    }
+    if (!monthlyAgg.has(period)) monthlyAgg.set(period, { income: 0, expenses: 0 });
     const agg = monthlyAgg.get(period)!;
+    const amount = (t.amount as number) ?? 0;
 
-    if (type === "income") agg.income += amount;
-    else if (type === "expense") agg.expenses += amount;
-    // transfer: net effect = 0 → ไม่เปลี่ยนยอดสุทธิ
+    if (t.type === "income") {
+      agg.income += amount;
+    } else if (t.type === "expense") {
+      agg.expenses += amount;
+    } else if (t.type === "transfer" && mainWalletId) {
+      if (t.to_account_id === mainWalletId) {
+        const fromType = typeById.get(t.from_account_id ?? "") ?? "";
+        if (!DEBT_TYPES.has(fromType)) agg.income += amount;
+      } else if (t.from_account_id === mainWalletId) {
+        const toType = typeById.get(t.to_account_id ?? "") ?? "";
+        if (!DEBT_TYPES.has(toType)) agg.expenses += amount;
+      }
+    }
   });
 
-  // 3) รวม period ทั้งหมด (จาก budgets + transactions) แล้ว sort
+  // 4) sort periods แล้วคำนวณ carry ไล่จากเก่าไปใหม่
+  const now = new Date();
+  const todayPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
   const allPeriods = new Set<string>();
   budgetMap.forEach((_, k) => allPeriods.add(k));
   monthlyAgg.forEach((_, k) => allPeriods.add(k));
-  const sortedPeriods = Array.from(allPeriods).sort(); // YYYY-MM ascending
+  const sortedPeriods = Array.from(allPeriods).sort();
 
-  // 4) คำนวณ carry_over ที่ถูกต้องไล่จากเดือนเก่าไปใหม่
   const rows: CarryOverDiffRow[] = [];
   let runningCarry = 0;
 
@@ -84,18 +90,14 @@ export async function computeCorrectCarryOvers(
     const correct = runningCarry;
 
     rows.push({
-      period,
-      current,
-      correct,
-      income: agg.income,
-      expenses: agg.expenses,
-      net,
+      period, current, correct,
+      income: agg.income, expenses: agg.expenses, net,
       diff: correct - current,
       hasBudgetDoc: budgetMap.has(period),
     });
 
-    // เดือนถัดไปจะใช้ค่านี้
-    runningCarry = correct + net;
+    // guard: เดือนปัจจุบันยังไม่จบ → ไม่ rollover net
+    runningCarry = period === todayPeriod ? correct : correct + net;
   }
 
   return rows;
