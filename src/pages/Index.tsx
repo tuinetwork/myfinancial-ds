@@ -308,7 +308,7 @@ const Index = () => {
             ) : viewMode === "monthly" && data ? (
               <>
                 {/* 1. สรุปยอด */}
-                <SummaryCards data={data} carryOver={carryOver} mainWalletBalance={mainWalletBalance} />
+                <SummaryCards data={data} carryOver={carryOver} mainWalletBalance={mainWalletBalance} accounts={accounts} />
 
                 {/* 2. เปรียบเทียบเดือน */}
                 <MonthComparison data={data} />

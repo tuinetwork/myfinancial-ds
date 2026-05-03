@@ -4,12 +4,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { BudgetData, Transaction, formatCurrency } from "@/hooks/useBudgetData";
 import { useSettings } from "@/contexts/SettingsContext";
+import type { Account } from "@/types/finance";
 
 interface Props {
   data: BudgetData;
   carryOver?: number;
   hideNetBalance?: boolean;
   mainWalletBalance?: number | null;
+  accounts?: Account[];
 }
 
 function MiniSparkline({ data, type }: { data: number[]; type: "line" | "bar" }) {
@@ -79,11 +81,26 @@ function buildDailyTotals(transactions: Transaction[], typeFilter: (t: Transacti
   });
 }
 
-export function SummaryCards({ data, carryOver = 0, mainWalletBalance }: Props) {
+export function SummaryCards({ data, carryOver = 0, mainWalletBalance, accounts = [] }: Props) {
   const { includeCarryOver } = useSettings();
 
-  const isTransfer = (t: Transaction) => 
+  const isTransfer = (t: Transaction) =>
     t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
+
+  // คำนวณ transfer ถอนจากบัญชีออม/ลงทุน → กระเป๋าหลัก
+  const withdrawFromSavings = useMemo(() => {
+    if (!accounts.length) return 0;
+    const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted)
+      ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
+    if (!main) return 0;
+    const savingsInvestmentTypes = new Set(["savings", "investment"]);
+    const typeById = new Map(accounts.map((a) => [a.id, a.type]));
+    return data.transactions
+      .filter((t) => (t.type === "โอน" || t.type === "โอนระหว่างบัญชี")
+        && t.to_account_id === main.id
+        && savingsInvestmentTypes.has(typeById.get(t.from_account_id ?? "") ?? ""))
+      .reduce((s, t) => s + t.amount, 0);
+  }, [data.transactions, accounts]);
 
   const actualIncome = data.transactions
     .filter((t) => t.type === "รายรับ")
@@ -102,7 +119,7 @@ export function SummaryCards({ data, carryOver = 0, mainWalletBalance }: Props) 
   const totalExpenseBudget = totalGeneral + totalBills + totalSubs + totalDebts + totalSavings;
 
   const effectiveCarryOver = includeCarryOver ? carryOver : 0;
-  const displayIncome = actualIncome + effectiveCarryOver;
+  const displayIncome = actualIncome + withdrawFromSavings + effectiveCarryOver;
   const netBalance = displayIncome - actualNonIncome;
 
   const sparklines = useMemo(() => ({
@@ -125,21 +142,18 @@ export function SummaryCards({ data, carryOver = 0, mainWalletBalance }: Props) 
 
   const pctColor = (v: number): "green" | "red" | undefined => v > 0 ? "green" : v < 0 ? "red" : undefined;
 
-  const incomeRows: TooltipRow[] = includeCarryOver
-    ? [
-        { label: "รายรับจริง", value: fmtC(actualIncome) },
-        { label: "ยอดยกมา", value: fmtC(carryOver) },
-        { label: "ยอดรวม", value: fmtC(displayIncome), highlight: true },
-        { label: "งบประมาณ", value: fmtC(totalIncome) },
-        { label: "สูตร %", value: `((${fmtN(displayIncome)} - ${fmtN(totalIncome)}) / ${fmtN(totalIncome)}) × 100` },
-        { label: "ผลลัพธ์", value: `${incomePct >= 0 ? "+" : ""}${incomePct.toFixed(1)}%`, highlight: true, color: pctColor(incomePct) },
-      ]
-    : [
-        { label: "รายรับจริง", value: fmtC(actualIncome), highlight: true },
-        { label: "งบประมาณ", value: fmtC(totalIncome) },
-        { label: "สูตร %", value: `((${fmtN(actualIncome)} - ${fmtN(totalIncome)}) / ${fmtN(totalIncome)}) × 100` },
-        { label: "ผลลัพธ์", value: `${incomePct >= 0 ? "+" : ""}${incomePct.toFixed(1)}%`, highlight: true, color: pctColor(incomePct) },
-      ];
+  const incomeRows: TooltipRow[] = [
+    { label: "รายรับจริง", value: fmtC(actualIncome) },
+    ...(withdrawFromSavings > 0
+      ? [{ label: "ถอนออม/ลงทุน", value: fmtC(withdrawFromSavings) }]
+      : []),
+    ...(includeCarryOver && carryOver !== 0
+      ? [{ label: "ยอดยกมา", value: fmtC(carryOver) }]
+      : []),
+    { label: "ยอดรวม", value: fmtC(displayIncome), highlight: true },
+    { label: "งบประมาณ", value: fmtC(totalIncome) },
+    { label: "ผลลัพธ์", value: `${incomePct >= 0 ? "+" : ""}${incomePct.toFixed(1)}%`, highlight: true, color: pctColor(incomePct) },
+  ];
 
   const expenseRows: TooltipRow[] = [
     { label: "รายจ่ายจริง", value: fmtC(actualNonIncome), highlight: true },
