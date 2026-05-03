@@ -257,8 +257,6 @@ function countTotalInstallments(item: BudgetItem): number {
 }
 
 function GoalsMini({ goals, accounts, data, loading }: { goals: Goal[]; accounts: Account[]; data: BudgetData | undefined; loading: boolean }) {
-  if (loading) return <Skeleton className="h-36 rounded-xl" />;
-
   const resolved = useMemo(() => {
     const active = goals.filter((g) => g.status === "active" && !g.is_deleted);
     if (!data) return active;
@@ -292,6 +290,7 @@ function GoalsMini({ goals, accounts, data, loading }: { goals: Goal[]; accounts
     });
   }, [goals, accounts, data]);
 
+  if (loading) return <Skeleton className="h-36 rounded-xl" />;
   if (resolved.length === 0) return null;
 
   return (
@@ -532,9 +531,8 @@ function MonthCashFlowCard({ data, carryOver, loading, cashInHand, comparisonDat
 const DONUT_COLORS = ["hsl(var(--primary))", "hsl(var(--destructive))", "hsl(var(--accent))", "hsl(var(--debt))", "hsl(var(--saving))"];
 
 function TopSpendingDonut({ data, loading }: { data: BudgetData | undefined; loading: boolean }) {
-  if (loading || !data) return <Skeleton className="h-52 rounded-xl" />;
-
   const top5 = useMemo(() => {
+    if (!data) return [];
     const byCategory: Record<string, number> = {};
     data.transactions
       .filter((t) => t.type !== "รายรับ" && t.type !== "โอน" && t.category !== "โอนระหว่างบัญชี")
@@ -547,6 +545,7 @@ function TopSpendingDonut({ data, loading }: { data: BudgetData | undefined; loa
       .map(([name, value]) => ({ name, value }));
   }, [data]);
 
+  if (loading || !data) return <Skeleton className="h-52 rounded-xl" />;
   if (top5.length === 0) return null;
 
   const total = top5.reduce((s, d) => s + d.value, 0);
