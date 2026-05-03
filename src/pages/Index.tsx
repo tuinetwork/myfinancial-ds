@@ -118,34 +118,6 @@ const Index = () => {
     getAccounts(userId).then(setAccounts);
   }, [userId]);
 
-  // คำนวณยอดกระเป๋าหลักแบบเดียวกับ AccountsPage
-  // mainWallet = trueNetWorth - otherAssetsTotal + liabilitiesTotal
-  const mainWalletBalance = useMemo(() => {
-    if (!accounts.length || !data) return null;
-    const liabilityTypes = ["credit_card", "loan", "payable"];
-    const isMainWallet = (a: import("@/types/finance").Account) => a.name === "กระเป๋าเงินสดหลัก";
-    const isTransferTx = (t: import("@/hooks/useBudgetData").Transaction) =>
-      t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
-
-    const actualIncome = data.transactions.filter((t) => t.type === "รายรับ").reduce((s, t) => s + t.amount, 0);
-    const actualExpenses = data.transactions.filter((t) => t.type !== "รายรับ" && !isTransferTx(t)).reduce((s, t) => s + t.amount, 0);
-    const trueNetWorth = carryOver + actualIncome - actualExpenses;
-
-    const activeAccounts = accounts.filter((a) => !a.is_deleted);
-    let otherAssetsTotal = 0;
-    let liabilitiesTotal = 0;
-    activeAccounts.forEach((a) => {
-      if (isMainWallet(a)) return;
-      const bal = Number(a.balance) || 0;
-      if (liabilityTypes.includes(a.type)) {
-        liabilitiesTotal += Math.abs(bal);
-      } else {
-        otherAssetsTotal += bal;
-      }
-    });
-
-    return trueNetWorth - otherAssetsTotal + liabilitiesTotal;
-  }, [accounts, data, carryOver]);
 
   const isPageLoading = viewMode === "monthly"
     ? isLoading || monthsLoading || !selectedPeriod
@@ -308,7 +280,7 @@ const Index = () => {
             ) : viewMode === "monthly" && data ? (
               <>
                 {/* 1. สรุปยอด */}
-                <SummaryCards data={data} carryOver={carryOver} mainWalletBalance={mainWalletBalance} accounts={accounts} />
+                <SummaryCards data={data} carryOver={carryOver} accounts={accounts} />
 
                 {/* 2. เปรียบเทียบเดือน */}
                 <MonthComparison data={data} />
