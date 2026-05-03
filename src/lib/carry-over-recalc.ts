@@ -1,5 +1,6 @@
 import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
+import type { Account } from "@/types/finance";
 
 export interface CarryOverDiffRow {
   period: string;
@@ -76,6 +77,92 @@ export async function computeCorrectCarryOvers(
   }
 
   return rows;
+}
+
+export interface WalletHistoryRow {
+  period: string;
+  carryOver: number;
+  income: number;
+  expenses: number;
+  trueNetWorth: number;
+  mainWalletBalance: number;
+}
+
+/**
+ * คำนวณ mainWalletBalance ย้อนหลังทุกเดือน
+ * trueNetWorth(M) = carry(M) + income(M) − expense(M)
+ * mainWallet(M)  = trueNetWorth(M) − currentOtherAssets + currentLiabilities
+ * หมายเหตุ: otherAssets/liabilities ใช้ยอด ณ ปัจจุบัน (snapshot)
+ */
+export async function computeWalletHistory(
+  userId: string
+): Promise<WalletHistoryRow[]> {
+  const LIABILITY_TYPES = new Set(["credit_card", "loan", "payable"]);
+
+  // 1) accounts (snapshot ปัจจุบัน)
+  const accountsSnap = await getDocs(collection(firestore, "users", userId, "accounts"));
+  const accounts: Account[] = accountsSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as Account))
+    .filter((a) => !a.is_deleted && a.is_active !== false);
+
+  const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก")
+    ?? accounts.find((a) => a.type === "cash");
+
+  let otherAssets = 0;
+  let liabilities = 0;
+  for (const a of accounts) {
+    if (main && a.id === main.id) continue;
+    const bal = Number(a.balance) || 0;
+    if (LIABILITY_TYPES.has(a.type)) {
+      liabilities += Math.abs(bal);
+    } else {
+      otherAssets += bal;
+    }
+  }
+  const correction = -otherAssets + liabilities;
+
+  // 2) budgets → carry_over ต่อเดือน
+  const budgetsSnap = await getDocs(collection(firestore, "users", userId, "budgets"));
+  const carryMap = new Map<string, number>();
+  budgetsSnap.docs.forEach((d) => {
+    carryMap.set(d.id, (d.data().carry_over as number) ?? 0);
+  });
+
+  // 3) transactions → income/expense ต่อเดือน
+  const txSnap = await getDocs(collection(firestore, "users", userId, "transactions"));
+  const monthlyAgg = new Map<string, { income: number; expenses: number }>();
+  txSnap.docs.forEach((d) => {
+    const t = d.data();
+    if (t.is_deleted) return;
+    const period = (t.month_year as string) ?? "";
+    if (!period) return;
+    if (!monthlyAgg.has(period)) monthlyAgg.set(period, { income: 0, expenses: 0 });
+    const agg = monthlyAgg.get(period)!;
+    const amount = (t.amount as number) ?? 0;
+    if (t.type === "income") agg.income += amount;
+    else if (t.type === "expense") agg.expenses += amount;
+  });
+
+  // 4) รวม periods แล้ว sort
+  const allPeriods = new Set<string>();
+  carryMap.forEach((_, k) => allPeriods.add(k));
+  monthlyAgg.forEach((_, k) => allPeriods.add(k));
+  const sortedPeriods = Array.from(allPeriods).sort();
+
+  return sortedPeriods.map((period) => {
+    const carryOver = carryMap.get(period) ?? 0;
+    const agg = monthlyAgg.get(period) ?? { income: 0, expenses: 0 };
+    const trueNetWorth = carryOver + agg.income - agg.expenses;
+    const mainWalletBalance = trueNetWorth + correction;
+    return {
+      period,
+      carryOver,
+      income: agg.income,
+      expenses: agg.expenses,
+      trueNetWorth,
+      mainWalletBalance,
+    };
+  });
 }
 
 /**

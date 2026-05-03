@@ -16,8 +16,8 @@ import {
   type OperationLog, type OrphanedRecord,
 } from "@/lib/migration-service";
 import {
-  computeCorrectCarryOvers, applyCarryOverFix,
-  type CarryOverDiffRow,
+  computeCorrectCarryOvers, applyCarryOverFix, computeWalletHistory,
+  type CarryOverDiffRow, type WalletHistoryRow,
 } from "@/lib/carry-over-recalc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -181,6 +181,9 @@ export default function CommandCenter() {
   const [coRows, setCoRows] = useState<CarryOverDiffRow[] | null>(null);
   const [coLoading, setCoLoading] = useState(false);
   const [coApplying, setCoApplying] = useState(false);
+
+  const [walletRows, setWalletRows] = useState<WalletHistoryRow[] | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
 
   // Idle timeout
   const idleRef = useRef<ReturnType<typeof setTimeout>>();
@@ -510,6 +513,20 @@ export default function CommandCenter() {
   };
 
 
+  const handleWalletHistoryCompute = async () => {
+    if (!userId) { toast.error("ไม่พบ userId"); return; }
+    setWalletLoading(true);
+    setWalletRows(null);
+    try {
+      const rows = await computeWalletHistory(userId);
+      setWalletRows(rows);
+    } catch (err: any) {
+      toast.error(`คำนวณล้มเหลว: ${err.message}`);
+    } finally {
+      setWalletLoading(false);
+    }
+  };
+
   const handleExport = async () => {
     setExporting(true); addLog({ timestamp: Date.now(), level: "info", message: "กำลังสำรองข้อมูล..." });
     try {
@@ -792,6 +809,90 @@ export default function CommandCenter() {
                 <p className="text-[11px] text-muted-foreground mt-3 flex items-center gap-1">
                   <ArrowRight className="h-3 w-3" />
                   พบ {coRows.filter(r => Math.abs(r.diff) > 0.01).length} เดือนที่ค่า carry_over ใน Firestore ไม่ตรง — กด Apply เพื่อเขียนทับ
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ===== 2.6 Wallet Balance History ===== */}
+          <Card className="border-accent/20 shadow-sm">
+            <CardHeader className="pb-3 bg-accent/5 border-b border-accent/10">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-accent" />
+                    Wallet Balance History
+                    <Badge variant="outline" className="text-[10px] font-normal border-accent/40 text-accent">
+                      เฉพาะบัญชีคุณ
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    คำนวณ mainWalletBalance ย้อนหลังทุกเดือน — trueNetWorth = carry + รายรับ − รายจ่าย (เงินสดในมือ = trueNetWorth − สินทรัพย์อื่น + หนี้สิน ณ ปัจจุบัน)
+                  </CardDescription>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleWalletHistoryCompute}
+                  disabled={walletLoading}
+                  className="h-8 text-xs gap-1.5 bg-background shrink-0"
+                >
+                  {walletLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                  คำนวณ
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {walletRows === null ? (
+                <div className="text-center py-6 text-xs text-muted-foreground">
+                  กด "คำนวณ" เพื่อดูประวัติยอดเงินสดในมือ
+                </div>
+              ) : walletRows.length === 0 ? (
+                <div className="text-center py-6 text-xs text-muted-foreground">
+                  ไม่พบข้อมูลเดือนใดเลย
+                </div>
+              ) : (
+                <ScrollArea className="h-72 rounded-lg border border-border">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm border-b border-border">
+                      <tr className="text-left">
+                        <th className="px-3 py-2 font-semibold">เดือน</th>
+                        <th className="px-3 py-2 font-semibold text-right">ยกยอด</th>
+                        <th className="px-3 py-2 font-semibold text-right">รายรับ</th>
+                        <th className="px-3 py-2 font-semibold text-right">รายจ่าย</th>
+                        <th className="px-3 py-2 font-semibold text-right">Net Worth</th>
+                        <th className="px-3 py-2 font-semibold text-right">เงินสดในมือ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {walletRows.map((r) => (
+                        <tr key={r.period} className="border-b border-border/50">
+                          <td className="px-3 py-1.5 font-mono">{r.period}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">
+                            {r.carryOver.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-accent">
+                            {r.income.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-destructive">
+                            {r.expenses.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className={`px-3 py-1.5 text-right tabular-nums font-medium ${r.trueNetWorth >= 0 ? "text-accent" : "text-destructive"}`}>
+                            {r.trueNetWorth.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className={`px-3 py-1.5 text-right tabular-nums font-semibold ${r.mainWalletBalance >= 0 ? "text-accent" : "text-destructive"}`}>
+                            {r.mainWalletBalance.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </ScrollArea>
+              )}
+              {walletRows && (
+                <p className="text-[11px] text-muted-foreground mt-3 flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  ยอด "สินทรัพย์อื่น" และ "หนี้สิน" ใช้ค่า ณ ปัจจุบัน — ไม่ใช่ค่าย้อนหลังของแต่ละเดือน
                 </p>
               )}
             </CardContent>
