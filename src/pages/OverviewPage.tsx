@@ -30,6 +30,7 @@ import {
 
 // ===== Helpers =====
 const THAI_MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+const LIABILITY_TYPES_OVW = new Set(["credit_card", "loan", "payable"]);
 
 const fmt = (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -740,7 +741,6 @@ export default function OverviewPage() {
     [walletHistory, latestPeriod]
   );
 
-  const LIABILITY_TYPES_OVW = new Set(["credit_card", "loan", "payable"]);
   const comparisonData = useMemo(() => {
     if (!prevMonthRaw || !latestData || !accounts.length) return null;
     const delta = new Map<string, number>();
