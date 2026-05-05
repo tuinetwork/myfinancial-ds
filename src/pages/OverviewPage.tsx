@@ -16,8 +16,9 @@ import type { Account, Goal, Investment } from "@/types/finance";
 import { cn } from "@/lib/utils";
 import {
   Eye, TrendingUp, TrendingDown, Wallet, Target, CreditCard, PiggyBank,
-  ArrowUpRight, ArrowDownRight, Minus, Receipt, Sparkles,
+  ArrowUpRight, ArrowDownRight, Minus, Receipt, Sparkles, Info,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEndOfMonthForecast } from "@/hooks/useEndOfMonthForecast";
 import { useWalletHistory } from "@/hooks/useWalletHistory";
@@ -421,12 +422,12 @@ function SixMonthStatsCard({ data, loading }: { data: MonthSummary[]; loading: b
 type ComparisonData = { curOther: number; curLiab: number; currentNetWorth: number };
 
 
-function MonthCashFlowCard({ data, carryOver, loading, cashInHand, comparisonData }: { data: BudgetData | undefined; carryOver: number; loading: boolean; cashInHand?: number; comparisonData?: ComparisonData | null }) {
+function MonthCashFlowCard({ data, carryOver, loading, cashInHand, comparisonData, walletBreakdown }: { data: BudgetData | undefined; carryOver: number; loading: boolean; cashInHand?: number; comparisonData?: ComparisonData | null; walletBreakdown?: { netWorth: number; otherAssets: number; liabilities: number } }) {
   const forecast = useEndOfMonthForecast(data, carryOver);
   const { includeCarryOver } = useSettings();
 
-  const { actualIncome, actualExpense, balance, avgDailyExpense, expenseDays } = useMemo(() => {
-    if (!data) return { actualIncome: 0, actualExpense: 0, balance: 0, avgDailyExpense: 0, expenseDays: 0 };
+  const { actualIncome, actualExpense, incomeOnly, balance, avgDailyExpense, expenseDays } = useMemo(() => {
+    if (!data) return { actualIncome: 0, actualExpense: 0, incomeOnly: 0, balance: 0, avgDailyExpense: 0, expenseDays: 0 };
     const active = data.transactions.filter((t) => t.type !== "โอน" && t.category !== "โอนระหว่างบัญชี");
     const inc = active.filter((t) => t.type === "รายรับ").reduce((s, t) => s + t.amount, 0);
     const expTx = active.filter((t) => t.type !== "รายรับ");
@@ -434,7 +435,7 @@ function MonthCashFlowCard({ data, carryOver, loading, cashInHand, comparisonDat
     const uniqueDays = new Set(expTx.map((t) => t.date)).size;
     const avg = uniqueDays > 0 ? exp / uniqueDays : 0;
     const effectiveCarry = includeCarryOver ? carryOver : 0;
-    return { actualIncome: inc + effectiveCarry, actualExpense: exp, balance: inc + effectiveCarry - exp, avgDailyExpense: avg, expenseDays: uniqueDays };
+    return { actualIncome: inc + effectiveCarry, incomeOnly: inc, actualExpense: exp, balance: inc + effectiveCarry - exp, avgDailyExpense: avg, expenseDays: uniqueDays };
   }, [data, carryOver, includeCarryOver]);
 
   if (loading || !data) return <Skeleton className="h-40 rounded-xl" />;
@@ -484,7 +485,39 @@ function MonthCashFlowCard({ data, carryOver, loading, cashInHand, comparisonDat
         )}
         {cashInHand !== undefined && (
           <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
-            <p className="text-xs text-muted-foreground">เงินสดในมือ (พร้อมใช้)</p>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="text-xs text-muted-foreground flex items-center gap-1 cursor-help">
+                  เงินสดในมือ (พร้อมใช้)
+                  <Info className="h-3 w-3 opacity-50" />
+                </p>
+              </TooltipTrigger>
+              {walletBreakdown && (
+                <TooltipContent side="bottom" sideOffset={8} collisionPadding={16} className="p-0 border-border bg-popover shadow-xl rounded-lg">
+                  <div className="px-3 py-2 border-b border-border">
+                    <p className="text-xs font-semibold text-foreground">สูตรคำนวณเงินสดในมือ</p>
+                  </div>
+                  <table className="text-xs w-full">
+                    <tbody>
+                      {[
+                        { label: "ยอดยกมา", value: formatCurrency(carryOver) },
+                        { label: "+ รายรับจริง", value: formatCurrency(incomeOnly) },
+                        { label: "− รายจ่ายจริง", value: formatCurrency(actualExpense) },
+                        { label: "= Net Worth", value: formatCurrency(walletBreakdown.netWorth), highlight: true },
+                        { label: "− สินทรัพย์อื่น", value: formatCurrency(walletBreakdown.otherAssets) },
+                        { label: "+ หนี้สิน", value: formatCurrency(walletBreakdown.liabilities) },
+                        { label: "= เงินสดในมือ", value: formatCurrency(cashInHand), highlight: true },
+                      ].map((row) => (
+                        <tr key={row.label} className={row.highlight ? "bg-muted/50" : ""}>
+                          <td className="px-3 py-1 text-muted-foreground whitespace-nowrap">{row.label}</td>
+                          <td className="px-3 py-1 text-right font-mono font-medium text-foreground">{row.value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </TooltipContent>
+              )}
+            </Tooltip>
             <p className={cn("text-sm font-bold tabular-nums", cashInHand >= 0 ? "text-foreground" : "text-destructive")}>
               {cashInHand < 0 ? "-" : ""}{formatCurrency(Math.abs(cashInHand))}
             </p>
@@ -866,7 +899,7 @@ export default function OverviewPage() {
           <div className="space-y-5">
             {/* Row 1: Cash Flow + Net Worth + Upcoming Bills */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <MonthCashFlowCard data={latestData} carryOver={latestCarryOver} loading={latestLoading} cashInHand={latestWalletRow?.mainWalletBalance} comparisonData={comparisonData} />
+              <MonthCashFlowCard data={latestData} carryOver={latestCarryOver} loading={latestLoading} cashInHand={latestWalletRow?.mainWalletBalance} comparisonData={comparisonData} walletBreakdown={latestWalletRow ? { netWorth: latestWalletRow.trueNetWorth, otherAssets: latestWalletRow.otherAssets, liabilities: latestWalletRow.liabilities } : undefined} />
               <NetWorthCard accounts={accounts} trueNetWorth={trueNetWorth} loading={assetsLoading} />
               {latestData && <UpcomingBills data={latestData} />}
             </div>
