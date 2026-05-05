@@ -307,11 +307,15 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
             { label: "หนี้สินรวม", value: formatCurrency(displayLiab), highlight: true, color: displayLiab > 0 ? "red" as const : "green" as const },
             { label: "หมายเหตุ", value: "สินเชื่อ / บัตรเครดิต / เจ้าหนี้ (สิ้นปี)" },
           ]
-        : [
-            { label: "หนี้สินรวมเดือนนี้", value: formatCurrency(displayLiab), highlight: true, color: displayLiab > 0 ? "red" as const : "green" as const },
-            { label: "ชำระแล้ว", value: formatCurrency(debtPaidMonthly) },
-            { label: "หมายเหตุ", value: "ชำระไม่หมด → ส่วนต่างรวมกับหนี้รวม / ชำระเกิน → หนี้รวมลดลง" },
-          ],
+        : (() => {
+            const diff = displayLiab - debtPaidMonthly;
+            return [
+              { label: "หนี้สินรวมเดือนนี้", value: formatCurrency(displayLiab), highlight: true, color: displayLiab > 0 ? "red" as const : "green" as const },
+              { label: "ชำระแล้ว", value: formatCurrency(debtPaidMonthly) },
+              { label: "ส่วนต่าง", value: `${diff >= 0 ? "+" : "-"}${formatCurrency(Math.abs(diff))}`, highlight: true, color: diff > 0 ? "red" as const : "green" as const },
+              { label: "หมายเหตุ", value: "ชำระไม่หมด → ส่วนต่างรวมกับหนี้รวม / ชำระเกิน → หนี้รวมลดลง" },
+            ];
+          })(),
     },
     {
       title: "Net Worth",
