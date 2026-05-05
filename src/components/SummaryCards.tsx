@@ -154,8 +154,8 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
   const computedWalletBalance = trueNetWorth - otherAssets + liabilities;
 
   // สินทรัพย์/หนี้สิน เฉพาะเดือนที่เลือก (cash-flow based)
-  const { cashFlowAssets, cashFlowLiab } = useMemo(() => {
-    if (!accounts.length) return { cashFlowAssets: 0, cashFlowLiab: 0 };
+  const { cashFlowAssets, cashFlowLiab, debtPaidMonthly } = useMemo(() => {
+    if (!accounts.length) return { cashFlowAssets: 0, cashFlowLiab: 0, debtPaidMonthly: 0 };
     const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted)
       ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
     const mainId = main?.id;
@@ -178,7 +178,15 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
       .filter((item) => debtTxCategories.has(item.label))
       .reduce((s, item) => s + item.budget, 0);
     const liab = debtReceived + debtBudget;
-    return { cashFlowAssets: assets, cashFlowLiab: liab };
+    // ยอดชำระจริง: โอนจากกระเป๋าหลัก→สินเชื่อ/เจ้าหนี้ + รายจ่ายหมวดหนี้สิน
+    const paid =
+      data.transactions
+        .filter((t) => (t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && t.from_account_id === mainId && debtTypes.has(typeById.get(t.to_account_id ?? "") ?? ""))
+        .reduce((s, t) => s + t.amount, 0) +
+      data.transactions
+        .filter((t) => t.type === "หนี้สิน")
+        .reduce((s, t) => s + t.amount, 0);
+    return { cashFlowAssets: assets, cashFlowLiab: liab, debtPaidMonthly: paid };
   }, [data.transactions, data.expenses.debts, accounts]);
   const cashFlowNetWorth = cashFlowAssets - cashFlowLiab;
 
@@ -287,7 +295,7 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
       title: "หนี้สิน",
       primary: displayLiab,
       pct: 0,
-      pctLabel: walletSnapshot ? "ยอดคงค้างสิ้นปี" : (cashFlowLiab > 0 ? "ชำระหนี้เดือนนี้" : "ไม่มีรายการ"),
+      pctLabel: walletSnapshot ? "ยอดคงค้างสิ้นปี" : (debtPaidMonthly > 0 ? `ชำระแล้ว ${formatCurrency(debtPaidMonthly)}` : "ยังไม่มีการชำระ"),
       icon: CreditCard,
       gradient: displayLiab > 0
         ? "from-[hsl(35,90%,50%)] to-[hsl(35,90%,40%)]"
@@ -300,8 +308,9 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
             { label: "หมายเหตุ", value: "สินเชื่อ / บัตรเครดิต / เจ้าหนี้ (สิ้นปี)" },
           ]
         : [
-            { label: "ชำระหนี้รวม", value: formatCurrency(cashFlowLiab), highlight: true, color: cashFlowLiab > 0 ? "red" as const : "green" as const },
-            { label: "หมายเหตุ", value: "สินเชื่อ / เจ้าหนี้ / รายจ่ายหนี้สิน" },
+            { label: "ยอดหนี้สินเดือนนี้", value: formatCurrency(displayLiab), highlight: true, color: displayLiab > 0 ? "red" as const : "green" as const },
+            { label: "ชำระแล้ว", value: formatCurrency(debtPaidMonthly) },
+            { label: "หมายเหตุ", value: "โอนกลับสินเชื่อ + รายจ่ายหนี้สิน" },
           ],
     },
     {
