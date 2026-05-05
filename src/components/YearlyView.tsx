@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { SummaryCards } from "@/components/SummaryCards";
 import { ExpenseChart } from "@/components/ExpenseChart";
 import { ExpenseTabsChart } from "@/components/ExpenseTabsChart";
@@ -29,12 +30,34 @@ export function YearlyView({ yearlyData, accounts = [] }: Props) {
   // ใช้ข้อมูลของเดือนสุดท้ายในปีนั้นเป็น year-end snapshot
   const lastWalletRow = walletRows && walletRows.length > 0 ? walletRows[walletRows.length - 1] : null;
 
-  // สูตรเดียวกับหน้ากระเป๋าเงิน: assets = mainWalletBalance + otherAssets
-  const walletSnapshot = lastWalletRow ? {
-    assets: lastWalletRow.mainWalletBalance + lastWalletRow.otherAssets,
-    liabilities: lastWalletRow.liabilities,
-    netWorth: lastWalletRow.trueNetWorth,
-  } : undefined;
+  // สูตรเดียวกับหน้ากระเป๋าเงิน
+  // ปีปัจจุบัน → ใช้ยอดบัญชีโดยตรง (แม่นยำ, ตรงกับหน้ากระเป๋าเงิน)
+  // ปีก่อนหน้า → ใช้ walletHistory ที่ reconstruct ย้อนหลัง
+  const LIABILITY_TYPES_Y = new Set(["credit_card", "loan", "payable"]);
+  const currentYearStr = new Date().getFullYear().toString();
+  const isCurrentYear = yearlyData.year === currentYearStr;
+
+  const walletSnapshot = useMemo(() => {
+    if (isCurrentYear && accounts.length > 0) {
+      let assets = 0;
+      let liabilities = 0;
+      accounts.filter((a) => !a.is_deleted).forEach((a) => {
+        const bal = Number(a.balance) || 0;
+        if (LIABILITY_TYPES_Y.has(a.type)) {
+          liabilities += Math.abs(bal);
+        } else {
+          assets += bal;
+        }
+      });
+      return { assets, liabilities, netWorth: assets - liabilities };
+    }
+    if (!lastWalletRow) return undefined;
+    return {
+      assets: lastWalletRow.mainWalletBalance + lastWalletRow.otherAssets,
+      liabilities: lastWalletRow.liabilities,
+      netWorth: lastWalletRow.trueNetWorth,
+    };
+  }, [isCurrentYear, accounts, lastWalletRow]);
 
   return (
     <div className="space-y-6">
