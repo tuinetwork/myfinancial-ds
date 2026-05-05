@@ -751,7 +751,13 @@ export default function OverviewPage() {
     const debtPaid = latestData.transactions
       .filter((t) => t.type === "หนี้สิน")
       .reduce((s, t) => s + t.amount, 0);
-    const curLiab = debtReceived - debtPaid;
+    const debtTxCategories = new Set(
+      latestData.transactions.filter((t) => t.type === "หนี้สิน").map((t) => t.category)
+    );
+    const debtBudget = latestData.expenses.debts
+      .filter((item) => debtTxCategories.has(item.label))
+      .reduce((s, item) => s + item.budget, 0);
+    const curLiab = (debtReceived + debtBudget) - debtPaid;
 
     return { curOther: curAssets, curLiab, currentNetWorth: curAssets - curLiab };
   }, [latestData, accounts]);

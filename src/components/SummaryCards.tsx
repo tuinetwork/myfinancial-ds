@@ -172,9 +172,15 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
     const debtPaid = data.transactions
       .filter((t) => t.type === "หนี้สิน")
       .reduce((s, t) => s + t.amount, 0);
-    const liab = debtReceived - debtPaid;
+    const debtTxCategories = new Set(
+      data.transactions.filter((t) => t.type === "หนี้สิน").map((t) => t.category)
+    );
+    const debtBudget = data.expenses.debts
+      .filter((item) => debtTxCategories.has(item.label))
+      .reduce((s, item) => s + item.budget, 0);
+    const liab = (debtReceived + debtBudget) - debtPaid;
     return { cashFlowAssets: assets, cashFlowLiab: liab };
-  }, [data.transactions, accounts]);
+  }, [data.transactions, data.expenses.debts, accounts]);
   const cashFlowNetWorth = cashFlowAssets - cashFlowLiab;
 
   const sparklines = useMemo(() => ({
