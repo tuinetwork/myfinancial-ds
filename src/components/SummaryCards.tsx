@@ -308,9 +308,9 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
             { label: "หมายเหตุ", value: "สินเชื่อ / บัตรเครดิต / เจ้าหนี้ (สิ้นปี)" },
           ]
         : [
-            { label: "ยอดหนี้สินเดือนนี้", value: formatCurrency(displayLiab), highlight: true, color: displayLiab > 0 ? "red" as const : "green" as const },
+            { label: "หนี้สินรวมเดือนนี้", value: formatCurrency(displayLiab), highlight: true, color: displayLiab > 0 ? "red" as const : "green" as const },
             { label: "ชำระแล้ว", value: formatCurrency(debtPaidMonthly) },
-            { label: "หมายเหตุ", value: "โอนกลับสินเชื่อ + รายจ่ายหนี้สิน" },
+            { label: "หมายเหตุ", value: "ชำระไม่หมด → ส่วนต่างรวมกับหนี้รวม / ชำระเกิน → หนี้รวมลดลง" },
           ],
     },
     {

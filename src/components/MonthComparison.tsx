@@ -242,8 +242,8 @@ export function MonthComparison({ data }: Props) {
         {accountMetrics && (
           <div className="grid grid-cols-3 gap-4 pt-3 border-t border-border/50">
             <ChangeIndicator
-              current={curOther} previous={prevOther} label="สินทรัพย์"
-              tooltipTitle="สินทรัพย์อื่น — เปรียบเทียบ"
+              current={curOther} previous={prevOther} label="สินทรัพย์รวม"
+              tooltipTitle="สินทรัพย์รวม — เปรียบเทียบ"
               rows={[
                 { label: "เดือนนี้", value: fmt(curOther), highlight: true },
                 { label: "เดือนก่อน", value: fmt(prevOther) },
@@ -252,8 +252,8 @@ export function MonthComparison({ data }: Props) {
               ]}
             />
             <ChangeIndicator
-              current={curLiab} previous={prevLiab} label="หนี้สิน" invertColor
-              tooltipTitle="หนี้สิน — เปรียบเทียบ"
+              current={curLiab} previous={prevLiab} label="หนี้สินรวม" invertColor
+              tooltipTitle="หนี้สินรวม — เปรียบเทียบ"
               rows={[
                 { label: "เดือนนี้", value: fmt(curLiab), highlight: true },
                 { label: "เดือนก่อน", value: fmt(prevLiab) },
@@ -262,8 +262,8 @@ export function MonthComparison({ data }: Props) {
               ]}
             />
             <ChangeIndicator
-              current={currentNetWorth} previous={prevNetWorth} label="Net Worth" signed
-              tooltipTitle="Net Worth — เปรียบเทียบ"
+              current={currentNetWorth} previous={prevNetWorth} label="Total Net Worth" signed
+              tooltipTitle="Total Net Worth — เปรียบเทียบ"
               rows={[
                 { label: "เดือนนี้ (carry)", value: fmt(data.carryOver) },
                 { label: "เดือนนี้ (net)", value: fmtSigned(currentNetWorth), highlight: true },
