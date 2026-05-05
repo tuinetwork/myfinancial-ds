@@ -743,12 +743,15 @@ export default function OverviewPage() {
       )
       .reduce((s, t) => s + t.amount, 0);
 
-    const curLiab = latestData.transactions
+    const debtReceived = latestData.transactions
       .filter((t) =>
-        ((t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && debtTypes.has(accountTypeById.get(t.from_account_id ?? "") ?? "") && t.to_account_id === mainId)
-        || t.type === "หนี้สิน"
+        (t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && debtTypes.has(accountTypeById.get(t.from_account_id ?? "") ?? "") && t.to_account_id === mainId
       )
       .reduce((s, t) => s + t.amount, 0);
+    const debtPaid = latestData.transactions
+      .filter((t) => t.type === "หนี้สิน")
+      .reduce((s, t) => s + t.amount, 0);
+    const curLiab = debtReceived - debtPaid;
 
     return { curOther: curAssets, curLiab, currentNetWorth: curAssets - curLiab };
   }, [latestData, accounts]);

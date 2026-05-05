@@ -166,12 +166,13 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
         || t.type === "เงินออม/การลงทุน"
       )
       .reduce((s, t) => s + t.amount, 0);
-    const liab = data.transactions
-      .filter((t) =>
-        ((t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && debtTypes.has(typeById.get(t.from_account_id ?? "") ?? "") && t.to_account_id === mainId)
-        || t.type === "หนี้สิน"
-      )
+    const debtReceived = data.transactions
+      .filter((t) => (t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && debtTypes.has(typeById.get(t.from_account_id ?? "") ?? "") && t.to_account_id === mainId)
       .reduce((s, t) => s + t.amount, 0);
+    const debtPaid = data.transactions
+      .filter((t) => t.type === "หนี้สิน")
+      .reduce((s, t) => s + t.amount, 0);
+    const liab = debtReceived - debtPaid;
     return { cashFlowAssets: assets, cashFlowLiab: liab };
   }, [data.transactions, accounts]);
   const cashFlowNetWorth = cashFlowAssets - cashFlowLiab;
