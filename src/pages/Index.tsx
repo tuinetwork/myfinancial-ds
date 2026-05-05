@@ -338,7 +338,7 @@ const Index = () => {
 
               </>
             ) : viewMode === "yearly" && yearlyData ? (
-              <YearlyView yearlyData={yearlyData} />
+              <YearlyView yearlyData={yearlyData} accounts={accounts} />
             ) : null}
           </div>
         </main>

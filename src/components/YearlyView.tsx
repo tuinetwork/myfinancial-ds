@@ -8,19 +8,21 @@ import { MonthlyHighlights } from "@/components/MonthlyHighlights";
 import { YearlySummaryCard } from "@/components/YearlySummaryCard";
 import { YearlyData } from "@/hooks/useYearlyData";
 import { useWalletHistory } from "@/hooks/useWalletHistory";
+import type { Account } from "@/types/finance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Wallet, Loader2 } from "lucide-react";
 
 interface Props {
   yearlyData: YearlyData;
+  accounts?: Account[];
 }
 
 function fmt(n: number) {
   return n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export function YearlyView({ yearlyData }: Props) {
+export function YearlyView({ yearlyData, accounts = [] }: Props) {
   const { aggregated } = yearlyData;
   const { data: walletRows, isLoading: walletLoading } = useWalletHistory(yearlyData.year);
 
@@ -32,6 +34,7 @@ export function YearlyView({ yearlyData }: Props) {
       <SummaryCards
         data={aggregated}
         hideNetBalance
+        accounts={accounts}
         historicalOtherAssets={lastWalletRow?.otherAssets}
         historicalLiabilities={lastWalletRow?.liabilities}
       />
