@@ -812,7 +812,13 @@ const BudgetSettings = () => {
 
   const monthsForYear = useMemo(() => {
     if (!months || !selectedYear) return [];
-    return months.filter((m) => m.year === selectedYear);
+    const today = new Date();
+    const currentPeriod = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    const daysLeft = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate();
+    const canAccessNextMonth = daysLeft <= 5;
+    return months
+      .filter((m) => m.year === selectedYear)
+      .filter((m) => `${m.year}-${m.month}` <= currentPeriod || canAccessNextMonth);
   }, [months, selectedYear]);
 
   useEffect(() => {
@@ -1994,7 +2000,13 @@ const SavingsGoalSettings = () => {
 
   const monthsForYear = useMemo(() => {
     if (!months || !selectedYear) return [];
-    return months.filter((m) => m.year === selectedYear);
+    const today = new Date();
+    const currentPeriod = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    const daysLeft = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate();
+    const canAccessNextMonth = daysLeft <= 5;
+    return months
+      .filter((m) => m.year === selectedYear)
+      .filter((m) => `${m.year}-${m.month}` <= currentPeriod || canAccessNextMonth);
   }, [months, selectedYear]);
 
   useEffect(() => {
