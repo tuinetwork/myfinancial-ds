@@ -27,8 +27,14 @@ export function YearlyView({ yearlyData, accounts = [] }: Props) {
   const { aggregated } = yearlyData;
   const { data: walletRows, isLoading: walletLoading } = useWalletHistory(yearlyData.year);
 
-  // ใช้ข้อมูลของเดือนสุดท้ายในปีนั้นเป็น year-end snapshot
-  const lastWalletRow = walletRows && walletRows.length > 0 ? walletRows[walletRows.length - 1] : null;
+  // ตัด period ที่เกินเดือนปัจจุบันออก (เช่น เดือนที่ตั้ง budget ล่วงหน้า)
+  const currentPeriod = (() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  })();
+  const filteredWalletRows = walletRows?.filter((r) => r.period <= currentPeriod) ?? [];
+
+  const lastWalletRow = filteredWalletRows.length > 0 ? filteredWalletRows[filteredWalletRows.length - 1] : null;
 
   // สูตรเดียวกับหน้ากระเป๋าเงิน
   // ปีปัจจุบัน → ใช้ยอดบัญชีโดยตรง (แม่นยำ, ตรงกับหน้ากระเป๋าเงิน)
@@ -87,7 +93,7 @@ export function YearlyView({ yearlyData, accounts = [] }: Props) {
             <div className="flex justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : !walletRows || walletRows.length === 0 ? (
+          ) : filteredWalletRows.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-6">ไม่พบข้อมูล</p>
           ) : (
             <ScrollArea className="rounded-lg border border-border">
@@ -105,7 +111,7 @@ export function YearlyView({ yearlyData, accounts = [] }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {walletRows.map((r) => (
+                  {filteredWalletRows.map((r) => (
                     <tr key={r.period} className="border-b border-border/50 last:border-0">
                       <td className="px-3 py-2 font-mono">{r.period}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{fmt(r.carryOver)}</td>
