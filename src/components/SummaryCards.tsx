@@ -151,6 +151,31 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
   const trueNetWorth = carryOver + actualIncome - actualNonIncome;
   const computedWalletBalance = trueNetWorth - otherAssets + liabilities;
 
+  // สินทรัพย์/หนี้สิน เฉพาะเดือนที่เลือก (cash-flow based)
+  const { cashFlowAssets, cashFlowLiab } = useMemo(() => {
+    if (!accounts.length) return { cashFlowAssets: 0, cashFlowLiab: 0 };
+    const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted)
+      ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
+    const mainId = main?.id;
+    const savingsInvestTypes = new Set(["savings", "investment"]);
+    const debtTypes = new Set(["loan", "payable"]);
+    const typeById = new Map(accounts.filter((a) => !a.is_deleted).map((a) => [a.id, a.type]));
+    const assets = data.transactions
+      .filter((t) =>
+        ((t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && t.from_account_id === mainId && savingsInvestTypes.has(typeById.get(t.to_account_id ?? "") ?? ""))
+        || t.type === "เงินออม/การลงทุน"
+      )
+      .reduce((s, t) => s + t.amount, 0);
+    const liab = data.transactions
+      .filter((t) =>
+        ((t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && debtTypes.has(typeById.get(t.from_account_id ?? "") ?? "") && t.to_account_id === mainId)
+        || t.type === "หนี้สิน"
+      )
+      .reduce((s, t) => s + t.amount, 0);
+    return { cashFlowAssets: assets, cashFlowLiab: liab };
+  }, [data.transactions, accounts]);
+  const cashFlowNetWorth = cashFlowAssets - cashFlowLiab;
+
   const sparklines = useMemo(() => ({
     income: buildDailyTotals(data.transactions, (t) => t.type === "รายรับ", effectiveCarryOver),
     expense: buildDailyTotals(data.transactions, (t) => t.type !== "รายรับ" && !isTransfer(t)),
@@ -231,44 +256,42 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
     },
     {
       title: "สินทรัพย์",
-      primary: otherAssets,
+      primary: cashFlowAssets,
       pct: 0,
-      pctLabel: historicalOtherAssets !== undefined
-        ? "ณ สิ้นเดือนล่าสุด"
-        : `${accounts.filter(a => !a.is_deleted && !LIABILITY_TYPES.has(a.type) && a.name !== "กระเป๋าเงินสดหลัก").length} บัญชี`,
+      pctLabel: "ออม/ลงทุนเดือนนี้",
       icon: PiggyBank,
       gradient: "from-[hsl(270,55%,55%)] to-[hsl(270,55%,45%)]",
       sparkData: [],
       sparkType: "bar" as const,
       rows: [
-        { label: "สินทรัพย์อื่น ๆ", value: formatCurrency(otherAssets), highlight: true },
-        { label: "หมายเหตุ", value: "ไม่รวมกระเป๋าเงินสดหลัก" },
+        { label: "โอนเข้าออม/ลงทุน", value: formatCurrency(cashFlowAssets), highlight: true },
+        { label: "หมายเหตุ", value: "รวมรายจ่ายประเภทเงินออม/ลงทุน" },
       ],
     },
     {
       title: "หนี้สิน",
-      primary: liabilities,
+      primary: cashFlowLiab,
       pct: 0,
-      pctLabel: liabilities > 0 ? "มีหนี้คงค้าง" : "ไม่มีหนี้",
+      pctLabel: cashFlowLiab > 0 ? "ชำระหนี้เดือนนี้" : "ไม่มีรายการ",
       icon: CreditCard,
-      gradient: liabilities > 0
+      gradient: cashFlowLiab > 0
         ? "from-[hsl(35,90%,50%)] to-[hsl(35,90%,40%)]"
         : "from-[hsl(140,55%,48%)] to-[hsl(140,55%,38%)]",
       sparkData: [],
       sparkType: "bar" as const,
       rows: [
-        { label: "หนี้สินรวม", value: formatCurrency(liabilities), highlight: true, color: liabilities > 0 ? "red" as const : "green" as const },
-        { label: "หมายเหตุ", value: "บัตรเครดิต / สินเชื่อ / เจ้าหนี้" },
+        { label: "ชำระหนี้รวม", value: formatCurrency(cashFlowLiab), highlight: true, color: cashFlowLiab > 0 ? "red" as const : "green" as const },
+        { label: "หมายเหตุ", value: "สินเชื่อ / เจ้าหนี้ / รายจ่ายหนี้สิน" },
       ],
     },
     {
       title: "Net Worth",
-      primary: trueNetWorth,
+      primary: cashFlowNetWorth,
       pct: 0,
-      pctLabel: trueNetWorth >= 0 ? "สถานะดี" : "ขาดดุล",
+      pctLabel: cashFlowNetWorth >= 0 ? "สถานะดี" : "ขาดดุล",
       pctLabelExtra: accounts.length > 0 ? `เงินสดในมือ ${formatCurrency(computedWalletBalance)}` : null,
       icon: Wallet,
-      gradient: trueNetWorth >= 0
+      gradient: cashFlowNetWorth >= 0
         ? "from-[hsl(140,55%,48%)] to-[hsl(140,55%,38%)]"
         : "from-[hsl(0,65%,55%)] to-[hsl(0,65%,42%)]",
       sparkData: sparklines.net,
