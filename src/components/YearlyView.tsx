@@ -29,6 +29,13 @@ export function YearlyView({ yearlyData, accounts = [] }: Props) {
   // ใช้ข้อมูลของเดือนสุดท้ายในปีนั้นเป็น year-end snapshot
   const lastWalletRow = walletRows && walletRows.length > 0 ? walletRows[walletRows.length - 1] : null;
 
+  // สูตรเดียวกับหน้ากระเป๋าเงิน: assets = mainWalletBalance + otherAssets
+  const walletSnapshot = lastWalletRow ? {
+    assets: lastWalletRow.mainWalletBalance + lastWalletRow.otherAssets,
+    liabilities: lastWalletRow.liabilities,
+    netWorth: lastWalletRow.trueNetWorth,
+  } : undefined;
+
   return (
     <div className="space-y-6">
       <SummaryCards
@@ -37,6 +44,7 @@ export function YearlyView({ yearlyData, accounts = [] }: Props) {
         accounts={accounts}
         historicalOtherAssets={lastWalletRow?.otherAssets}
         historicalLiabilities={lastWalletRow?.liabilities}
+        walletSnapshot={walletSnapshot}
       />
 
       <YearlySummaryCard yearlyData={yearlyData} />
