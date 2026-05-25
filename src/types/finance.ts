@@ -1,5 +1,5 @@
 // ===== Account =====
-export type AccountType = 'cash' | 'bank' | 'savings' | 'investment' | 'credit_card' | 'loan' | 'receivable' | 'payable' | 'inventory';
+export type AccountType = 'cash' | 'bank' | 'savings' | 'investment' | 'credit_card' | 'loan' | 'receivable' | 'payable' | 'inventory' | 'chit';
 
 export interface Account {
   id: string;

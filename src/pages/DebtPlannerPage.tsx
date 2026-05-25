@@ -114,7 +114,7 @@ export default function DebtPlannerPage() {
   }, [userId]);
 
   const liabilityAccounts = useMemo(
-    () => accounts.filter((a) => a.is_active && !a.is_deleted && ["credit_card", "loan", "payable"].includes(a.type)),
+    () => accounts.filter((a) => a.is_active && !a.is_deleted && ["credit_card", "loan", "payable", "chit"].includes(a.type)),
     [accounts]
   );
 

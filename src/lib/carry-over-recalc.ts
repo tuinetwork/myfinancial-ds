@@ -102,7 +102,10 @@ export interface WalletHistoryRow {
 export async function computeWalletHistory(
   userId: string
 ): Promise<WalletHistoryRow[]> {
-  const LIABILITY_TYPES = new Set(["credit_card", "loan", "payable"]);
+  const LIABILITY_TYPES = new Set(["credit_card", "loan", "payable", "chit"]);
+  // chit (ค่าแชร์) — นับเป็นหนี้สินใน liabilities แต่ไม่ถูกคำนวณใน mainWalletBalance
+  // เพราะไม่ใช่เงินที่อยู่ในกระเป๋าจริง
+  const CASH_EXCLUDED_LIAB = new Set(["chit"]);
 
   // 1) accounts — เก็บทั้งหมด (รวม inactive) เพราะอาจมี tx ผ่านบัญชีนั้น
   const accountsSnap = await getDocs(collection(firestore, "users", userId, "accounts"));
@@ -167,7 +170,7 @@ export async function computeWalletHistory(
   };
 
   // คำนวณ account state ต่อ period (จากหลังไปหน้า)
-  type AccountState = { otherAssets: number; liabilities: number };
+  type AccountState = { otherAssets: number; liabilities: number; cashExcludedLiab: number };
   const periodAccountState = new Map<string, AccountState>();
 
   for (let i = sortedPeriods.length - 1; i >= 0; i--) {
@@ -175,19 +178,22 @@ export async function computeWalletHistory(
 
     let otherAssets = 0;
     let liabilities = 0;
+    let cashExcludedLiab = 0;
     for (const a of accounts) {
       if (main && a.id === main.id) continue;
       const cur = currentBalance.get(a.id) ?? 0;
       const after = afterDelta.get(a.id) ?? 0;
       const hist = cur - after;
       if (LIABILITY_TYPES.has(a.type)) {
-        liabilities += Math.abs(hist);
+        const absHist = Math.abs(hist);
+        liabilities += absHist;
+        if (CASH_EXCLUDED_LIAB.has(a.type)) cashExcludedLiab += absHist;
       } else {
         otherAssets += hist;
       }
     }
 
-    periodAccountState.set(period, { otherAssets, liabilities });
+    periodAccountState.set(period, { otherAssets, liabilities, cashExcludedLiab });
 
     // เพิ่ม effects ของ period นี้เข้า afterDelta (เตรียมสำหรับ period ก่อนหน้า)
     applyPeriodToAfterDelta(period);
@@ -203,8 +209,9 @@ export async function computeWalletHistory(
       else if (t.type === "expense") expenses += amt;
     }
     const trueNetWorth = carryOver + income - expenses;
-    const { otherAssets, liabilities } = periodAccountState.get(period) ?? { otherAssets: 0, liabilities: 0 };
-    const mainWalletBalance = trueNetWorth - otherAssets + liabilities;
+    const { otherAssets, liabilities, cashExcludedLiab } = periodAccountState.get(period) ?? { otherAssets: 0, liabilities: 0, cashExcludedLiab: 0 };
+    // mainWalletBalance: ตัด chit (ค่าแชร์) ออกเพราะไม่ใช่เงินในกระเป๋าจริง
+    const mainWalletBalance = trueNetWorth - otherAssets + (liabilities - cashExcludedLiab);
     return { period, carryOver, income, expenses, trueNetWorth, otherAssets, liabilities, mainWalletBalance };
   });
 }

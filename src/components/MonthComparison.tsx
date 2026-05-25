@@ -13,7 +13,7 @@ interface Props {
   data: BudgetData;
 }
 
-const LIABILITY_TYPES = new Set(["credit_card", "loan", "payable"]);
+const LIABILITY_TYPES = new Set(["credit_card", "loan", "payable", "chit"]);
 
 function formatCurrency(n: number) {
   return `฿${Math.abs(n).toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;

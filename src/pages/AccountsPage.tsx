@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Progress } from "@/components/ui/progress";
-import { Wallet, Landmark, TrendingUp, CreditCard, Building2, Package, Plus, Eye, EyeOff, Trash2, Pencil, UserCheck, UserX, PiggyBank, Download, Calculator, Calendar } from "lucide-react";
+import { Wallet, Landmark, TrendingUp, CreditCard, Building2, Package, Plus, Eye, EyeOff, Trash2, Pencil, UserCheck, UserX, PiggyBank, Download, Calculator, Calendar, Users } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -31,10 +31,11 @@ const accountTypeConfig: Record<AccountType, { label: string; icon: React.Compon
   loan: { label: "สินเชื่อ", icon: Building2, group: "Credit / Loans" },
   receivable: { label: "ลูกหนี้", icon: UserCheck, group: "Receivables" },
   payable: { label: "เจ้าหนี้", icon: UserX, group: "Payables" },
+  chit: { label: "ค่าแชร์", icon: Users, group: "Payables" },
   inventory: { label: "สินค้าคงคลัง", icon: Package, group: "Inventory / Business" },
 };
 
-const accountTypes: AccountType[] = ["cash", "bank", "savings", "investment", "credit_card", "loan", "receivable", "payable", "inventory"];
+const accountTypes: AccountType[] = ["cash", "bank", "savings", "investment", "credit_card", "loan", "receivable", "payable", "chit", "inventory"];
 
 const PIE_COLORS = [
   "hsl(var(--primary))",
@@ -49,7 +50,7 @@ const PIE_COLORS = [
   "hsl(10 80% 55%)",
 ];
 
-const liabilityTypes: string[] = ["credit_card", "loan", "payable"];
+const liabilityTypes: string[] = ["credit_card", "loan", "payable", "chit"];
 
 // กราฟวงกลม: แสดงสัดส่วนตามประเภทบัญชี
 function AssetPieChart({ accounts, privacyMode, formatBalance, liabilityTypes }: {

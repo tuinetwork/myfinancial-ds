@@ -222,7 +222,7 @@ export function getPreviousPeriod(period: string): string {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
-const DEBT_TYPES = new Set(["loan", "payable", "credit_card"]);
+const DEBT_TYPES = new Set(["loan", "payable", "credit_card", "chit"]);
 
 /** หา id กระเป๋าหลัก + typeById ของทุก account */
 async function loadAccountContext(userId: string): Promise<{

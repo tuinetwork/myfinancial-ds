@@ -67,7 +67,7 @@ service cloud.firestore {
         allow write: if (isOwner(userId) || isDev())
                      && isValidNumber(request.resource.data.balance)
                      && isValidString(request.resource.data.name, 1, 50)
-                     && isOneOf(request.resource.data.type, ['cash', 'bank', 'savings', 'investment', 'credit_card', 'loan', 'receivable', 'payable', 'inventory'])
+                     && isOneOf(request.resource.data.type, ['cash', 'bank', 'savings', 'investment', 'credit_card', 'loan', 'receivable', 'payable', 'inventory', 'chit'])
                      && (request.method == 'create' || isUnchanged('created_at'));
       }
 

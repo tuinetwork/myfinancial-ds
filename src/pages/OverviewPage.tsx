@@ -31,7 +31,7 @@ import {
 
 // ===== Helpers =====
 const THAI_MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-const LIABILITY_TYPES_OVW = new Set(["credit_card", "loan", "payable"]);
+const LIABILITY_TYPES_OVW = new Set(["credit_card", "loan", "payable", "chit"]);
 
 const fmt = (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -47,7 +47,7 @@ function formatThaiDateShort(dateStr: string): string {
 // ===== Net Worth Card =====
 function NetWorthCard({ accounts, trueNetWorth, loading }: { accounts: Account[]; trueNetWorth: number; loading: boolean }) {
   const { totalAssets, totalLiabilities, netWorth, breakdown } = useMemo(() => {
-    const liabilityTypes = ["credit_card", "loan", "payable"];
+    const liabilityTypes = ["credit_card", "loan", "payable", "chit"];
     const isMainAccount = (a: Account) => a.name === "กระเป๋าเงินสดหลัก";
     const active = accounts.filter((a) => a.is_active && !a.is_deleted);
 
@@ -110,7 +110,8 @@ function NetWorthCard({ accounts, trueNetWorth, loading }: { accounts: Account[]
           {Object.entries(breakdown).map(([type, val]) => (
             <span key={type} className="tabular-nums">
               {type === "cash" ? "เงินสด" : type === "bank" ? "ธนาคาร" : type === "savings" ? "ออมทรัพย์" :
-               type === "investment" ? "ลงทุน" : type === "credit_card" ? "บัตรเครดิต" : type === "loan" ? "สินเชื่อ" : type}
+               type === "investment" ? "ลงทุน" : type === "credit_card" ? "บัตรเครดิต" : type === "loan" ? "สินเชื่อ" :
+               type === "payable" ? "เจ้าหนี้" : type === "chit" ? "ค่าแชร์" : type}
               : <span className={val >= 0 ? "text-foreground" : "text-destructive"}>{fmt(val)}</span>
             </span>
           ))}
@@ -199,7 +200,7 @@ function AccountsSummary({ accounts, trueNetWorth, loading }: { accounts: Accoun
   const active = accounts.filter((a) => a.is_active && !a.is_deleted);
   if (active.length === 0) return null;
 
-  const liabilityTypes = ["credit_card", "loan", "payable"];
+  const liabilityTypes = ["credit_card", "loan", "payable", "chit"];
   const isMainAccount = (a: Account) => a.name === "กระเป๋าเงินสดหลัก";
 
   // Calculate main wallet balance (same as AccountsPage)
@@ -766,7 +767,7 @@ export default function OverviewPage() {
       ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
     const mainId = main?.id;
     const savingsInvestTypes = new Set(["savings", "investment"]);
-    const debtTypes = new Set(["loan", "payable"]);
+    const debtTypes = new Set(["loan", "payable", "chit"]);
     const accountTypeById = new Map(accounts.filter((a) => !a.is_deleted).map((a) => [a.id, a.type]));
 
     const curAssets = latestData.transactions

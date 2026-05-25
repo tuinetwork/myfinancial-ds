@@ -94,7 +94,7 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
   const isTransfer = (t: Transaction) =>
     t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
 
-  const LIABILITY_TYPES = new Set(["credit_card", "loan", "payable"]);
+  const LIABILITY_TYPES = new Set(["credit_card", "loan", "payable", "chit"]);
 
   // สินทรัพย์อื่น + หนี้สิน — ใช้ค่าย้อนหลังถ้ามี มิฉะนั้นคำนวณจากบัญชีปัจจุบัน
   const { otherAssets, liabilities } = useMemo(() => {
@@ -160,7 +160,7 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
       ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
     const mainId = main?.id;
     const savingsInvestTypes = new Set(["savings", "investment"]);
-    const debtTypes = new Set(["loan", "payable"]);
+    const debtTypes = new Set(["loan", "payable", "chit"]);
     const typeById = new Map(accounts.filter((a) => !a.is_deleted).map((a) => [a.id, a.type]));
     const assets = data.transactions
       .filter((t) =>
