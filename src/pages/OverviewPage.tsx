@@ -48,22 +48,27 @@ function formatThaiDateShort(dateStr: string): string {
 function NetWorthCard({ accounts, trueNetWorth, loading }: { accounts: Account[]; trueNetWorth: number; loading: boolean }) {
   const { totalAssets, totalLiabilities, netWorth, breakdown } = useMemo(() => {
     const liabilityTypes = ["credit_card", "loan", "payable", "chit"];
+    const cashExcludedLiabTypes = ["chit"];
     const isMainAccount = (a: Account) => a.name === "กระเป๋าเงินสดหลัก";
     const active = accounts.filter((a) => a.is_active && !a.is_deleted);
 
     // Calculate main wallet balance from trueNetWorth (same as AccountsPage)
+    // ตัด chit ออกเพื่อให้กระเป๋าหลักตรงกับเงินสดในมือ
     let otherAssetsTotal = 0;
     let liabilitiesTotal = 0;
+    let cashExcludedLiabTotal = 0;
     active.forEach((a) => {
       if (isMainAccount(a)) return;
       const bal = Number(a.balance) || 0;
       if (liabilityTypes.includes(a.type)) {
-        liabilitiesTotal += Math.abs(bal);
+        const absBal = Math.abs(bal);
+        liabilitiesTotal += absBal;
+        if (cashExcludedLiabTypes.includes(a.type)) cashExcludedLiabTotal += absBal;
       } else {
         otherAssetsTotal += bal;
       }
     });
-    const mainBalance = trueNetWorth - otherAssetsTotal + liabilitiesTotal;
+    const mainBalance = trueNetWorth - otherAssetsTotal + (liabilitiesTotal - cashExcludedLiabTotal);
 
     let assets = 0;
     let liabilities = 0;
@@ -201,18 +206,25 @@ function AccountsSummary({ accounts, trueNetWorth, loading }: { accounts: Accoun
   if (active.length === 0) return null;
 
   const liabilityTypes = ["credit_card", "loan", "payable", "chit"];
+  const cashExcludedLiabTypes = ["chit"];
   const isMainAccount = (a: Account) => a.name === "กระเป๋าเงินสดหลัก";
 
-  // Calculate main wallet balance (same as AccountsPage)
+  // Calculate main wallet balance (same as AccountsPage) — ตัด chit เพื่อให้ตรงกับเงินสดในมือ
   let otherAssets = 0;
   let liabTotal = 0;
+  let cashExcludedLiabTotal = 0;
   active.forEach((a) => {
     if (isMainAccount(a)) return;
     const bal = Number(a.balance) || 0;
-    if (liabilityTypes.includes(a.type)) liabTotal += Math.abs(bal);
-    else otherAssets += bal;
+    if (liabilityTypes.includes(a.type)) {
+      const absBal = Math.abs(bal);
+      liabTotal += absBal;
+      if (cashExcludedLiabTypes.includes(a.type)) cashExcludedLiabTotal += absBal;
+    } else {
+      otherAssets += bal;
+    }
   });
-  const mainBalance = trueNetWorth - otherAssets + liabTotal;
+  const mainBalance = trueNetWorth - otherAssets + (liabTotal - cashExcludedLiabTotal);
 
   return (
     <Card className="border-none shadow-sm">

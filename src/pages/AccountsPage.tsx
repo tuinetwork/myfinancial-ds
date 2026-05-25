@@ -51,6 +51,8 @@ const PIE_COLORS = [
 ];
 
 const liabilityTypes: string[] = ["credit_card", "loan", "payable", "chit"];
+// chit (ค่าแชร์) — นับเป็นหนี้สิน แต่ไม่ถูกคำนวณกลับเข้า "กระเป๋าหลัก" เพราะไม่ใช่เงินสดจริง
+const cashExcludedLiabTypes: string[] = ["chit"];
 
 // กราฟวงกลม: แสดงสัดส่วนตามประเภทบัญชี
 function AssetPieChart({ accounts, privacyMode, formatBalance, liabilityTypes }: {
@@ -361,19 +363,23 @@ export default function AccountsPage() {
   const displayAccounts = useMemo(() => {
     let otherAssetsTotal = 0;
     let liabilitiesTotal = 0;
+    let cashExcludedLiabTotal = 0;
 
     accounts.forEach(acc => {
       if (isMainAccount(acc)) return;
-      
+
       const bal = Number(acc.balance) || 0;
       if (liabilityTypes.includes(acc.type)) {
-        liabilitiesTotal += Math.abs(bal);
+        const absBal = Math.abs(bal);
+        liabilitiesTotal += absBal;
+        if (cashExcludedLiabTypes.includes(acc.type)) cashExcludedLiabTotal += absBal;
       } else {
         otherAssetsTotal += bal;
       }
     });
 
-    const calculatedMainBalance = trueNetWorth - otherAssetsTotal + liabilitiesTotal;
+    // ตัด chit (ค่าแชร์) ออกเพื่อให้ตรงกับเงินสดในมือ
+    const calculatedMainBalance = trueNetWorth - otherAssetsTotal + (liabilitiesTotal - cashExcludedLiabTotal);
 
     return accounts.map(acc => {
       if (isMainAccount(acc)) {
