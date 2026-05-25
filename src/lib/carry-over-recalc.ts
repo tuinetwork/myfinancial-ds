@@ -102,9 +102,7 @@ export interface WalletHistoryRow {
 export async function computeWalletHistory(
   userId: string
 ): Promise<WalletHistoryRow[]> {
-  // เงินสดในมือ: นับเฉพาะ loan (สินเชื่อ) ใน +หนี้สิน
-  // credit_card / payable จะตกไปอยู่ใน otherAssets (มีผลกลับด้านใน mainWalletBalance)
-  const LIABILITY_TYPES = new Set(["loan"]);
+  const LIABILITY_TYPES = new Set(["credit_card", "loan", "payable"]);
 
   // 1) accounts — เก็บทั้งหมด (รวม inactive) เพราะอาจมี tx ผ่านบัญชีนั้น
   const accountsSnap = await getDocs(collection(firestore, "users", userId, "accounts"));
