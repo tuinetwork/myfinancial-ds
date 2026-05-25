@@ -782,13 +782,8 @@ export default function OverviewPage() {
         (t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && debtTypes.has(accountTypeById.get(t.from_account_id ?? "") ?? "") && t.to_account_id === mainId
       )
       .reduce((s, t) => s + t.amount, 0);
-    const debtTxCategories = new Set(
-      latestData.transactions.filter((t) => t.type === "หนี้สิน").map((t) => t.category)
-    );
-    const debtBudget = latestData.expenses.debts
-      .filter((item) => debtTxCategories.has(item.label))
-      .reduce((s, item) => s + item.budget, 0);
-    const curLiab = debtReceived + debtBudget;
+    // หนี้สินเดือนนี้ = หนี้ที่ก่อใหม่จริง (โอนจากบัญชีหนี้→กระเป๋าหลัก) เท่านั้น
+    const curLiab = debtReceived;
 
     return { curOther: curAssets, curLiab, currentNetWorth: curAssets - curLiab };
   }, [latestData, accounts]);

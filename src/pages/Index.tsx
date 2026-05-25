@@ -294,6 +294,7 @@ const Index = () => {
                   accounts={accounts}
                   historicalOtherAssets={walletRow?.otherAssets}
                   historicalLiabilities={walletRow?.liabilities}
+                  historicalCashExcludedLiab={walletRow?.cashExcludedLiab}
                 />
 
                 {/* 2. เปรียบเทียบเดือน */}

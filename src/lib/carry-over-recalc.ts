@@ -86,8 +86,9 @@ export interface WalletHistoryRow {
   expenses: number;
   trueNetWorth: number;
   otherAssets: number;
-  liabilities: number;
-  mainWalletBalance: number;
+  liabilities: number;          // รวม chit (ใช้ใน Net Worth / Dashboard liability display)
+  cashExcludedLiab: number;     // ส่วนของ chit (ค่าแชร์) — ตัดออกจากสูตรเงินสดในมือ
+  mainWalletBalance: number;    // คำนวณโดยตัด cashExcludedLiab ออกแล้ว
 }
 
 /**
@@ -212,7 +213,7 @@ export async function computeWalletHistory(
     const { otherAssets, liabilities, cashExcludedLiab } = periodAccountState.get(period) ?? { otherAssets: 0, liabilities: 0, cashExcludedLiab: 0 };
     // mainWalletBalance: ตัด chit (ค่าแชร์) ออกเพราะไม่ใช่เงินในกระเป๋าจริง
     const mainWalletBalance = trueNetWorth - otherAssets + (liabilities - cashExcludedLiab);
-    return { period, carryOver, income, expenses, trueNetWorth, otherAssets, liabilities, mainWalletBalance };
+    return { period, carryOver, income, expenses, trueNetWorth, otherAssets, liabilities, cashExcludedLiab, mainWalletBalance };
   });
 }
 

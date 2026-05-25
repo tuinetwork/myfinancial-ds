@@ -50,6 +50,7 @@ export function YearlyView({ yearlyData, accounts = [] }: Props) {
         accounts={accounts}
         historicalOtherAssets={lastWalletRow?.otherAssets}
         historicalLiabilities={lastWalletRow?.liabilities}
+        historicalCashExcludedLiab={lastWalletRow?.cashExcludedLiab}
         walletSnapshot={walletSnapshot}
       />
 

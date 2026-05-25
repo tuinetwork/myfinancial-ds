@@ -13,6 +13,8 @@ interface Props {
   accounts?: Account[];
   historicalOtherAssets?: number;
   historicalLiabilities?: number;
+  /** หนี้สินที่ถูกตัดออกจากสูตรเงินสดในมือ (เช่น chit) — รวมอยู่ใน historicalLiabilities แล้ว */
+  historicalCashExcludedLiab?: number;
   /** เมื่อส่งค่านี้ จะใช้แทนการคำนวณ cash-flow สำหรับการ์ด สินทรัพย์/หนี้สิน/Net Worth */
   walletSnapshot?: { assets: number; liabilities: number; netWorth: number };
 }
@@ -88,34 +90,42 @@ function buildDailyTotals(
   });
 }
 
-export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOtherAssets, historicalLiabilities, walletSnapshot }: Props) {
+export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOtherAssets, historicalLiabilities, historicalCashExcludedLiab, walletSnapshot }: Props) {
   const { includeCarryOver } = useSettings();
 
   const isTransfer = (t: Transaction) =>
     t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
 
   const LIABILITY_TYPES = new Set(["credit_card", "loan", "payable", "chit"]);
+  const CASH_EXCLUDED_LIAB = new Set(["chit"]);
 
-  // สินทรัพย์อื่น + หนี้สิน — ใช้ค่าย้อนหลังถ้ามี มิฉะนั้นคำนวณจากบัญชีปัจจุบัน
-  const { otherAssets, liabilities } = useMemo(() => {
+  // สินทรัพย์อื่น + หนี้สิน + ส่วนที่ตัดออกจากเงินสดในมือ (chit)
+  const { otherAssets, liabilities, cashExcludedLiab } = useMemo(() => {
     if (historicalOtherAssets !== undefined && historicalLiabilities !== undefined) {
-      return { otherAssets: historicalOtherAssets, liabilities: historicalLiabilities };
+      return {
+        otherAssets: historicalOtherAssets,
+        liabilities: historicalLiabilities,
+        cashExcludedLiab: historicalCashExcludedLiab ?? 0,
+      };
     }
     const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted)
       ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
     let otherAssets = 0;
     let liabilities = 0;
+    let cashExcludedLiab = 0;
     accounts.filter((a) => !a.is_deleted).forEach((a) => {
       if (main && a.id === main.id) return;
       const bal = Number(a.balance) || 0;
       if (LIABILITY_TYPES.has(a.type)) {
-        liabilities += Math.abs(bal);
+        const absBal = Math.abs(bal);
+        liabilities += absBal;
+        if (CASH_EXCLUDED_LIAB.has(a.type)) cashExcludedLiab += absBal;
       } else {
         otherAssets += bal;
       }
     });
-    return { otherAssets, liabilities };
-  }, [accounts, historicalOtherAssets, historicalLiabilities]);
+    return { otherAssets, liabilities, cashExcludedLiab };
+  }, [accounts, historicalOtherAssets, historicalLiabilities, historicalCashExcludedLiab]);
 
   // คำนวณ transfer ถอนจากบัญชีออม/ลงทุน → กระเป๋าหลัก
   const withdrawFromSavings = useMemo(() => {
@@ -151,7 +161,8 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
   const effectiveCarryOver = includeCarryOver ? carryOver : 0;
   const displayIncome = actualIncome + withdrawFromSavings + effectiveCarryOver;
   const trueNetWorth = carryOver + actualIncome - actualNonIncome;
-  const computedWalletBalance = trueNetWorth - otherAssets + liabilities;
+  // เงินสดในมือ: ตัด chit (ค่าแชร์) ออกเพราะไม่ใช่เงินในกระเป๋าจริง
+  const computedWalletBalance = trueNetWorth - otherAssets + (liabilities - cashExcludedLiab);
 
   // สินทรัพย์/หนี้สิน เฉพาะเดือนที่เลือก (cash-flow based)
   const { cashFlowAssets, cashFlowLiab, debtPaidMonthly } = useMemo(() => {
@@ -171,13 +182,8 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
     const debtReceived = data.transactions
       .filter((t) => (t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && debtTypes.has(typeById.get(t.from_account_id ?? "") ?? "") && t.to_account_id === mainId)
       .reduce((s, t) => s + t.amount, 0);
-    const debtTxCategories = new Set(
-      data.transactions.filter((t) => t.type === "หนี้สิน").map((t) => t.category)
-    );
-    const debtBudget = data.expenses.debts
-      .filter((item) => debtTxCategories.has(item.label))
-      .reduce((s, item) => s + item.budget, 0);
-    const liab = debtReceived + debtBudget;
+    // หนี้สินเดือนนี้ = หนี้ที่ก่อใหม่จริง (โอนจากบัญชีหนี้→กระเป๋าหลัก) เท่านั้น
+    const liab = debtReceived;
     // ยอดชำระจริง: โอนจากกระเป๋าหลัก→สินเชื่อ/เจ้าหนี้ + รายจ่ายหมวดหนี้สิน
     const paid =
       data.transactions
