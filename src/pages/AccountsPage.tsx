@@ -5,6 +5,7 @@ import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { createAccount, updateAccount, deleteAccountWithTransactions, createGoal } from "@/lib/firestore-services";
+import { reconstructMainWallet } from "@/lib/wallet-balance";
 import type { Account, AccountType } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -51,8 +52,6 @@ const PIE_COLORS = [
 ];
 
 const liabilityTypes: string[] = ["credit_card", "loan", "payable", "chit"];
-// chit (ค่าแชร์) — นับเป็นหนี้สิน แต่ไม่ถูกคำนวณกลับเข้า "กระเป๋าหลัก" เพราะไม่ใช่เงินสดจริง
-const cashExcludedLiabTypes: string[] = ["chit"];
 
 // กราฟวงกลม: แสดงสัดส่วนตามประเภทบัญชี
 function AssetPieChart({ accounts, privacyMode, formatBalance, liabilityTypes }: {
@@ -361,32 +360,10 @@ export default function AccountsPage() {
 
   // คำนวณยอดกระเป๋าหลักอัตโนมัติเพื่อให้สมดุลกับ True Net Worth
   const displayAccounts = useMemo(() => {
-    let otherAssetsTotal = 0;
-    let liabilitiesTotal = 0;
-    let cashExcludedLiabTotal = 0;
-
-    accounts.forEach(acc => {
-      if (isMainAccount(acc)) return;
-
-      const bal = Number(acc.balance) || 0;
-      if (liabilityTypes.includes(acc.type)) {
-        const absBal = Math.abs(bal);
-        liabilitiesTotal += absBal;
-        if (cashExcludedLiabTypes.includes(acc.type)) cashExcludedLiabTotal += absBal;
-      } else {
-        otherAssetsTotal += bal;
-      }
-    });
-
-    // ตัด chit (ค่าแชร์) ออกเพื่อให้ตรงกับเงินสดในมือ
-    const calculatedMainBalance = trueNetWorth - otherAssetsTotal + (liabilitiesTotal - cashExcludedLiabTotal);
-
-    return accounts.map(acc => {
-      if (isMainAccount(acc)) {
-        return { ...acc, balance: calculatedMainBalance };
-      }
-      return acc;
-    });
+    const { mainBalance } = reconstructMainWallet(accounts, trueNetWorth);
+    return accounts.map(acc =>
+      isMainAccount(acc) ? { ...acc, balance: mainBalance } : acc
+    );
   }, [accounts, trueNetWorth]);
 
   // แยก Asset และ Liability เพื่อการแสดงผลที่ชัดเจน

@@ -1,5 +1,6 @@
 import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
+import { LIABILITY_TYPES, CASH_EXCLUDED_LIAB_TYPES } from "@/lib/wallet-balance";
 import type { Account } from "@/types/finance";
 
 export interface CarryOverDiffRow {
@@ -103,10 +104,6 @@ export interface WalletHistoryRow {
 export async function computeWalletHistory(
   userId: string
 ): Promise<WalletHistoryRow[]> {
-  const LIABILITY_TYPES = new Set(["credit_card", "loan", "payable", "chit"]);
-  // chit (ค่าแชร์) — นับเป็นหนี้สินใน liabilities แต่ไม่ถูกคำนวณใน mainWalletBalance
-  // เพราะไม่ใช่เงินที่อยู่ในกระเป๋าจริง
-  const CASH_EXCLUDED_LIAB = new Set(["chit"]);
 
   // 1) accounts — เก็บทั้งหมด (รวม inactive) เพราะอาจมี tx ผ่านบัญชีนั้น
   const accountsSnap = await getDocs(collection(firestore, "users", userId, "accounts"));
@@ -188,7 +185,7 @@ export async function computeWalletHistory(
       if (LIABILITY_TYPES.has(a.type)) {
         const absHist = Math.abs(hist);
         liabilities += absHist;
-        if (CASH_EXCLUDED_LIAB.has(a.type)) cashExcludedLiab += absHist;
+        if (CASH_EXCLUDED_LIAB_TYPES.has(a.type)) cashExcludedLiab += absHist;
       } else {
         otherAssets += hist;
       }

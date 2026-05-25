@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { BudgetData, Transaction, formatCurrency } from "@/hooks/useBudgetData";
 import { useSettings } from "@/contexts/SettingsContext";
+import { reconstructMainWallet } from "@/lib/wallet-balance";
 import type { Account } from "@/types/finance";
 
 interface Props {
@@ -96,9 +97,6 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
   const isTransfer = (t: Transaction) =>
     t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
 
-  const LIABILITY_TYPES = new Set(["credit_card", "loan", "payable", "chit"]);
-  const CASH_EXCLUDED_LIAB = new Set(["chit"]);
-
   // สินทรัพย์อื่น + หนี้สิน + ส่วนที่ตัดออกจากเงินสดในมือ (chit)
   const { otherAssets, liabilities, cashExcludedLiab } = useMemo(() => {
     if (historicalOtherAssets !== undefined && historicalLiabilities !== undefined) {
@@ -108,23 +106,12 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
         cashExcludedLiab: historicalCashExcludedLiab ?? 0,
       };
     }
-    const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted)
-      ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
-    let otherAssets = 0;
-    let liabilities = 0;
-    let cashExcludedLiab = 0;
-    accounts.filter((a) => !a.is_deleted).forEach((a) => {
-      if (main && a.id === main.id) return;
-      const bal = Number(a.balance) || 0;
-      if (LIABILITY_TYPES.has(a.type)) {
-        const absBal = Math.abs(bal);
-        liabilities += absBal;
-        if (CASH_EXCLUDED_LIAB.has(a.type)) cashExcludedLiab += absBal;
-      } else {
-        otherAssets += bal;
-      }
-    });
-    return { otherAssets, liabilities, cashExcludedLiab };
+    const breakdown = reconstructMainWallet(accounts.filter((a) => !a.is_deleted), 0);
+    return {
+      otherAssets: breakdown.otherAssets,
+      liabilities: breakdown.liabilities,
+      cashExcludedLiab: breakdown.cashExcludedLiab,
+    };
   }, [accounts, historicalOtherAssets, historicalLiabilities, historicalCashExcludedLiab]);
 
   // คำนวณ transfer ถอนจากบัญชีออม/ลงทุน → กระเป๋าหลัก
