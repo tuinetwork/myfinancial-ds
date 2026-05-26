@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { format, startOfWeek, startOfMonth, subDays, endOfDay, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
+import { THAI_MONTHS_SHORT } from "@/lib/period";
 import { BudgetData, Transaction, formatCurrency } from "@/hooks/useBudgetData";
 import {
   deleteTransactionAtomic, updateTransactionAtomic,
@@ -76,8 +77,8 @@ function getTypeBadgeClass(type: string) {
 }
 
 function formatDate(dateStr: string) {
-  const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-  
+  const monthNames = THAI_MONTHS_SHORT;
+
   // YYYY-MM-DD format
   const isoParts = dateStr.split("-");
   if (isoParts.length === 3 && isoParts[0].length === 4) {

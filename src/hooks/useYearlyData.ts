@@ -12,6 +12,7 @@ import { firestore } from "@/lib/firebase";
 import { BudgetData, BudgetItem, Transaction } from "./useBudgetData";
 import { useAuth } from "@/contexts/AuthContext";
 import { expandRecurrence } from "@/lib/recurrence";
+import { THAI_MONTHS_FULL } from "@/lib/period";
 
 const EXPENSE_CATEGORY_MAP: Record<string, keyof BudgetData["expenses"]> = {
   "ค่าใช้จ่ายทั่วไป": "general",
@@ -28,11 +29,6 @@ const MAIN_CATEGORY_TYPE_MAP: Record<string, string> = {
   "ค่าสมาชิกรายเดือน": "ค่าสมาชิกรายเดือน",
   "เงินออมและการลงทุน": "เงินออม/การลงทุน",
 };
-
-const THAI_MONTHS = [
-  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
-];
 
 function mapTransaction(docId: string, docData: Record<string, unknown>): Transaction {
   const type = docData.type as string;
@@ -66,7 +62,7 @@ function parseBudgetDocForYear(budgetDoc: any, period: string, transactions: Tra
   const data = budgetDoc;
   const [, monthNum] = period.split("-");
   const monthIdx = parseInt(monthNum, 10) - 1;
-  const monthName = THAI_MONTHS[monthIdx] ?? period;
+  const monthName = THAI_MONTHS_FULL[monthIdx] ?? period;
 
   const incomeEstimates = (data.income_estimates ?? {}) as Record<string, Record<string, number> | number>;
   const income: BudgetItem[] = [];

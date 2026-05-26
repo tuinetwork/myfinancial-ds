@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/hooks/useBudgetData";
 import { YearlyData } from "@/hooks/useYearlyData";
+import { THAI_MONTHS_SHORT } from "@/lib/period";
 import {
   BarChart,
   Bar,
@@ -12,12 +13,10 @@ import {
   Legend,
 } from "recharts";
 
-const SHORT_THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-
 function formatPeriodThai(period: string) {
   const [y, m] = period.split("-");
   const thaiYear = (parseInt(y, 10) + 543) % 100;
-  return `${SHORT_THAI_MONTHS[parseInt(m, 10) - 1]} ${thaiYear}`;
+  return `${THAI_MONTHS_SHORT[parseInt(m, 10) - 1]} ${thaiYear}`;
 }
 
 interface Props {

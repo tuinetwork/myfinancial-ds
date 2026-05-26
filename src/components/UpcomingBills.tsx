@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { CalendarClock, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { formatCurrency, type BudgetData } from "@/hooks/useBudgetData";
 import { expandRecurrence, formatFrequencyThai, matchTxToOccurrences, type TxEntry } from "@/lib/recurrence";
+import { THAI_MONTHS_SHORT } from "@/lib/period";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface UpcomingBillsProps {
@@ -27,7 +28,7 @@ interface BillItem {
 function formatThaiDate(dateStr: string): string {
   const d = new Date(dateStr);
   const day = d.getDate();
-  const thaiMonth = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."][d.getMonth()];
+  const thaiMonth = THAI_MONTHS_SHORT[d.getMonth()];
   const buddhistYear = d.getFullYear() + 543;
   return `${day} ${thaiMonth} ${buddhistYear}`;
 }

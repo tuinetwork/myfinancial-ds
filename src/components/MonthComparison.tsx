@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import type { BudgetData } from "@/hooks/useBudgetData";
 import type { Account } from "@/types/finance";
 import { LIABILITY_TYPES, getMainAccount } from "@/lib/wallet-balance";
+import { getPreviousPeriod } from "@/lib/period";
 
 interface Props {
   data: BudgetData;
@@ -16,13 +17,6 @@ interface Props {
 
 function formatCurrency(n: number) {
   return `฿${Math.abs(n).toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
-
-function getPrevPeriod(period: string): string {
-  const [y, m] = period.split("-").map(Number);
-  const pm = m === 1 ? 12 : m - 1;
-  const py = m === 1 ? y - 1 : y;
-  return `${py}-${String(pm).padStart(2, "0")}`;
 }
 
 type TooltipRow = { label: string; value: string; highlight?: boolean; color?: "green" | "red" };
@@ -99,7 +93,7 @@ export function MonthComparison({ data }: Props) {
   const [prevCarryOver, setPrevCarryOver] = useState<number>(0);
   const [accounts, setAccounts] = useState<Account[]>([]);
 
-  const prevPeriod = getPrevPeriod(data.period);
+  const prevPeriod = getPreviousPeriod(data.period);
 
   useEffect(() => {
     if (!userId || !data.period) return;

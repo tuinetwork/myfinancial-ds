@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { expandRecurrence } from "@/lib/recurrence";
-import { getCurrentPeriod } from "@/lib/period";
+import { getCurrentPeriod, THAI_MONTHS_SHORT } from "@/lib/period";
 import { useSearchParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -94,7 +94,6 @@ const Analysis = () => {
   // Monthly comparison data
   const monthlyComparison = useMemo(() => {
     if (!yearlyData) return [];
-    const THAI_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
     const currentPeriod = getCurrentPeriod();
     
     return yearlyData.months
@@ -114,7 +113,7 @@ const Analysis = () => {
         const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
         
         return {
-          name: THAI_SHORT[idx] || month,
+          name: THAI_MONTHS_SHORT[idx] || month,
           รายรับ: income,
           รายจ่าย: expense,
           คงเหลือ: income - expense,

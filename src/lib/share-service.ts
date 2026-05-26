@@ -3,6 +3,7 @@ import {
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { BudgetData } from "@/hooks/useBudgetData";
+import { getThaiMonthName } from "@/lib/period";
 
 export interface SharedReportSnapshot {
   period: string;
@@ -33,14 +34,9 @@ export interface SharedReport {
   snapshot: SharedReportSnapshot;
 }
 
-const THAI_MONTHS = [
-  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
-];
-
 function buildSnapshot(data: BudgetData, carryOver: number): SharedReportSnapshot {
   const [yearStr, monthStr] = data.period.split("-");
-  const monthName = `${THAI_MONTHS[parseInt(monthStr, 10) - 1]} ${yearStr}`;
+  const monthName = `${getThaiMonthName(parseInt(monthStr, 10))} ${yearStr}`;
 
   const activeTransactions = data.transactions.filter(
     (t) => t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี"

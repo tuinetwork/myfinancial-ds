@@ -16,7 +16,10 @@ import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAccounts } from "@/lib/firestore-services";
 import { getMainAccount } from "@/lib/wallet-balance";
-import { getCurrentPeriod, formatPeriod } from "@/lib/period";
+import { getCurrentPeriod, formatPeriod, getPreviousPeriod, THAI_MONTHS_FULL, getThaiMonthName } from "@/lib/period";
+
+// Re-export for callers that still import from this module
+export { getPreviousPeriod };
 import type { Account } from "@/types/finance";
 
 export interface BudgetItem {
@@ -72,15 +75,9 @@ export interface MonthOption {
   label: string;
 }
 
-const THAI_MONTHS = [
-  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
-];
-
 function periodToMonthName(period: string): string {
   const [, monthStr] = period.split("-");
-  const idx = parseInt(monthStr, 10) - 1;
-  return THAI_MONTHS[idx] ?? period;
+  return getThaiMonthName(parseInt(monthStr, 10)) || period;
 }
 
 const EXPENSE_CATEGORY_MAP: Record<string, keyof BudgetData["expenses"]> = {
@@ -213,17 +210,6 @@ function enrichTransferCategories(
   });
 }
 
-export function getPreviousPeriod(period: string): string {
-  const [yearStr, monthStr] = period.split("-");
-  let year = parseInt(yearStr, 10);
-  let month = parseInt(monthStr, 10) - 1; // go back one month
-  if (month < 1) {
-    month = 12;
-    year -= 1;
-  }
-  return `${year}-${String(month).padStart(2, "0")}`;
-}
-
 /** หา id กระเป๋าหลัก + typeById ของทุก account */
 async function loadAccountContext(userId: string): Promise<{
   mainWalletId: string | null;
@@ -297,7 +283,7 @@ function getCurrentMonthOption(): MonthOption {
   const now = new Date();
   const period = formatPeriod(now);
   const [year, month] = period.split("-");
-  const monthName = THAI_MONTHS[now.getMonth()];
+  const monthName = THAI_MONTHS_FULL[now.getMonth()];
   return { year, month, monthName, period, label: `${monthName} ${year}` };
 }
 
@@ -309,7 +295,7 @@ function getNextMonthOption(): MonthOption {
   const year = String(y);
   const month = String(m).padStart(2, "0");
   const period = `${year}-${month}`;
-  const monthName = THAI_MONTHS[m - 1];
+  const monthName = THAI_MONTHS_FULL[m - 1];
   return { year, month, monthName, period, label: `${monthName} ${year}` };
 }
 

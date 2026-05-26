@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { firestore } from "@/lib/firebase";
 import { format as fnsFormat, parse as fnsParse } from "date-fns";
 import { buildRRule, getFrequencyType, formatFrequencyThai, expandRecurrence, matchTxToOccurrences, type TxEntry } from "@/lib/recurrence";
-import { getCurrentPeriod } from "@/lib/period";
+import { getCurrentPeriod, getNextPeriod, THAI_MONTHS_FULL, THAI_MONTHS_SHORT } from "@/lib/period";
 import { th } from "date-fns/locale";
 import { useAvailableMonthsWithNextMonth, createBudgetFromLatest } from "@/hooks/useBudgetData";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -109,8 +109,7 @@ function formatThaiDate(dateStr: string | null): string {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return "-";
     const day = d.getDate();
-    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-    const month = thaiMonths[d.getMonth()];
+    const month = THAI_MONTHS_SHORT[d.getMonth()];
     const buddhistYear = d.getFullYear() + 543;
     return `${day} ${month} ${buddhistYear}`;
   } catch {
@@ -346,8 +345,7 @@ const DueDatePicker = ({
           className={cn("p-3 pointer-events-auto")}
           formatters={{
             formatCaption: (date) => {
-              const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
-              return `${thaiMonths[date.getMonth()]} ${date.getFullYear() + 543}`;
+              return `${THAI_MONTHS_FULL[date.getMonth()]} ${date.getFullYear() + 543}`;
             },
             formatDay: (date) => String(date.getDate()),
           }}
@@ -637,8 +635,7 @@ const BudgetTable = ({
                                   const sp = getSourcePeriod(startDt);
                                   if (!sp) return "ข้อมูลจากเดือนต้นทาง";
                                   const [y, m] = sp.split("-");
-                                  const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-                                  return `ข้อมูลจากเดือน ${monthNames[parseInt(m, 10) - 1]} ${y} (แก้ไขไม่ได้)`;
+                                  return `ข้อมูลจากเดือน ${THAI_MONTHS_SHORT[parseInt(m, 10) - 1]} ${y} (แก้ไขไม่ได้)`;
                                 })()}
                               </TooltipContent>
                             </Tooltip>
@@ -996,13 +993,6 @@ const BudgetSettings = () => {
     }
     setSaving(false);
   };
-  const getNextPeriod = (p: string) => {
-    const [y, m] = p.split("-").map(Number);
-    let ny = y, nm = m + 1;
-    if (nm > 12) { nm = 1; ny++; }
-    return `${ny}-${String(nm).padStart(2, "0")}`;
-  };
-
   const handleCopyToNextMonth = async () => {
     if (!userId || !period || !budgetData) return;
     setCopying(true);

@@ -35,6 +35,7 @@ import { th } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { BudgetData, Transaction, formatCurrency } from "@/hooks/useBudgetData";
 import { deleteTransactionAtomic, updateTransactionAtomic } from "@/lib/firestore-services";
+import { THAI_MONTHS_SHORT } from "@/lib/period";
 import { toast } from "sonner";
 import { Account } from "@/types/finance";
 
@@ -46,7 +47,7 @@ interface Props {
 }
 
 function formatDate(dateStr: string) {
-  const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+  const monthNames = THAI_MONTHS_SHORT;
   const isoParts = dateStr.split("-");
   if (isoParts.length === 3 && isoParts[0].length === 4) {
     const year = parseInt(isoParts[0], 10);

@@ -22,6 +22,7 @@ import {
 } from "@/lib/wallet-balance";
 import { isTransferTx } from "@/lib/transaction-helpers";
 import { useTrueNetWorth } from "@/hooks/useTrueNetWorth";
+import { THAI_MONTHS_SHORT } from "@/lib/period";
 import type { Account, Goal, Investment } from "@/types/finance";
 import { cn } from "@/lib/utils";
 import {
@@ -40,7 +41,6 @@ import {
 } from "recharts";
 
 // ===== Helpers =====
-const THAI_MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
 const fmt = (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 

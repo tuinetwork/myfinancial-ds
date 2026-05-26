@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { formatCurrency } from "@/hooks/useBudgetData";
 import { YearlyData } from "@/hooks/useYearlyData";
+import { THAI_MONTHS_SHORT } from "@/lib/period";
 
 interface Props {
   yearlyData: YearlyData;
@@ -39,8 +40,8 @@ function getTypeBadgeClass(type: string) {
 }
 
 function formatDate(dateStr: string) {
-  const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-  
+  const monthNames = THAI_MONTHS_SHORT;
+
   // Handle DD/MM/YYYY
   const slashParts = dateStr.split("/");
   if (slashParts.length === 3) {
@@ -83,11 +84,10 @@ export function YearlyTransactionTable({ yearlyData }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  const thaiMonthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
   const formatPeriodThai = (period: string) => {
     const [y, m] = period.split("-");
     const thaiYear = (parseInt(y, 10) + 543) % 100;
-    return `${thaiMonthNames[parseInt(m, 10) - 1]} ${thaiYear}`;
+    return `${THAI_MONTHS_SHORT[parseInt(m, 10) - 1]} ${thaiYear}`;
   };
   const monthOptions = yearlyData.months.map((m) => m.month);
 

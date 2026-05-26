@@ -2,13 +2,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/hooks/useBudgetData";
 import { YearlyData } from "@/hooks/useYearlyData";
 import { TrendingUp, TrendingDown } from "lucide-react";
-
-const SHORT_THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+import { THAI_MONTHS_SHORT, getCurrentPeriod } from "@/lib/period";
 
 function formatPeriodThai(period: string) {
   const [y, m] = period.split("-");
   const thaiYear = (parseInt(y, 10) + 543) % 100;
-  return `${SHORT_THAI_MONTHS[parseInt(m, 10) - 1]} ${thaiYear}`;
+  return `${THAI_MONTHS_SHORT[parseInt(m, 10) - 1]} ${thaiYear}`;
 }
 
 interface Props {
@@ -16,8 +15,7 @@ interface Props {
 }
 
 export function MonthlyHighlights({ yearlyData }: Props) {
-  const now = new Date();
-  const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const currentPeriod = getCurrentPeriod();
   const monthStats = yearlyData.months.filter(({ month }) => month <= currentPeriod).map(({ month, data }) => {
     const expense = data.transactions
       .filter((t) => t.type !== "รายรับ" && t.type !== "โอน" && t.type !== "โอนระหว่างบัญชี" && t.category !== "โอนระหว่างบัญชี")

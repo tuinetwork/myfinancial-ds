@@ -2,6 +2,7 @@ import { useMemo, useRef, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
 import { isTransferTx } from "@/lib/transaction-helpers";
+import { THAI_MONTHS_SHORT } from "@/lib/period";
 import { ArrowUpRight, ArrowDownRight, Clock, ArrowRightLeft } from "lucide-react";
 
 interface Props {
@@ -41,8 +42,7 @@ export function RecentTransactions({ data }: Props) {
     const parts = dateStr.split("-");
     const day = parseInt(parts[parts.length - 1] || "0", 10);
     const month = parts.length >= 2 ? parseInt(parts[parts.length - 2], 10) : 0;
-    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-    return `${day} ${thaiMonths[month - 1] || ""}`;
+    return `${day} ${THAI_MONTHS_SHORT[month - 1] || ""}`;
   };
 
   return (

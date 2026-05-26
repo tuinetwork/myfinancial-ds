@@ -4,7 +4,7 @@ import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { createGoal, updateGoal, softDeleteGoal, createTransactionAtomic, getDefaultAccount } from "@/lib/firestore-services";
-import { formatPeriod } from "@/lib/period";
+import { formatPeriod, THAI_MONTHS_SHORT } from "@/lib/period";
 import type { Goal, GoalType, Account } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -100,7 +100,6 @@ function countTotalInstallments(item: BudgetItem): number {
   return count;
 }
 
-const THAI_MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
 const GOAL_COLORS = [
   "hsl(var(--primary))",

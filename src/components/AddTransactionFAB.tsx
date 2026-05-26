@@ -14,6 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { THAI_MONTHS_SHORT } from "@/lib/period";
 import { toast } from "sonner";
 import { getIconByName } from "@/components/IconPicker";
 import type { Account } from "@/types/finance";
@@ -335,9 +336,8 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
   const thaiDate = (() => {
     const d = date;
     const day = d.getDate();
-    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
     const thaiYear = (d.getFullYear() + 543) % 100;
-    return `${day} ${thaiMonths[d.getMonth()]} ${thaiYear}`;
+    return `${day} ${THAI_MONTHS_SHORT[d.getMonth()]} ${thaiYear}`;
   })();
 
   const getCategoryIcon = (catName: string) => {

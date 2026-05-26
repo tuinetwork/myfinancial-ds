@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { doc, getDoc, updateDoc, onSnapshot, collection, query, where, getDocs, arrayUnion, arrayRemove } from "firebase/firestore";
 import { expandRecurrence, formatFrequencyThai, matchTxToOccurrences, parseRRule, type TxEntry, type TxMatchResult } from "@/lib/recurrence";
-import { formatDateYMD } from "@/lib/period";
+import { formatDateYMD, THAI_MONTHS_FULL, THAI_MONTHS_SHORT } from "@/lib/period";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { firestore } from "@/lib/firebase";
@@ -51,11 +51,6 @@ interface DueDateItem {
   txDate?: string; // actual transaction date that matched
 }
 
-const THAI_MONTHS = [
-  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
-];
-
 const THAI_WEEKDAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 
 const CATEGORY_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -68,7 +63,7 @@ const CATEGORY_ICON_MAP: Record<string, React.ComponentType<{ className?: string
 function formatThaiDate(dateStr: string): string {
   const d = new Date(dateStr);
   const day = d.getDate();
-  const thaiMonth = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."][d.getMonth()];
+  const thaiMonth = THAI_MONTHS_SHORT[d.getMonth()];
   const buddhistYear = d.getFullYear() + 543;
   return `${day} ${thaiMonth} ${buddhistYear}`;
 }
@@ -804,7 +799,7 @@ const CalendarPage = () => {
                       </Button>
                       <CardTitle className="text-lg flex items-center gap-2">
                         <CalendarDays className="h-5 w-5 text-primary" />
-                        {THAI_MONTHS[month]} {year + 543}
+                        {THAI_MONTHS_FULL[month]} {year + 543}
                       </CardTitle>
                       <Button variant="ghost" size="icon" onClick={goToNextMonth} className="rounded-full hover:bg-primary/10">
                         <ChevronRight className="h-5 w-5" />

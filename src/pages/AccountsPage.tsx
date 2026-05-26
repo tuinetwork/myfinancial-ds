@@ -7,6 +7,7 @@ import { usePrivacy } from "@/contexts/PrivacyContext";
 import { createAccount, updateAccount, deleteAccountWithTransactions, createGoal } from "@/lib/firestore-services";
 import { reconstructMainWallet, isMainAccount, LIABILITY_TYPES } from "@/lib/wallet-balance";
 import { useTrueNetWorth } from "@/hooks/useTrueNetWorth";
+import { THAI_MONTHS_SHORT } from "@/lib/period";
 import type { Account, AccountType } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -183,7 +184,6 @@ function BalanceComparisonChart({ assets, liabilities, privacyMode, formatBalanc
   );
 }
 
-const THAI_MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
 function NetWorthTrendChart({ userId, privacyMode, formatBalance }: {
   userId: string;
