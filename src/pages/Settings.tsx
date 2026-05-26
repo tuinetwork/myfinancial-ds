@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { firestore } from "@/lib/firebase";
 import { format as fnsFormat, parse as fnsParse } from "date-fns";
 import { buildRRule, getFrequencyType, formatFrequencyThai, expandRecurrence, matchTxToOccurrences, type TxEntry } from "@/lib/recurrence";
+import { getCurrentPeriod } from "@/lib/period";
 import { th } from "date-fns/locale";
 import { useAvailableMonthsWithNextMonth, createBudgetFromLatest } from "@/hooks/useBudgetData";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -813,7 +814,7 @@ const BudgetSettings = () => {
   const monthsForYear = useMemo(() => {
     if (!months || !selectedYear) return [];
     const today = new Date();
-    const currentPeriod = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    const currentPeriod = getCurrentPeriod();
     const daysLeft = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate();
     const canAccessNextMonth = daysLeft <= 5;
     return months
@@ -1215,11 +1216,7 @@ const BudgetSettings = () => {
           </Select>
         )}
         <div className="ml-auto flex items-center gap-2">
-          {period && (() => {
-            const now = new Date();
-            const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-            return period === currentPeriod;
-          })() && (
+          {period && period === getCurrentPeriod() && (
             <Button onClick={() => setShowCopyConfirm(true)} disabled={copying || !budgetData} size="sm" variant="outline" className="gap-1.5">
               {copying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
               {copying ? "กำลังคัดลอก..." : "คัดลอกไปเดือนหน้า"}
@@ -2001,7 +1998,7 @@ const SavingsGoalSettings = () => {
   const monthsForYear = useMemo(() => {
     if (!months || !selectedYear) return [];
     const today = new Date();
-    const currentPeriod = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    const currentPeriod = getCurrentPeriod();
     const daysLeft = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate();
     const canAccessNextMonth = daysLeft <= 5;
     return months

@@ -16,6 +16,7 @@ import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAccounts } from "@/lib/firestore-services";
 import { getMainAccount } from "@/lib/wallet-balance";
+import { getCurrentPeriod, formatPeriod } from "@/lib/period";
 import type { Account } from "@/types/finance";
 
 export interface BudgetItem {
@@ -252,8 +253,7 @@ function aggregateNet(docs: any[]): number {
 /** carry[เดือนนี้] = carry[เดือนก่อน] + net[เดือนก่อน]
  *  Guard: เดือนปัจจุบันยังไม่จบ → ไม่ rollover net เข้า carry */
 async function syncCarryOver(userId: string, currentPeriod: string): Promise<void> {
-  const now = new Date();
-  const todayPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const todayPeriod = getCurrentPeriod();
 
   const prevPeriod = getPreviousPeriod(currentPeriod);
   const prevDocRef = doc(firestore, "users", userId, "budgets", prevPeriod);
@@ -295,9 +295,8 @@ async function syncCarryOver(userId: string, currentPeriod: string): Promise<voi
 
 function getCurrentMonthOption(): MonthOption {
   const now = new Date();
-  const year = String(now.getFullYear());
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const period = `${year}-${month}`;
+  const period = formatPeriod(now);
+  const [year, month] = period.split("-");
   const monthName = THAI_MONTHS[now.getMonth()];
   return { year, month, monthName, period, label: `${monthName} ${year}` };
 }

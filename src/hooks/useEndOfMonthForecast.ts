@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { BudgetData } from "./useBudgetData";
 import { useSettings } from "@/contexts/SettingsContext";
+import { getCurrentPeriod } from "@/lib/period";
 
 export interface ForecastResult {
   projectedBalance: number;
@@ -23,8 +24,7 @@ export function useEndOfMonthForecast(data: BudgetData | undefined, carryOver: n
     if (!data?.period) return null;
 
     const now = new Date();
-    const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const isCurrentMonth = data.period === currentPeriod;
+    const isCurrentMonth = data.period === getCurrentPeriod();
 
     const [yearStr, monthStr] = data.period.split("-");
     const year = parseInt(yearStr, 10);

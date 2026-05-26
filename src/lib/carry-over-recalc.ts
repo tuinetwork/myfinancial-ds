@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { LIABILITY_TYPES, CASH_EXCLUDED_LIAB_TYPES, getMainAccount } from "@/lib/wallet-balance";
+import { getCurrentPeriod } from "@/lib/period";
 import type { Account } from "@/types/finance";
 
 export interface CarryOverDiffRow {
@@ -49,8 +50,7 @@ export async function computeCorrectCarryOvers(
   });
 
   // 4) sort periods แล้วคำนวณ carry ไล่จากเก่าไปใหม่
-  const now = new Date();
-  const todayPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const todayPeriod = getCurrentPeriod();
 
   const allPeriods = new Set<string>();
   budgetMap.forEach((_, k) => allPeriods.add(k));

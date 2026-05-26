@@ -12,6 +12,7 @@ import { SettingsProvider } from "@/contexts/SettingsContext";
 import { doc, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { applyRecurringRules } from "@/lib/recurring-service";
+import { getCurrentPeriod } from "@/lib/period";
 import GoogleLogin from "./components/GoogleLogin";
 import AddTransactionFAB from "./components/AddTransactionFAB";
 import CalculatorFAB from "./components/CalculatorFAB";
@@ -149,9 +150,7 @@ function useApplyRecurring() {
   const { userId } = useAuth();
   useEffect(() => {
     if (!userId) return;
-    const now = new Date();
-    const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    applyRecurringRules(userId, period).catch(() => {/* silent */});
+    applyRecurringRules(userId, getCurrentPeriod()).catch(() => {/* silent */});
   }, [userId]);
 }
 

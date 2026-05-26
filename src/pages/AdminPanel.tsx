@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { getCurrentPeriod } from "@/lib/period";
 import { th } from "date-fns/locale";
 
 async function initializeNewUser(userId: string) {
@@ -55,7 +56,7 @@ async function initializeNewUser(userId: string) {
         await setDoc(doc(firestore, "users", userId, "categories", catType), sourceDoc.data());
       }
     }
-    const currentPeriod = format(new Date(), "yyyy-MM");
+    const currentPeriod = getCurrentPeriod();
     const budgetDoc = await getDoc(doc(firestore, "users", sourceUid, "budgets", currentPeriod));
     if (budgetDoc.exists()) {
       const sourceData = budgetDoc.data();

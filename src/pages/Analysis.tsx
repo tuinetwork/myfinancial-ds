@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { expandRecurrence } from "@/lib/recurrence";
+import { getCurrentPeriod } from "@/lib/period";
 import { useSearchParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -94,8 +95,7 @@ const Analysis = () => {
   const monthlyComparison = useMemo(() => {
     if (!yearlyData) return [];
     const THAI_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-    const now = new Date();
-    const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentPeriod = getCurrentPeriod();
     
     return yearlyData.months
       .filter(({ month }) => month <= currentPeriod)

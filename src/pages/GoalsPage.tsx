@@ -4,6 +4,7 @@ import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { createGoal, updateGoal, softDeleteGoal, createTransactionAtomic, getDefaultAccount } from "@/lib/firestore-services";
+import { formatPeriod } from "@/lib/period";
 import type { Goal, GoalType, Account } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -440,7 +441,7 @@ export default function GoalsPage() {
         sub_category: destAccount?.name || saveGoal.name,
         note: `ออมเงินเข้า ${saveGoal.name}`,
         date: now.toISOString().slice(0, 10),
-        month_year: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+        month_year: formatPeriod(now),
         from_account_id: saveFromAccountId,
         to_account_id: saveGoal.linked_account_id,
         created_at: Date.now(),

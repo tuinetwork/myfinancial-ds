@@ -8,6 +8,7 @@ import { MonthlyHighlights } from "@/components/MonthlyHighlights";
 import { YearlySummaryCard } from "@/components/YearlySummaryCard";
 import { YearlyData } from "@/hooks/useYearlyData";
 import { useWalletHistory } from "@/hooks/useWalletHistory";
+import { getCurrentPeriod } from "@/lib/period";
 import type { Account } from "@/types/finance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,10 +28,7 @@ export function YearlyView({ yearlyData, accounts = [] }: Props) {
   const { data: walletRows, isLoading: walletLoading } = useWalletHistory(yearlyData.year);
 
   // ตัด period ที่เกินเดือนปัจจุบันออก (เช่น เดือนที่ตั้ง budget ล่วงหน้า)
-  const currentPeriod = (() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  })();
+  const currentPeriod = getCurrentPeriod();
   const filteredWalletRows = walletRows?.filter((r) => r.period <= currentPeriod) ?? [];
 
   const lastWalletRow = filteredWalletRows.length > 0 ? filteredWalletRows[filteredWalletRows.length - 1] : null;

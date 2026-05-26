@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { doc, getDoc, updateDoc, onSnapshot, collection, query, where, getDocs, arrayUnion, arrayRemove } from "firebase/firestore";
 import { expandRecurrence, formatFrequencyThai, matchTxToOccurrences, parseRRule, type TxEntry, type TxMatchResult } from "@/lib/recurrence";
+import { formatDateYMD } from "@/lib/period";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { firestore } from "@/lib/firebase";
@@ -692,8 +693,7 @@ const CalendarPage = () => {
     }
   };
 
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const todayStr = formatDateYMD();
 
   const selectedItems = selectedDate ? itemsByDate[selectedDate] || [] : [];
 
@@ -839,7 +839,7 @@ const CalendarPage = () => {
 
                         {/* Day cells - all are Droppable */}
                         {days.map((d) => {
-                          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                          const dateStr = formatDateYMD(d);
                           const dayItems = itemsByDate[dateStr] || [];
                           const total = totalByDate[dateStr] || 0;
                           const isToday = dateStr === todayStr;
