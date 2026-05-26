@@ -15,6 +15,7 @@ import {
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAccounts } from "@/lib/firestore-services";
+import { getMainAccount } from "@/lib/wallet-balance";
 import type { Account } from "@/types/finance";
 
 export interface BudgetItem {
@@ -222,18 +223,15 @@ export function getPreviousPeriod(period: string): string {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
-const DEBT_TYPES = new Set(["loan", "payable", "credit_card", "chit"]);
-
 /** หา id กระเป๋าหลัก + typeById ของทุก account */
 async function loadAccountContext(userId: string): Promise<{
   mainWalletId: string | null;
   typeById: Map<string, string>;
 }> {
   const snap = await getDocs(collection(firestore, "users", userId, "accounts"));
-  const accs = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-  const main = accs.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted && a.is_active)
-    ?? accs.find((a) => a.type === "cash" && !a.is_deleted && a.is_active);
-  const typeById = new Map(accs.map((a) => [a.id as string, a.type as string]));
+  const accs = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Account[];
+  const main = getMainAccount(accs, { requireActive: true });
+  const typeById = new Map(accs.map((a) => [a.id, a.type]));
   return { mainWalletId: main?.id ?? null, typeById };
 }
 

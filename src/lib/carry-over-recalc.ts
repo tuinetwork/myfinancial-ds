@@ -1,6 +1,6 @@
 import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
-import { LIABILITY_TYPES, CASH_EXCLUDED_LIAB_TYPES } from "@/lib/wallet-balance";
+import { LIABILITY_TYPES, CASH_EXCLUDED_LIAB_TYPES, getMainAccount } from "@/lib/wallet-balance";
 import type { Account } from "@/types/finance";
 
 export interface CarryOverDiffRow {
@@ -111,8 +111,7 @@ export async function computeWalletHistory(
     .map((d) => ({ id: d.id, ...d.data() } as Account))
     .filter((a) => !a.is_deleted);
 
-  const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก")
-    ?? accounts.find((a) => a.type === "cash");
+  const main = getMainAccount(accounts);
 
   const currentBalance = new Map(accounts.map((a) => [a.id, Number(a.balance) || 0]));
 

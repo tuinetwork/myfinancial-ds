@@ -8,12 +8,11 @@ import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp, Info } from "lucide-re
 import { cn } from "@/lib/utils";
 import type { BudgetData } from "@/hooks/useBudgetData";
 import type { Account } from "@/types/finance";
+import { LIABILITY_TYPES, getMainAccount } from "@/lib/wallet-balance";
 
 interface Props {
   data: BudgetData;
 }
-
-const LIABILITY_TYPES = new Set(["credit_card", "loan", "payable", "chit"]);
 
 function formatCurrency(n: number) {
   return `฿${Math.abs(n).toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -140,8 +139,7 @@ export function MonthComparison({ data }: Props) {
   const accountMetrics = useMemo(() => {
     if (!accounts.length) return null;
 
-    const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก")
-      ?? accounts.find((a) => a.type === "cash");
+    const main = getMainAccount(accounts);
 
     // delta = ผลของ transaction เดือนปัจจุบันต่อยอดแต่ละบัญชี
     const delta = new Map<string, number>();

@@ -5,7 +5,8 @@ import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { createAccount, updateAccount, deleteAccountWithTransactions, createGoal } from "@/lib/firestore-services";
-import { reconstructMainWallet } from "@/lib/wallet-balance";
+import { reconstructMainWallet, isMainAccount, LIABILITY_TYPES } from "@/lib/wallet-balance";
+import { useTrueNetWorth } from "@/hooks/useTrueNetWorth";
 import type { Account, AccountType } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -51,7 +52,7 @@ const PIE_COLORS = [
   "hsl(10 80% 55%)",
 ];
 
-const liabilityTypes: string[] = ["credit_card", "loan", "payable", "chit"];
+const liabilityTypes: string[] = Array.from(LIABILITY_TYPES);
 
 // กราฟวงกลม: แสดงสัดส่วนตามประเภทบัญชี
 function AssetPieChart({ accounts, privacyMode, formatBalance, liabilityTypes }: {
@@ -282,27 +283,7 @@ export default function AccountsPage() {
   const [newInitialBalance, setNewInitialBalance] = useState("");
   const [editInitialBalance, setEditInitialBalance] = useState("");
 
-  // State เก็บความมั่งคั่งสุทธิที่แท้จริงจาก Transactions
-  const [trueNetWorth, setTrueNetWorth] = useState<number>(0);
-
-  const isMainAccount = (acc: Account) => acc.name === "กระเป๋าเงินสดหลัก";
-
-  // ดึงข้อมูล Transactions เพื่อหา True Net Worth (one-time read)
-  useEffect(() => {
-    if (!userId) return;
-    getDocs(collection(firestore, "users", userId, "transactions")).then((snap) => {
-      let income = 0;
-      let expense = 0;
-      snap.forEach(doc => {
-        const t = doc.data();
-        if (!t.is_deleted) {
-          if (t.type === 'income') income += (Number(t.amount) || 0);
-          if (t.type === 'expense') expense += (Number(t.amount) || 0);
-        }
-      });
-      setTrueNetWorth(income - expense);
-    });
-  }, [userId]);
+  const trueNetWorth = useTrueNetWorth(userId);
 
   const handleDelete = async () => {
     if (!userId || !deleteTarget) return;

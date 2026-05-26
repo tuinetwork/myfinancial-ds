@@ -4,7 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { BudgetData, Transaction, formatCurrency } from "@/hooks/useBudgetData";
 import { useSettings } from "@/contexts/SettingsContext";
-import { reconstructMainWallet } from "@/lib/wallet-balance";
+import {
+  reconstructMainWallet,
+  getMainAccount,
+  SAVINGS_INVESTMENT_TYPES,
+  BORROWING_DEBT_TYPES,
+} from "@/lib/wallet-balance";
 import type { Account } from "@/types/finance";
 
 interface Props {
@@ -117,15 +122,13 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
   // คำนวณ transfer ถอนจากบัญชีออม/ลงทุน → กระเป๋าหลัก
   const withdrawFromSavings = useMemo(() => {
     if (!accounts.length) return 0;
-    const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted)
-      ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
+    const main = getMainAccount(accounts);
     if (!main) return 0;
-    const savingsInvestmentTypes = new Set(["savings", "investment"]);
     const typeById = new Map(accounts.map((a) => [a.id, a.type]));
     return data.transactions
       .filter((t) => (t.type === "โอน" || t.type === "โอนระหว่างบัญชี")
         && t.to_account_id === main.id
-        && savingsInvestmentTypes.has(typeById.get(t.from_account_id ?? "") ?? ""))
+        && SAVINGS_INVESTMENT_TYPES.has(typeById.get(t.from_account_id ?? "") ?? ""))
       .reduce((s, t) => s + t.amount, 0);
   }, [data.transactions, accounts]);
 
@@ -154,27 +157,24 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
   // สินทรัพย์/หนี้สิน เฉพาะเดือนที่เลือก (cash-flow based)
   const { cashFlowAssets, cashFlowLiab, debtPaidMonthly } = useMemo(() => {
     if (!accounts.length) return { cashFlowAssets: 0, cashFlowLiab: 0, debtPaidMonthly: 0 };
-    const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted)
-      ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
+    const main = getMainAccount(accounts);
     const mainId = main?.id;
-    const savingsInvestTypes = new Set(["savings", "investment"]);
-    const debtTypes = new Set(["loan", "payable", "chit"]);
     const typeById = new Map(accounts.filter((a) => !a.is_deleted).map((a) => [a.id, a.type]));
     const assets = data.transactions
       .filter((t) =>
-        ((t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && t.from_account_id === mainId && savingsInvestTypes.has(typeById.get(t.to_account_id ?? "") ?? ""))
+        ((t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && t.from_account_id === mainId && SAVINGS_INVESTMENT_TYPES.has(typeById.get(t.to_account_id ?? "") ?? ""))
         || t.type === "เงินออม/การลงทุน"
       )
       .reduce((s, t) => s + t.amount, 0);
     const debtReceived = data.transactions
-      .filter((t) => (t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && debtTypes.has(typeById.get(t.from_account_id ?? "") ?? "") && t.to_account_id === mainId)
+      .filter((t) => (t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && BORROWING_DEBT_TYPES.has(typeById.get(t.from_account_id ?? "") ?? "") && t.to_account_id === mainId)
       .reduce((s, t) => s + t.amount, 0);
     // หนี้สินเดือนนี้ = หนี้ที่ก่อใหม่จริง (โอนจากบัญชีหนี้→กระเป๋าหลัก) เท่านั้น
     const liab = debtReceived;
     // ยอดชำระจริง: โอนจากกระเป๋าหลัก→สินเชื่อ/เจ้าหนี้ + รายจ่ายหมวดหนี้สิน
     const paid =
       data.transactions
-        .filter((t) => (t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && t.from_account_id === mainId && debtTypes.has(typeById.get(t.to_account_id ?? "") ?? ""))
+        .filter((t) => (t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && t.from_account_id === mainId && BORROWING_DEBT_TYPES.has(typeById.get(t.to_account_id ?? "") ?? ""))
         .reduce((s, t) => s + t.amount, 0) +
       data.transactions
         .filter((t) => t.type === "หนี้สิน")

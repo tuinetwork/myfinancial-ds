@@ -3,6 +3,7 @@ import {
   runTransaction, writeBatch,
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
+import { getMainAccount } from "@/lib/wallet-balance";
 import type { Account, Investment, Goal } from "@/types/finance";
 
 // ===== Helper: subcollection references =====
@@ -22,13 +23,8 @@ export async function getAccounts(userId: string): Promise<Account[]> {
 
 export async function getDefaultAccount(userId: string): Promise<Account | null> {
   const accounts = await getAccounts(userId);
-  // Prefer the main wallet, otherwise first active cash account
-  return (
-    accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก" && a.is_active) ||
-    accounts.find((a) => a.type === "cash" && a.is_active) ||
-    accounts[0] ||
-    null
-  );
+  // Prefer the main wallet, otherwise first active cash account, otherwise any account
+  return getMainAccount(accounts, { requireActive: true }) ?? accounts[0] ?? null;
 }
 
 export async function createAccount(

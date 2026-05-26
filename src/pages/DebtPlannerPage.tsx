@@ -4,6 +4,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, L
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
+import { LIABILITY_TYPES } from "@/lib/wallet-balance";
 import type { Account } from "@/types/finance";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -114,7 +115,7 @@ export default function DebtPlannerPage() {
   }, [userId]);
 
   const liabilityAccounts = useMemo(
-    () => accounts.filter((a) => a.is_active && !a.is_deleted && ["credit_card", "loan", "payable", "chit"].includes(a.type)),
+    () => accounts.filter((a) => a.is_active && !a.is_deleted && LIABILITY_TYPES.has(a.type)),
     [accounts]
   );
 

@@ -2,6 +2,7 @@ import {
   collection, getDocs, doc, setDoc, updateDoc, writeBatch, getDoc, runTransaction,
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
+import { MAIN_WALLET_NAME } from "@/lib/wallet-balance";
 import type { Account } from "@/types/finance";
 
 // ===== Log Types =====
@@ -116,7 +117,7 @@ export async function runAccountMigration(
     try {
       const accountsSnap = await getDocs(collection(firestore, "users", userId, "accounts"));
       const existingAccounts = accountsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const hasDefault = existingAccounts.some((a: any) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted);
+      const hasDefault = existingAccounts.some((a: any) => a.name === MAIN_WALLET_NAME && !a.is_deleted);
 
       const txSnap = await getDocs(collection(firestore, "users", userId, "transactions"));
       progress.totalTransactions += txSnap.size;
@@ -134,14 +135,14 @@ export async function runAccountMigration(
         const accountRef = doc(collection(firestore, "users", userId, "accounts"));
         defaultAccountId = accountRef.id;
         await setDoc(accountRef, {
-          name: "กระเป๋าเงินสดหลัก", type: "cash",
+          name: MAIN_WALLET_NAME, type: "cash",
           balance: Math.round(netBalance * 100) / 100, currency: "THB",
           is_active: true, is_deleted: false,
           created_at: Date.now(), updated_at: Date.now(),
         });
         progress.accountsCreated++;
       } else {
-        defaultAccountId = existingAccounts.find((a: any) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted)!.id;
+        defaultAccountId = existingAccounts.find((a: any) => a.name === MAIN_WALLET_NAME && !a.is_deleted)!.id;
       }
 
       const docsToUpdate = txSnap.docs.filter((d) => {

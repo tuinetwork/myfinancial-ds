@@ -12,7 +12,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAvailableMonths, useBudgetData, formatCurrency, type BudgetData, type BudgetItem } from "@/hooks/useBudgetData";
 import { expandRecurrence } from "@/lib/recurrence";
 import { getAccounts, getGoals, getInvestments } from "@/lib/firestore-services";
-import { reconstructMainWallet } from "@/lib/wallet-balance";
+import {
+  reconstructMainWallet,
+  isMainAccount,
+  getMainAccount,
+  LIABILITY_TYPES,
+  SAVINGS_INVESTMENT_TYPES,
+  BORROWING_DEBT_TYPES,
+} from "@/lib/wallet-balance";
+import { useTrueNetWorth } from "@/hooks/useTrueNetWorth";
 import type { Account, Goal, Investment } from "@/types/finance";
 import { cn } from "@/lib/utils";
 import {
@@ -32,7 +40,6 @@ import {
 
 // ===== Helpers =====
 const THAI_MONTHS_SHORT = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-const LIABILITY_TYPES_OVW = new Set(["credit_card", "loan", "payable", "chit"]);
 
 const fmt = (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -48,10 +55,7 @@ function formatThaiDateShort(dateStr: string): string {
 // ===== Net Worth Card =====
 function NetWorthCard({ accounts, trueNetWorth, loading }: { accounts: Account[]; trueNetWorth: number; loading: boolean }) {
   const { totalAssets, totalLiabilities, netWorth, breakdown } = useMemo(() => {
-    const liabilityTypes = ["credit_card", "loan", "payable", "chit"];
-    const isMainAccount = (a: Account) => a.name === "กระเป๋าเงินสดหลัก";
     const active = accounts.filter((a) => a.is_active && !a.is_deleted);
-
     const { mainBalance } = reconstructMainWallet(active, trueNetWorth);
 
     let assets = 0;
@@ -59,7 +63,7 @@ function NetWorthCard({ accounts, trueNetWorth, loading }: { accounts: Account[]
     const groups: Record<string, number> = {};
     active.forEach((a) => {
       const bal = isMainAccount(a) ? mainBalance : (Number(a.balance) || 0);
-      if (liabilityTypes.includes(a.type)) {
+      if (LIABILITY_TYPES.has(a.type)) {
         liabilities += Math.abs(bal);
         groups[a.type] = (groups[a.type] ?? 0) - Math.abs(bal);
       } else {
@@ -189,8 +193,6 @@ function AccountsSummary({ accounts, trueNetWorth, loading }: { accounts: Accoun
   const active = accounts.filter((a) => a.is_active && !a.is_deleted);
   if (active.length === 0) return null;
 
-  const liabilityTypes = ["credit_card", "loan", "payable", "chit"];
-  const isMainAccount = (a: Account) => a.name === "กระเป๋าเงินสดหลัก";
   const { mainBalance } = reconstructMainWallet(active, trueNetWorth);
 
   return (
@@ -204,7 +206,7 @@ function AccountsSummary({ accounts, trueNetWorth, loading }: { accounts: Accoun
       <CardContent className="space-y-1.5">
         {active.map((a) => {
           const bal = isMainAccount(a) ? mainBalance : (Number(a.balance) || 0);
-          const isLiability = liabilityTypes.includes(a.type);
+          const isLiability = LIABILITY_TYPES.has(a.type);
           return (
             <div key={a.id} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
               <span className="text-sm truncate">{a.name}</span>
@@ -695,32 +697,14 @@ export default function OverviewPage() {
   // Accounts, Goals, trueNetWorth
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
-  const [trueNetWorth, setTrueNetWorth] = useState(0);
   const [assetsLoading, setAssetsLoading] = useState(true);
+  const trueNetWorth = useTrueNetWorth(userId);
 
   useEffect(() => {
     if (!userId) return;
     Promise.all([getAccounts(userId), getGoals(userId)])
       .then(([a, g]) => { setAccounts(a); setGoals(g); })
       .finally(() => setAssetsLoading(false));
-
-    // Compute trueNetWorth from all transactions (same logic as AccountsPage)
-    import("firebase/firestore").then(({ collection, getDocs }) => {
-      import("@/lib/firebase").then(({ firestore }) => {
-        getDocs(collection(firestore, "users", userId, "transactions")).then((snap) => {
-          let income = 0;
-          let expense = 0;
-          snap.forEach((d) => {
-            const t = d.data();
-            if (!t.is_deleted) {
-              if (t.type === "income") income += Number(t.amount) || 0;
-              if (t.type === "expense") expense += Number(t.amount) || 0;
-            }
-          });
-          setTrueNetWorth(income - expense);
-        });
-      });
-    });
   }, [userId]);
 
   // Load last 6 months budget data
@@ -742,23 +726,20 @@ export default function OverviewPage() {
   const comparisonData = useMemo(() => {
     if (!latestData || !accounts.length) return null;
 
-    const main = accounts.find((a) => a.name === "กระเป๋าเงินสดหลัก" && !a.is_deleted)
-      ?? accounts.find((a) => a.type === "cash" && !a.is_deleted);
+    const main = getMainAccount(accounts);
     const mainId = main?.id;
-    const savingsInvestTypes = new Set(["savings", "investment"]);
-    const debtTypes = new Set(["loan", "payable", "chit"]);
     const accountTypeById = new Map(accounts.filter((a) => !a.is_deleted).map((a) => [a.id, a.type]));
 
     const curAssets = latestData.transactions
       .filter((t) =>
-        ((t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && t.from_account_id === mainId && savingsInvestTypes.has(accountTypeById.get(t.to_account_id ?? "") ?? ""))
+        ((t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && t.from_account_id === mainId && SAVINGS_INVESTMENT_TYPES.has(accountTypeById.get(t.to_account_id ?? "") ?? ""))
         || t.type === "เงินออม/การลงทุน"
       )
       .reduce((s, t) => s + t.amount, 0);
 
     const debtReceived = latestData.transactions
       .filter((t) =>
-        (t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && debtTypes.has(accountTypeById.get(t.from_account_id ?? "") ?? "") && t.to_account_id === mainId
+        (t.type === "โอน" || t.type === "โอนระหว่างบัญชี") && BORROWING_DEBT_TYPES.has(accountTypeById.get(t.from_account_id ?? "") ?? "") && t.to_account_id === mainId
       )
       .reduce((s, t) => s + t.amount, 0);
     // หนี้สินเดือนนี้ = หนี้ที่ก่อใหม่จริง (โอนจากบัญชีหนี้→กระเป๋าหลัก) เท่านั้น
