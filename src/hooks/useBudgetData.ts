@@ -34,21 +34,10 @@ export interface BudgetItem {
   mainCategory?: string;
 }
 
-export interface Transaction {
-  id: string;
-  date: string;
-  amount: number;
-  type: string;
-  category: string;
-  main_category?: string;
-  description: string;
-  // Extended fields (backward compatible)
-  from_account_id?: string;
-  to_account_id?: string;
-  tags?: string[];
-  is_deleted?: boolean;
-  created_at?: number;
-}
+import { mapTransaction, EXPENSE_CATEGORY_MAP, type Transaction } from "@/lib/transaction-helpers";
+
+// Re-export for callers that still import from this module
+export type { Transaction };
 
 export interface BudgetData {
   status: string;
@@ -79,22 +68,6 @@ function periodToMonthName(period: string): string {
   const [, monthStr] = period.split("-");
   return getThaiMonthName(parseInt(monthStr, 10)) || period;
 }
-
-const EXPENSE_CATEGORY_MAP: Record<string, keyof BudgetData["expenses"]> = {
-  "ค่าใช้จ่ายทั่วไป": "general",
-  "บิลและสาธารณูปโภค": "bills",
-  "หนี้สิน": "debts",
-  "ค่าสมาชิกรายเดือน": "subscriptions",
-  "เงินออมและการลงทุน": "savings",
-};
-
-const MAIN_CATEGORY_TYPE_MAP: Record<string, string> = {
-  "ค่าใช้จ่ายทั่วไป": "ค่าใช้จ่าย",
-  "บิลและสาธารณูปโภค": "บิล/สาธารณูปโภค",
-  "หนี้สิน": "หนี้สิน",
-  "ค่าสมาชิกรายเดือน": "ค่าสมาชิกรายเดือน",
-  "เงินออมและการลงทุน": "เงินออม/การลงทุน",
-};
 
 function budgetsCollection(userId: string) {
   return collection(firestore, "users", userId, "budgets");
@@ -164,33 +137,6 @@ function parseBudgetDoc(
     expenses,
     transactions,
     carryOver,
-  };
-}
-
-function mapTransaction(docId: string, docData: Record<string, unknown>): Transaction {
-  const type = docData.type as string;
-  const mainCategory = (docData.main_category as string) ?? "";
-  let mappedType: string;
-  if (type === "income") {
-    mappedType = "รายรับ";
-  } else if (type === "transfer") {
-    mappedType = "โอน";
-  } else {
-    mappedType = MAIN_CATEGORY_TYPE_MAP[mainCategory] ?? "ค่าใช้จ่าย";
-  }
-
-  return {
-    id: docId,
-    date: (docData.date as string) ?? "",
-    amount: (docData.amount as number) ?? 0,
-    type: mappedType,
-    main_category: mainCategory || undefined,
-    category: (docData.sub_category as string) ?? "",
-    description: (docData.note as string) ?? "",
-    from_account_id: (docData.from_account_id as string) || undefined,
-    to_account_id: (docData.to_account_id as string) || undefined,
-    tags: (docData.tags as string[]) || undefined,
-    created_at: (docData.created_at as number) || undefined,
   };
 }
 

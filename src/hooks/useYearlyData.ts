@@ -13,44 +13,7 @@ import { BudgetData, BudgetItem, Transaction } from "./useBudgetData";
 import { useAuth } from "@/contexts/AuthContext";
 import { expandRecurrence } from "@/lib/recurrence";
 import { THAI_MONTHS_FULL } from "@/lib/period";
-
-const EXPENSE_CATEGORY_MAP: Record<string, keyof BudgetData["expenses"]> = {
-  "ค่าใช้จ่ายทั่วไป": "general",
-  "บิลและสาธารณูปโภค": "bills",
-  "หนี้สิน": "debts",
-  "ค่าสมาชิกรายเดือน": "subscriptions",
-  "เงินออมและการลงทุน": "savings",
-};
-
-const MAIN_CATEGORY_TYPE_MAP: Record<string, string> = {
-  "ค่าใช้จ่ายทั่วไป": "ค่าใช้จ่าย",
-  "บิลและสาธารณูปโภค": "บิล/สาธารณูปโภค",
-  "หนี้สิน": "หนี้สิน",
-  "ค่าสมาชิกรายเดือน": "ค่าสมาชิกรายเดือน",
-  "เงินออมและการลงทุน": "เงินออม/การลงทุน",
-};
-
-function mapTransaction(docId: string, docData: Record<string, unknown>): Transaction {
-  const type = docData.type as string;
-  const mainCategory = (docData.main_category as string) ?? "";
-  let mappedType: string;
-  if (type === "income") {
-    mappedType = "รายรับ";
-  } else if (type === "transfer") {
-    mappedType = "โอน";
-  } else {
-    mappedType = MAIN_CATEGORY_TYPE_MAP[mainCategory] ?? "ค่าใช้จ่าย";
-  }
-  return {
-    id: docId,
-    date: (docData.date as string) ?? "",
-    amount: (docData.amount as number) ?? 0,
-    type: mappedType,
-    category: (docData.sub_category as string) ?? "",
-    description: (docData.note as string) ?? "",
-    created_at: (docData.created_at as number) || undefined,
-  };
-}
+import { mapTransaction, EXPENSE_CATEGORY_MAP } from "@/lib/transaction-helpers";
 
 export interface YearlyData {
   year: string;
