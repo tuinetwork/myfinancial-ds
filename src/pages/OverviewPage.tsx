@@ -20,6 +20,7 @@ import {
   SAVINGS_INVESTMENT_TYPES,
   BORROWING_DEBT_TYPES,
 } from "@/lib/wallet-balance";
+import { isTransferTx } from "@/lib/transaction-helpers";
 import { useTrueNetWorth } from "@/hooks/useTrueNetWorth";
 import type { Account, Goal, Investment } from "@/types/finance";
 import { cn } from "@/lib/utils";
@@ -635,7 +636,7 @@ function RecentTransactionsTable({ transactions, loading }: { transactions: Rece
             <tbody>
               {transactions.map((tx, i) => {
                 const isIncome = tx.type === "รายรับ";
-                const isTransfer = tx.type === "โอน" || tx.category === "โอนระหว่างบัญชี";
+                const isTransfer = isTransferTx(tx);
                 return (
                   <tr key={i} className="border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors">
                     <td className="px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-muted-foreground whitespace-nowrap">

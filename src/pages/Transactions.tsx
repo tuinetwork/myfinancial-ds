@@ -5,6 +5,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { GlobalInsights } from "@/components/GlobalInsights";
 import { AppFooter } from "@/components/AppFooter";
 import { useBudgetData, useAvailableMonths, Transaction } from "@/hooks/useBudgetData";
+import { isTransferTx } from "@/lib/transaction-helpers";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { TransactionTable } from "@/components/TransactionTable";
@@ -115,9 +116,7 @@ const Transactions = () => {
 
   const transferCount = useMemo(() => {
     if (!data) return 0;
-    return data.transactions.filter(
-      (t) => t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี"
-    ).length;
+    return data.transactions.filter(isTransferTx).length;
   }, [data]);
 
   const handleMutate = () => queryClient.invalidateQueries({ queryKey: ["budget-data"] });

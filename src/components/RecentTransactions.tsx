@@ -1,6 +1,7 @@
 import { useMemo, useRef, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetData, formatCurrency } from "@/hooks/useBudgetData";
+import { isTransferTx } from "@/lib/transaction-helpers";
 import { ArrowUpRight, ArrowDownRight, Clock, ArrowRightLeft } from "lucide-react";
 
 interface Props {
@@ -57,8 +58,7 @@ export function RecentTransactions({ data }: Props) {
           <p className="text-sm text-muted-foreground text-center py-4">ยังไม่มีรายการ</p>
         ) : (
           recent.map((t) => {
-            // เช็คว่าเป็นรายการโอนหรือไม่ (ตรวจสอบทั้ง type และ category เพื่อความแม่นยำ)
-            const isTransfer = t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
+            const isTransfer = isTransferTx(t);
             const isIncome = t.type === "รายรับ";
             const isNew = newIds.has(t.id);
 

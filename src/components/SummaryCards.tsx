@@ -10,6 +10,7 @@ import {
   SAVINGS_INVESTMENT_TYPES,
   BORROWING_DEBT_TYPES,
 } from "@/lib/wallet-balance";
+import { isTransferTx } from "@/lib/transaction-helpers";
 import type { Account } from "@/types/finance";
 
 interface Props {
@@ -99,8 +100,7 @@ function buildDailyTotals(
 export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOtherAssets, historicalLiabilities, historicalCashExcludedLiab, walletSnapshot }: Props) {
   const { includeCarryOver } = useSettings();
 
-  const isTransfer = (t: Transaction) =>
-    t.type === "โอน" || t.type === "โอนระหว่างบัญชี" || t.category === "โอนระหว่างบัญชี";
+  const isTransfer = isTransferTx;
 
   // สินทรัพย์อื่น + หนี้สิน + ส่วนที่ตัดออกจากเงินสดในมือ (chit)
   const { otherAssets, liabilities, cashExcludedLiab } = useMemo(() => {
