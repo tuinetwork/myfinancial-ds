@@ -409,16 +409,16 @@ function MonthCashFlowCard({ data, carryOver, loading, cashInHand, comparisonDat
   const forecast = useEndOfMonthForecast(data, carryOver);
   const { includeCarryOver } = useSettings();
 
-  const { actualIncome, actualExpense, incomeOnly, balance, avgDailyExpense, expenseDays } = useMemo(() => {
-    if (!data) return { actualIncome: 0, actualExpense: 0, incomeOnly: 0, balance: 0, avgDailyExpense: 0, expenseDays: 0 };
+  const { actualIncome, actualExpense, incomeOnly, balance, avgDailyExpense, elapsedDays } = useMemo(() => {
+    if (!data) return { actualIncome: 0, actualExpense: 0, incomeOnly: 0, balance: 0, avgDailyExpense: 0, elapsedDays: 0 };
     const active = data.transactions.filter((t) => t.type !== "โอน" && t.category !== "โอนระหว่างบัญชี");
     const inc = active.filter((t) => t.type === "รายรับ").reduce((s, t) => s + t.amount, 0);
-    const expTx = active.filter((t) => t.type !== "รายรับ");
-    const exp = expTx.reduce((s, t) => s + t.amount, 0);
-    const uniqueDays = new Set(expTx.map((t) => t.date)).size;
-    const avg = uniqueDays > 0 ? exp / uniqueDays : 0;
+    const exp = active.filter((t) => t.type !== "รายรับ").reduce((s, t) => s + t.amount, 0);
+    const now = new Date();
+    const elapsed = data.period === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}` ? now.getDate() : new Date(parseInt(data.period.split("-")[0], 10), parseInt(data.period.split("-")[1], 10), 0).getDate();
+    const avg = elapsed > 0 ? exp / elapsed : 0;
     const effectiveCarry = includeCarryOver ? carryOver : 0;
-    return { actualIncome: inc + effectiveCarry, incomeOnly: inc, actualExpense: exp, balance: inc + effectiveCarry - exp, avgDailyExpense: avg, expenseDays: uniqueDays };
+    return { actualIncome: inc + effectiveCarry, incomeOnly: inc, actualExpense: exp, balance: inc + effectiveCarry - exp, avgDailyExpense: avg, elapsedDays: elapsed };
   }, [data, carryOver, includeCarryOver]);
 
   if (loading || !data) return <Skeleton className="h-40 rounded-xl" />;
@@ -519,7 +519,7 @@ function MonthCashFlowCard({ data, carryOver, loading, cashInHand, comparisonDat
               <span className="tabular-nums">{formatCurrency(avgDailyExpense)}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">{expenseDays} วันที่มีรายจ่าย · เหลืออีก {forecast.remainingDays} วัน</span>
+              <span className="text-muted-foreground">{elapsedDays} วันที่ผ่านมา · เหลืออีก {forecast.remainingDays} วัน</span>
             </div>
           </div>
         )}
