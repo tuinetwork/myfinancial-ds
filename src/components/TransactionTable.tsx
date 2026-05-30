@@ -133,6 +133,10 @@ function getBalanceDeltas(tx: Transaction): { accountId: string; delta: number }
   if (tx.type === "โอนเงิน") {
     // Already handled by from/to above if present
   }
+  // Expense ที่ชำระหนี้: ลดยอดหนี้ในบัญชีหนี้ที่ระบุ (+amount เพราะ balance ของบัญชีหนี้เป็นค่าลบ)
+  if (tx.liability_account_id) {
+    deltas.push({ accountId: tx.liability_account_id, delta: tx.amount });
+  }
   return deltas;
 }
 

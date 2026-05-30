@@ -18,6 +18,7 @@ import { THAI_MONTHS_SHORT } from "@/lib/period";
 import { toast } from "sonner";
 import { getIconByName } from "@/components/IconPicker";
 import type { Account } from "@/types/finance";
+import { LIABILITY_TYPES } from "@/lib/wallet-balance";
 
 interface CategoryData {
   label: string;
@@ -83,6 +84,8 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [fromAccountId, setFromAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
+  // For expense ที่ชำระหนี้: ระบุบัญชีหนี้ที่ลดยอด
+  const [liabilityAccountId, setLiabilityAccountId] = useState("");
 
   // Tags
   const [tags, setTags] = useState<string[]>([]);
@@ -170,6 +173,7 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
     setSelectedAccountId("");
     setFromAccountId("");
     setToAccountId("");
+    setLiabilityAccountId("");
     setTags([]);
     setTagInput("");
   };
@@ -188,19 +192,27 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
     setMainCategory("");
     setSubCategory("");
     setCategoryStep(1);
+    setLiabilityAccountId("");
   };
 
   const handleMainCategorySelect = (cat: string) => {
     setMainCategory(cat);
     setSubCategory("");
     setCategoryStep(2);
+    if (cat !== "หนี้สิน") setLiabilityAccountId("");
   };
 
   const handleBackToMainCategories = () => {
     setCategoryStep(1);
     setMainCategory("");
     setSubCategory("");
+    setLiabilityAccountId("");
   };
+
+  const liabilityAccounts = useMemo(
+    () => accounts.filter((a) => LIABILITY_TYPES.has(a.type) && a.is_active && !a.is_deleted),
+    [accounts]
+  );
 
   const addTag = (tag: string) => {
     const t = tag.trim().replace(/^#/, "").slice(0, MAX_TAG_LENGTH);
@@ -307,6 +319,17 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
             txData.to_account_id = targetAccount.id;
             balanceUpdates.push({ accountId: targetAccount.id, delta: numAmount });
           }
+        }
+
+        // ชำระหนี้: ลดยอดหนี้ในบัญชีที่เลือก (balance ของบัญชีหนี้เก็บเป็นค่าลบ → +amount เพื่อลดยอดหนี้)
+        if (type === "expense" && mainCategory === "หนี้สิน" && liabilityAccountId) {
+          if (liabilityAccountId === selectedAccountId) {
+            toast.error("บัญชีต้นทางและบัญชีหนี้ที่ชำระต้องไม่เหมือนกัน");
+            setSaving(false);
+            return;
+          }
+          txData.liability_account_id = liabilityAccountId;
+          balanceUpdates.push({ accountId: liabilityAccountId, delta: numAmount });
         }
       }
 
@@ -501,6 +524,25 @@ const AddTransactionFAB = ({ open: externalOpen, onOpenChange }: FABProps = {}) 
                       <SelectTrigger className="bg-muted/50 border-border"><SelectValue placeholder="อัตโนมัติ (กระเป๋าหลัก)" /></SelectTrigger>
                       <SelectContent>
                         {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Liability account selector — แสดงเมื่อเป็น expense หมวด "หนี้สิน" */}
+                {type === "expense" && mainCategory === "หนี้สิน" && liabilityAccounts.length > 0 && (
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">
+                      บัญชีหนี้สินที่ชำระ <span className="text-[10px] opacity-70">(ลดยอดหนี้ในบัญชีอัตโนมัติ)</span>
+                    </label>
+                    <Select value={liabilityAccountId} onValueChange={setLiabilityAccountId}>
+                      <SelectTrigger className="bg-muted/50 border-border">
+                        <SelectValue placeholder="เลือกบัญชีหนี้ที่ชำระ (ไม่บังคับ)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {liabilityAccounts.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
