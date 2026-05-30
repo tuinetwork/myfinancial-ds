@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAccounts } from "@/lib/firestore-services";
+import type { Account } from "@/types/finance";
 import { subscribeRecurringRules, type RecurringRule } from "@/lib/recurring-service";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -52,6 +53,27 @@ interface DueDateItem {
 }
 
 const THAI_WEEKDAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
+
+// Resolve a transfer's sub_category for matching against budget items.
+// - investment/savings → destination account name (e.g. "ออมแชร์")
+// - chit → "ค่าแชร์" (matches the budget sub-category for chit payments)
+function buildResolveTransferSubCategory(accounts: Account[]) {
+  const accById = new Map(accounts.map((a) => [a.id, a]));
+  return (txData: Record<string, unknown>, currentSub: string): string => {
+    if (
+      txData.type === "transfer" &&
+      currentSub === "โอนระหว่างบัญชี" &&
+      typeof txData.to_account_id === "string"
+    ) {
+      const dest = accById.get(txData.to_account_id);
+      if (dest) {
+        if (dest.type === "investment" || dest.type === "savings") return dest.name;
+        if (dest.type === "chit") return "ค่าแชร์";
+      }
+    }
+    return currentSub;
+  };
+}
 
 const CATEGORY_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   "บิลและสาธารณูปโภค": Receipt,
@@ -296,16 +318,11 @@ const CalendarPage = () => {
       // Fetch ALL transactions for installment tx matching across months
       const txCol = collection(firestore, "users", userId, "transactions");
       Promise.all([getDocs(txCol), getAccounts(userId)]).then(([txSnap, accs]) => {
-        const investMap = new Map(accs.filter(a => a.type === "investment" || a.type === "savings").map(a => [a.id, a.name]));
+        const resolveTransferSub = buildResolveTransferSubCategory(accs);
         const allTxMap: Record<string, TxEntry[]> = {};
         txSnap.forEach((d) => {
           const data = d.data();
-          let subCat = (data.sub_category as string) ?? "";
-          // Resolve transfer sub_category to destination account name
-          if (data.type === "transfer" && subCat === "โอนระหว่างบัญชี" && data.to_account_id) {
-            const resolved = investMap.get(data.to_account_id as string);
-            if (resolved) subCat = resolved;
-          }
+          const subCat = resolveTransferSub(data, (data.sub_category as string) ?? "");
           const amount = (data.amount as number) ?? 0;
           const date = (data.date as string) ?? "";
           if (subCat && date) {
@@ -324,17 +341,13 @@ const CalendarPage = () => {
     const txCol = collection(firestore, "users", userId, "transactions");
     const txQ = query(txCol, where("month_year", "==", period));
     Promise.all([getDocs(txQ), getAccounts(userId)]).then(([txSnap, accs]) => {
-      const investMap = new Map(accs.filter(a => a.type === "investment" || a.type === "savings").map(a => [a.id, a.name]));
+      const resolveTransferSub = buildResolveTransferSubCategory(accs);
       const map: Record<string, TxEntry[]> = {};
       const spendMap: Record<string, number> = {};
       const detailMap: Record<string, { type: string; mainCategory: string; subCategory: string; amount: number; note?: string }[]> = {};
       txSnap.forEach((d) => {
         const data = d.data();
-        let subCat = (data.sub_category as string) ?? "";
-        if (data.type === "transfer" && subCat === "โอนระหว่างบัญชี" && data.to_account_id) {
-          const resolved = investMap.get(data.to_account_id as string);
-          if (resolved) subCat = resolved;
-        }
+        const subCat = resolveTransferSub(data, (data.sub_category as string) ?? "");
         const amount = (data.amount as number) ?? 0;
         const date = (data.date as string) ?? "";
         if (subCat && date) {
