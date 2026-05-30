@@ -20,8 +20,6 @@ export interface Transaction {
   // Extended fields (backward compatible)
   from_account_id?: string;
   to_account_id?: string;
-  /** สำหรับ expense ที่ชำระหนี้: id ของบัญชีหนี้ที่ลดยอด */
-  liability_account_id?: string;
   tags?: string[];
   is_deleted?: boolean;
   created_at?: number;
@@ -99,7 +97,6 @@ export function mapTransaction(
     description: (docData.note as string) ?? "",
     from_account_id: (docData.from_account_id as string) || undefined,
     to_account_id: (docData.to_account_id as string) || undefined,
-    liability_account_id: (docData.liability_account_id as string) || undefined,
     tags: (docData.tags as string[]) || undefined,
     created_at: (docData.created_at as number) || undefined,
   };
