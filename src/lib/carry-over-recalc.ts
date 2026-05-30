@@ -167,7 +167,7 @@ export async function computeWalletHistory(
   };
 
   // คำนวณ account state ต่อ period (จากหลังไปหน้า)
-  type AccountState = { otherAssets: number; liabilities: number; cashExcludedLiab: number; mainHistBal: number | null };
+  type AccountState = { otherAssets: number; liabilities: number; cashExcludedLiab: number };
   const periodAccountState = new Map<string, AccountState>();
 
   for (let i = sortedPeriods.length - 1; i >= 0; i--) {
@@ -176,13 +176,8 @@ export async function computeWalletHistory(
     let otherAssets = 0;
     let liabilities = 0;
     let cashExcludedLiab = 0;
-    let mainHistBal: number | null = null;
     for (const a of accounts) {
-      if (main && a.id === main.id) {
-        // อ่าน main wallet balance ย้อนหลังตรง ๆ (back-reconstruction จาก tx effects)
-        mainHistBal = (currentBalance.get(a.id) ?? 0) - (afterDelta.get(a.id) ?? 0);
-        continue;
-      }
+      if (main && a.id === main.id) continue;
       const cur = currentBalance.get(a.id) ?? 0;
       const after = afterDelta.get(a.id) ?? 0;
       const hist = cur - after;
@@ -195,7 +190,7 @@ export async function computeWalletHistory(
       }
     }
 
-    periodAccountState.set(period, { otherAssets, liabilities, cashExcludedLiab, mainHistBal });
+    periodAccountState.set(period, { otherAssets, liabilities, cashExcludedLiab });
 
     // เพิ่ม effects ของ period นี้เข้า afterDelta (เตรียมสำหรับ period ก่อนหน้า)
     applyPeriodToAfterDelta(period);
@@ -211,13 +206,9 @@ export async function computeWalletHistory(
       else if (t.type === "expense") expenses += amt;
     }
     const trueNetWorth = carryOver + income - expenses;
-    const state = periodAccountState.get(period) ?? { otherAssets: 0, liabilities: 0, cashExcludedLiab: 0, mainHistBal: null };
-    const { otherAssets, liabilities, cashExcludedLiab, mainHistBal } = state;
-    // mainWalletBalance: อ่านจาก main account.balance ย้อนหลังตรง ๆ ถ้ามี
-    // ไม่งั้น fall back สูตร trueNetWorth − otherAssets + (liabilities − cashExcludedLiab)
-    const mainWalletBalance = mainHistBal !== null
-      ? mainHistBal
-      : trueNetWorth - otherAssets + (liabilities - cashExcludedLiab);
+    const { otherAssets, liabilities, cashExcludedLiab } = periodAccountState.get(period) ?? { otherAssets: 0, liabilities: 0, cashExcludedLiab: 0 };
+    // mainWalletBalance: ตัด chit (ค่าแชร์) ออกเพราะไม่ใช่เงินในกระเป๋าจริง
+    const mainWalletBalance = trueNetWorth - otherAssets + (liabilities - cashExcludedLiab);
     return { period, carryOver, income, expenses, trueNetWorth, otherAssets, liabilities, cashExcludedLiab, mainWalletBalance };
   });
 }
