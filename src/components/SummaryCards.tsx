@@ -151,8 +151,17 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
   const effectiveCarryOver = includeCarryOver ? carryOver : 0;
   const displayIncome = actualIncome + withdrawFromSavings + effectiveCarryOver;
   const trueNetWorth = carryOver + actualIncome - actualNonIncome;
-  // เงินสดในมือ: ตัด chit (ค่าแชร์) ออกเพราะไม่ใช่เงินในกระเป๋าจริง
-  const computedWalletBalance = trueNetWorth - otherAssets + (liabilities - cashExcludedLiab);
+  // เงินสดในมือ:
+  //  - current period: อ่านจาก main account.balance ตรง ๆ (transfer atomic update ทำให้ค่าถูกต้องเสมอ)
+  //  - historical: ใช้สูตร trueNetWorth − otherAssets + (liabilities − cashExcludedLiab)
+  const isHistorical = historicalOtherAssets !== undefined;
+  const mainAccount = useMemo(
+    () => getMainAccount(accounts.filter((a) => !a.is_deleted)),
+    [accounts]
+  );
+  const computedWalletBalance = !isHistorical && mainAccount
+    ? (Number(mainAccount.balance) || 0)
+    : trueNetWorth - otherAssets + (liabilities - cashExcludedLiab);
 
   // สินทรัพย์/หนี้สิน เฉพาะเดือนที่เลือก (cash-flow based)
   const { cashFlowAssets, cashFlowLiab, debtPaidMonthly } = useMemo(() => {
@@ -233,9 +242,13 @@ export function SummaryCards({ data, carryOver = 0, accounts = [], historicalOth
     { label: "+ รายรับจริง",   value: fmtC(actualIncome) },
     { label: "− รายจ่ายจริง", value: fmtC(actualNonIncome) },
     { label: "= Net Worth",    value: `${trueNetWorth >= 0 ? "+" : ""}${trueNetWorth >= 0 ? fmtC(trueNetWorth) : `-${fmtC(trueNetWorth)}`}`, highlight: true, color: pctColor(trueNetWorth) },
-    { label: "− สินทรัพย์อื่น", value: fmtC(otherAssets) },
-    { label: "+ หนี้สิน",      value: fmtC(liabilities) },
-    { label: "= เงินสดในมือ",  value: `${computedWalletBalance >= 0 ? "" : "-"}${fmtC(computedWalletBalance)}`, highlight: true, color: computedWalletBalance >= 0 ? "green" as const : "red" as const },
+    ...(!isHistorical && mainAccount
+      ? [{ label: "เงินสดในมือ (จากกระเป๋าหลัก)", value: `${computedWalletBalance >= 0 ? "" : "-"}${fmtC(computedWalletBalance)}`, highlight: true, color: (computedWalletBalance >= 0 ? "green" : "red") as "green" | "red" }]
+      : [
+          { label: "− สินทรัพย์อื่น", value: fmtC(otherAssets) },
+          { label: "+ หนี้สิน",      value: fmtC(liabilities) },
+          { label: "= เงินสดในมือ",  value: `${computedWalletBalance >= 0 ? "" : "-"}${fmtC(computedWalletBalance)}`, highlight: true, color: (computedWalletBalance >= 0 ? "green" : "red") as "green" | "red" },
+        ]),
   ];
 
   const cards: {

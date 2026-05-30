@@ -77,8 +77,15 @@ export interface MainWalletBreakdown {
 }
 
 /**
- * คำนวณยอด "กระเป๋าเงินสดหลัก" จาก trueNetWorth + balance ของบัญชีอื่น
- * (snapshot ณ ปัจจุบัน — สำหรับ historical per-period ใช้ computeWalletHistory)
+ * คำนวณยอด "กระเป๋าเงินสดหลัก" (snapshot ณ ปัจจุบัน) พร้อม breakdown ของบัญชีอื่น
+ *
+ * mainBalance อ่านจาก main account.balance ตรง ๆ — เพราะ transfer ทุกครั้งอัพเดท
+ * ยอดบัญชีแบบ atomic อยู่แล้ว ยอด stored จึงเป็น source of truth
+ *
+ * Fallback (ถ้าไม่มี main account ในรายการ): ใช้สูตร
+ *   trueNetWorth − otherAssets + (liabilities − cashExcludedLiab)
+ *
+ * หมายเหตุ: สำหรับ historical per-period ใช้ computeWalletHistory
  */
 export function reconstructMainWallet(
   accounts: Account[],
@@ -87,9 +94,13 @@ export function reconstructMainWallet(
   let otherAssets = 0;
   let liabilities = 0;
   let cashExcludedLiab = 0;
+  let main: Account | undefined;
 
   for (const a of accounts) {
-    if (isMainAccount(a)) continue;
+    if (isMainAccount(a)) {
+      main = a;
+      continue;
+    }
     const bal = Number(a.balance) || 0;
     if (LIABILITY_TYPES.has(a.type)) {
       const absBal = Math.abs(bal);
@@ -100,7 +111,9 @@ export function reconstructMainWallet(
     }
   }
 
-  const mainBalance = trueNetWorth - otherAssets + (liabilities - cashExcludedLiab);
+  const mainBalance = main
+    ? (Number(main.balance) || 0)
+    : trueNetWorth - otherAssets + (liabilities - cashExcludedLiab);
   return { mainBalance, otherAssets, liabilities, cashExcludedLiab };
 }
 
